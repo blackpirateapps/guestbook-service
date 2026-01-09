@@ -4,7 +4,7 @@ import DOMPurify from 'dompurify';
 
 const SAFE_CONFIG = {
   ALLOWED_TAGS: ['h1', 'h2', 'h3', 'p', 'span', 'div', 'br', 'hr', 'b', 'i', 'strong', 'em', 'ul', 'li', 'img', 'a'],
-  ALLOWED_ATTR: ['href', 'src', 'alt', 'class', 'id', 'target', 'rel'], // removed 'style' from safety config too
+  ALLOWED_ATTR: ['href', 'src', 'alt', 'class', 'id', 'target', 'rel'],
 };
 
 DOMPurify.addHook('afterSanitizeAttributes', function (node) {
@@ -21,11 +21,12 @@ export default function PublicGuestbook({ overrideUsername }) {
   const [customCss, setCustomCss] = useState('');
   const [customHtml, setCustomHtml] = useState('');
   
+  // Form State
   const [senderName, setSenderName] = useState('');
   const [senderWebsite, setSenderWebsite] = useState('');
   const [message, setMessage] = useState('');
   const [isPrivate, setIsPrivate] = useState(false);
-  const [botField, setBotField] = useState('');
+  const [botField, setBotField] = useState(''); // Honeypot
 
   const [replyingTo, setReplyingTo] = useState(null);
 
@@ -93,28 +94,27 @@ export default function PublicGuestbook({ overrideUsername }) {
   const rootEntries = entries.filter(e => !e.parent_id);
   const getReplies = (parentId) => entries.filter(e => e.parent_id === parentId);
 
+  // Reusable Form
   const EntryForm = ({ isReply = false, onCancel }) => (
     <form onSubmit={handleSubmit}>
-      {/* HONEYPOT (Using hidden attribute instead of CSS) */}
+      
+      {/* HONEYPOT (Using hidden attribute) */}
       <input 
         type="text" 
         name="website_url_check" 
         value={botField} 
         onChange={e => setBotField(e.target.value)}
-        hidden
+        hidden 
         autoComplete="off"
       />
 
       <div>
-        <label>Name: </label>
-        <input placeholder="Name" value={senderName} onChange={e => setSenderName(e.target.value)} required />
+        <input placeholder="Name *" value={senderName} onChange={e => setSenderName(e.target.value)} required />
+        <input type="url" placeholder="Website (opt)" value={senderWebsite} onChange={e => setSenderWebsite(e.target.value)} />
       </div>
+      
       <div>
-        <label>Website: </label>
-        <input type="url" placeholder="Website" value={senderWebsite} onChange={e => setSenderWebsite(e.target.value)} />
-      </div>
-      <div>
-        <textarea rows="3" placeholder={isReply ? "Write a reply..." : "Write a message..."} value={message} onChange={e => setMessage(e.target.value)} required />
+        <textarea rows={isReply ? 2 : 4} placeholder={isReply ? "Write a reply..." : "Write a message..."} value={message} onChange={e => setMessage(e.target.value)} required />
       </div>
       
       <div>

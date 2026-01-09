@@ -8,6 +8,9 @@ export default function Dashboard() {
   const [connectedDomain, setConnectedDomain] = useState(null);
   const [requireApproval, setRequireApproval] = useState(false);
   
+  // Domain State
+  const [domainInput, setDomainInput] = useState('');
+  
   // Reply State
   const [replyingTo, setReplyingTo] = useState(null);
   const [replyMsg, setReplyMsg] = useState('');
@@ -22,9 +25,11 @@ export default function Dashboard() {
   }, [token]);
 
   async function fetchData() {
+    // Fetch Entries
     const entryRes = await fetch('/api/entries', { headers: { 'Authorization': `Bearer ${token}` } });
     if (entryRes.ok) setEntries(await entryRes.json());
 
+    // Fetch Profile
     const profileRes = await fetch(`/api/profile?username=${username}`);
     if (profileRes.ok) {
       const data = await profileRes.json();
@@ -34,6 +39,8 @@ export default function Dashboard() {
       setRequireApproval(data.require_approval === 1);
     }
   }
+
+  // --- ACTIONS ---
 
   async function saveSettings() {
     await fetch('/api/profile', {
@@ -46,6 +53,38 @@ export default function Dashboard() {
       })
     });
     alert('Settings saved!');
+  }
+
+  async function handleAddDomain() {
+    if (!domainInput) return;
+    if(!confirm(`Did you add the CNAME record for ${domainInput}?`)) return;
+
+    const res = await fetch('/api/domain', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ custom_domain: domainInput })
+    });
+
+    if (res.ok) {
+      alert("Domain connected!");
+      setConnectedDomain(domainInput);
+      setDomainInput('');
+    } else {
+      const data = await res.json();
+      alert("Error: " + data.error);
+    }
+  }
+
+  async function handleRemoveDomain() {
+    if(!confirm("Are you sure? This will take your site offline.")) return;
+    const res = await fetch('/api/domain', {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (res.ok) {
+      setConnectedDomain(null);
+      alert("Domain disconnected.");
+    }
   }
 
   async function approveEntry(id) {
@@ -71,7 +110,7 @@ export default function Dashboard() {
     if(!replyMsg.trim()) return;
     await fetch('/api/entries', {
       method: 'POST',
-      headers: { 'Authorization': `Bearer ${token}` },
+      headers: { 'Authorization': `Bearer ${token}` }, // Token = Verified Owner Reply
       body: JSON.stringify({
         owner_username: username,
         sender_name: username,
@@ -90,6 +129,31 @@ export default function Dashboard() {
       <button onClick={() => { localStorage.clear(); navigate('/'); }}>Logout</button>
       <hr />
 
+      {/* DOMAIN SECTION */}
+      <div>
+        <h3>Custom Domain</h3>
+        {connectedDomain ? (
+          <div>
+            <strong>Connected: </strong> 
+            <a href={`https://${connectedDomain}`} target="_blank">{connectedDomain}</a>
+            <br />
+            <button onClick={handleRemoveDomain}>Disconnect Domain</button>
+          </div>
+        ) : (
+          <div>
+            <p>1. Add CNAME record: cname.vercel-dns.com</p>
+            <input 
+              type="text" 
+              placeholder="guestbook.yoursite.com" 
+              value={domainInput}
+              onChange={e => setDomainInput(e.target.value)}
+            />
+            <button onClick={handleAddDomain}>Connect</button>
+          </div>
+        )}
+      </div>
+      <hr />
+
       {/* MODERATION SETTINGS */}
       <div>
         <h3>🛡️ Moderation</h3>
@@ -105,6 +169,17 @@ export default function Dashboard() {
       </div>
       <hr />
 
+      {/* DESIGN SETTINGS */}
+      <div>
+        <h3>Design</h3>
+        <label>CSS</label><br/>
+        <textarea rows="4" value={customCss} onChange={e => setCustomCss(e.target.value)} /><br/>
+        <label>HTML Header</label><br/>
+        <textarea rows="4" value={customHtml} onChange={e => setCustomHtml(e.target.value)} /><br/>
+        <button onClick={saveSettings}>Save Design</button>
+      </div>
+      <hr />
+
       {/* ENTRIES LIST */}
       <h3>Guestbook Entries</h3>
       
@@ -112,7 +187,7 @@ export default function Dashboard() {
         <div key={entry.id}>
           <hr />
           
-          {/* Status Indicators */}
+          {/* Status Badges */}
           <div>
             {entry.status === 'pending' && <strong>[PENDING] </strong>}
             {entry.is_private === 1 && <strong>[PRIVATE] </strong>}
