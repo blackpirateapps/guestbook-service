@@ -2,20 +2,10 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import DOMPurify from 'dompurify';
 
-// -----------------------------------------------------------------------------
-// SECURITY CONFIGURATION
-// -----------------------------------------------------------------------------
+// ... (Keep your SAFE_CONFIG and DOMPurify hook same as before) ...
 const SAFE_CONFIG = {
-  ALLOWED_TAGS: [
-    'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 
-    'p', 'span', 'div', 'br', 'hr',
-    'b', 'i', 'u', 'strong', 'em', 'small', 'big', 'blockquote', 'code', 'pre',
-    'ul', 'ol', 'li',
-    'img', 'a' 
-  ],
-  ALLOWED_ATTR: [
-    'href', 'src', 'alt', 'title', 'class', 'id', 'target', 'style', 'rel'
-  ],
+  ALLOWED_TAGS: ['h1', 'h2', 'h3', 'p', 'span', 'div', 'br', 'hr', 'b', 'i', 'strong', 'em', 'ul', 'li', 'img', 'a'],
+  ALLOWED_ATTR: ['href', 'src', 'alt', 'class', 'id', 'target', 'style', 'rel'],
 };
 
 DOMPurify.addHook('afterSanitizeAttributes', function (node) {
@@ -24,35 +14,25 @@ DOMPurify.addHook('afterSanitizeAttributes', function (node) {
   }
 });
 
-// -----------------------------------------------------------------------------
-// COMPONENT
-// -----------------------------------------------------------------------------
-// UPDATED: Now accepts 'overrideUsername' prop for Custom Domain support
 export default function PublicGuestbook({ overrideUsername }) {
   const { username: paramUsername } = useParams();
-  
-  // LOGIC: If App.jsx passes a username (because of a custom domain), use it.
-  // Otherwise, grab it from the URL path (/u/username).
   const username = overrideUsername || paramUsername;
 
   const [entries, setEntries] = useState([]);
+  const [customCss, setCustomCss] = useState('');
+  const [customHtml, setCustomHtml] = useState('');
   
   // Form State
   const [senderName, setSenderName] = useState('');
   const [senderWebsite, setSenderWebsite] = useState('');
   const [message, setMessage] = useState('');
   
-  // Design State
-  const [customCss, setCustomCss] = useState('');
-  const [customHtml, setCustomHtml] = useState('');
-
-  // Loading State
-  const [isLoading, setIsLoading] = useState(true);
+  // Reply State
+  const [replyingTo, setReplyingTo] = useState(null); // ID of comment being replied to
 
   useEffect(() => {
     if (username) {
-      Promise.all([fetchEntries(), fetchProfile()])
-        .then(() => setIsLoading(false));
+      Promise.all([fetchEntries(), fetchProfile()]);
     }
   }, [username]);
 
@@ -60,9 +40,7 @@ export default function PublicGuestbook({ overrideUsername }) {
     try {
       const res = await fetch(`/api/entries?user=${username}`);
       if (res.ok) setEntries(await res.json());
-    } catch (err) {
-      console.error("Failed to load entries", err);
-    }
+    } catch (e) { console.error(e); }
   }
 
   async function fetchProfile() {
@@ -73,134 +51,169 @@ export default function PublicGuestbook({ overrideUsername }) {
         setCustomCss(data.custom_css || '');
         setCustomHtml(data.custom_html || '');
       }
-    } catch (err) {
-      console.error("Failed to load profile", err);
-    }
+    } catch (e) { console.error(e); }
   }
 
   async function handleSubmit(e) {
     e.preventDefault();
-    
     if (!senderName.trim() || !message.trim()) return;
 
-    try {
-      const res = await fetch('/api/entries', {
-        method: 'POST',
-        body: JSON.stringify({
-          owner_username: username,
-          sender_name: senderName,
-          sender_website: senderWebsite,
-          message: message
-        })
-      });
-      
-      if (res.ok) {
-        setSenderName('');
-        setSenderWebsite('');
-        setMessage('');
-        fetchEntries(); 
-      } else {
-        alert("Failed to post message. Please try again.");
-      }
-    } catch (err) {
-      alert("Network error. Please try again.");
+    const res = await fetch('/api/entries', {
+      method: 'POST',
+      body: JSON.stringify({
+        owner_username: username,
+        sender_name: senderName,
+        sender_website: senderWebsite,
+        message: message,
+        parent_id: replyingTo // Send the ID if replying
+      })
+    });
+    
+    if (res.ok) {
+      setSenderName('');
+      setSenderWebsite('');
+      setMessage('');
+      setReplyingTo(null); // Close reply form
+      fetchEntries();
+    } else {
+      alert("Failed to send message.");
     }
   }
 
-  if (isLoading) return <div>Loading Guestbook...</div>;
-  if (!username) return <div>User not found.</div>;
+  // --- RENDERING HELPERS ---
+
+  // Separate entries into "Roots" (new threads) and "Replies"
+  const rootEntries = entries.filter(e => !e.parent_id);
+  const getReplies = (parentId) => entries.filter(e => e.parent_id === parentId);
+
+  // Reusable Form Component (Used for main input AND replies)
+  const EntryForm = ({ isReply = false, onCancel }) => (
+    <form onSubmit={handleSubmit} style={{ marginTop: '10px', marginBottom: '20px' }}>
+      <div style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
+        <input 
+          placeholder="Name *" 
+          value={senderName} 
+          onChange={e => setSenderName(e.target.value)} 
+          required 
+          style={{ flex: 1, padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }}
+        />
+        <input 
+          type="url"
+          placeholder="Website (opt)" 
+          value={senderWebsite} 
+          onChange={e => setSenderWebsite(e.target.value)} 
+          style={{ flex: 1, padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }}
+        />
+      </div>
+      <textarea 
+        rows={isReply ? 2 : 4} 
+        placeholder={isReply ? "Write a reply..." : "Write a message..."}
+        value={message} 
+        onChange={e => setMessage(e.target.value)} 
+        required 
+        style={{ width: '100%', padding: '8px', border: '1px solid #ddd', borderRadius: '4px', marginBottom: '10px' }}
+      />
+      <div style={{ display: 'flex', gap: '10px' }}>
+        <button type="submit" style={{ padding: '8px 16px', cursor: 'pointer', background: '#000', color: '#fff', border: 'none', borderRadius: '4px' }}>
+          {isReply ? 'Post Reply' : 'Post Message'}
+        </button>
+        {isReply && (
+          <button type="button" onClick={onCancel} style={{ padding: '8px 16px', cursor: 'pointer', background: '#eee', border: 'none', borderRadius: '4px' }}>
+            Cancel
+          </button>
+        )}
+      </div>
+    </form>
+  );
 
   return (
-    <div className="guestbook-container">
-      {/* 1. Inject User's Custom CSS */}
+    <div className="guestbook-container" style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       <style>{customCss}</style>
 
-      {/* 2. Inject User's Custom HTML (Strictly Sanitized) */}
-      <div 
-        className="user-custom-header"
-        dangerouslySetInnerHTML={{ 
-          __html: DOMPurify.sanitize(customHtml, SAFE_CONFIG) 
-        }} 
-      />
-
-      {/* Fallback header if they haven't added custom HTML */}
-      {!customHtml && <h1>{username}'s Guestbook</h1>}
-      
-      <hr />
-
-      {/* 3. The Guestbook Form */}
-      <div className="guestbook-form-section">
-        <h3>Sign the Guestbook</h3>
-        <form onSubmit={handleSubmit} style={{ maxWidth: '500px' }}>
-          <div style={{ marginBottom: '10px' }}>
-            <label style={{ display: 'block', marginBottom: '5px' }}>Name *</label>
-            <input 
-              type="text" 
-              value={senderName} 
-              onChange={e => setSenderName(e.target.value)} 
-              required 
-              style={{ width: '100%', padding: '8px' }}
-            />
-          </div>
-          
-          <div style={{ marginBottom: '10px' }}>
-            <label style={{ display: 'block', marginBottom: '5px' }}>Website (Optional)</label>
-            <input 
-              type="url" 
-              placeholder="https://..."
-              value={senderWebsite} 
-              onChange={e => setSenderWebsite(e.target.value)} 
-              style={{ width: '100%', padding: '8px' }}
-            />
-          </div>
-          
-          <div style={{ marginBottom: '10px' }}>
-            <label style={{ display: 'block', marginBottom: '5px' }}>Message *</label>
-            <textarea 
-              rows="4" 
-              value={message} 
-              onChange={e => setMessage(e.target.value)} 
-              required 
-              style={{ width: '100%', padding: '8px' }}
-            />
-          </div>
-          
-          <button type="submit" style={{ padding: '10px 20px', cursor: 'pointer' }}>
-            Send Message
-          </button>
-        </form>
-      </div>
-
-      <br /><hr /><br />
-      
-      {/* 4. The Entries List */}
-      <div className="entries-list">
-        <h3>Messages ({entries.length})</h3>
+      {/* Main Content Wrapper */}
+      <div style={{ flex: 1 }}>
         
-        {entries.length === 0 && <p>Be the first to sign!</p>}
+        {/* Header */}
+        <div 
+          className="user-custom-header"
+          dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(customHtml, SAFE_CONFIG) }} 
+        />
+        {!customHtml && <h1>{username}'s Guestbook</h1>}
+        <hr />
 
-        {entries.map(entry => (
-          <div key={entry.id} className="entry-item" style={{ marginBottom: '20px', paddingBottom: '10px', borderBottom: '1px solid #eee' }}>
-            <div className="entry-header">
-              <strong>{entry.sender_name}</strong>
-              
-              {entry.sender_website && (
-                <span style={{ marginLeft: '10px', fontSize: '0.9em' }}>
-                   • <a href={entry.sender_website} target="_blank" rel="noopener noreferrer">
-                    Website
-                  </a>
-                </span>
-              )}
-              
-              <span style={{ float: 'right', color: '#888', fontSize: '0.8em' }}>
-                {new Date(entry.created_at).toLocaleDateString()}
-              </span>
-            </div>
-            
-            <p style={{ marginTop: '5px', whiteSpace: 'pre-wrap' }}>{entry.message}</p>
+        {/* Main Entry Form (Only show if not currently replying to someone to keep UI clean) */}
+        {!replyingTo && (
+          <div className="guestbook-form-section">
+            <h3>Sign Guestbook</h3>
+            <EntryForm />
           </div>
-        ))}
+        )}
+
+        <br />
+
+        {/* Entries List */}
+        <div className="entries-list">
+          <h3>Messages ({entries.length})</h3>
+          
+          {rootEntries.map(entry => (
+            <div key={entry.id} className="entry-thread" style={{ marginBottom: '25px' }}>
+              
+              {/* Parent Message */}
+              <div className="entry-item" style={{ padding: '15px', background: '#fff', border: '1px solid #eee', borderRadius: '6px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
+                  <strong>{entry.sender_name}</strong>
+                  <small style={{ color: '#999' }}>{new Date(entry.created_at).toLocaleDateString()}</small>
+                </div>
+                
+                {entry.sender_website && (
+                  <div style={{ fontSize: '0.85em', marginBottom: '8px' }}>
+                    <a href={entry.sender_website} target="_blank" rel="noopener noreferrer">Website</a>
+                  </div>
+                )}
+                
+                <p style={{ margin: '0 0 10px 0', whiteSpace: 'pre-wrap' }}>{entry.message}</p>
+                
+                {/* Reply Button */}
+                <button 
+                  onClick={() => { setReplyingTo(entry.id); setMessage(''); }}
+                  style={{ background: 'none', border: 'none', color: '#0070f3', cursor: 'pointer', padding: 0, fontSize: '0.9em' }}
+                >
+                  ↩ Reply
+                </button>
+              </div>
+
+              {/* Reply Form (Shows directly under the message if selected) */}
+              {replyingTo === entry.id && (
+                <div style={{ marginLeft: '20px', marginTop: '10px', paddingLeft: '10px', borderLeft: '2px solid #ddd' }}>
+                  <EntryForm isReply={true} onCancel={() => setReplyingTo(null)} />
+                </div>
+              )}
+
+              {/* Child Messages (Replies) */}
+              <div className="replies" style={{ marginLeft: '30px', marginTop: '10px' }}>
+                {getReplies(entry.id).map(reply => (
+                  <div key={reply.id} style={{ background: '#f9f9f9', padding: '10px', borderRadius: '4px', marginBottom: '8px', border: '1px solid #eee' }}>
+                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <strong>{reply.sender_name}</strong>
+                        <small style={{ color: '#999' }}>{new Date(reply.created_at).toLocaleDateString()}</small>
+                     </div>
+                     <p style={{ margin: '5px 0 0 0', fontSize: '0.95em' }}>{reply.message}</p>
+                  </div>
+                ))}
+              </div>
+
+            </div>
+          ))}
+        </div>
       </div>
+
+      {/* Footer Credit */}
+      <footer style={{ marginTop: '50px', padding: '20px 0', borderTop: '1px solid #eee', textAlign: 'center', color: '#666', fontSize: '0.9em' }}>
+        <p>
+          Guestbook Service by <a href="https://guestbook.blackpiratex.com" target="_blank" style={{ color: '#000', textDecoration: 'none', fontWeight: 'bold' }}>BlackPirateX</a>
+        </p>
+      </footer>
+
     </div>
   );
 }

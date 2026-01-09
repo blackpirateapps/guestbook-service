@@ -13,13 +13,24 @@ export default async function handler(req, res) {
   if (method === 'GET') {
     if (user) {
       // PUBLIC: Fetch entries for a specific user's guestbook
+      // We explicitly select columns to ensure we get parent_id for threading
       try {
         const result = await db.execute({
-          sql: 'SELECT id, sender_name, message, sender_website, created_at FROM entries WHERE owner_username = ? ORDER BY created_at DESC',
+          sql: `SELECT 
+                  id, 
+                  sender_name, 
+                  message, 
+                  sender_website, 
+                  parent_id, 
+                  created_at 
+                FROM entries 
+                WHERE owner_username = ? 
+                ORDER BY created_at DESC`, // Show newest first
           args: [user]
         });
         return res.json(result.rows);
       } catch (e) {
+        console.error(e);
         return res.status(500).json({ error: 'Database error' });
       }
     } else {
@@ -41,11 +52,11 @@ export default async function handler(req, res) {
   }
 
   // --------------------------------------------
-  // 2. POST: Create new entry (Public)
+  // 2. POST: Create new entry or Reply
   // --------------------------------------------
   if (method === 'POST') {
     try {
-      const { owner_username, sender_name, message, sender_website } = JSON.parse(req.body);
+      const { owner_username, sender_name, message, sender_website, parent_id } = JSON.parse(req.body);
 
       // Simple validation
       if (!owner_username || !sender_name || !message) {
@@ -53,8 +64,14 @@ export default async function handler(req, res) {
       }
 
       await db.execute({
-        sql: 'INSERT INTO entries (owner_username, sender_name, message, sender_website) VALUES (?, ?, ?, ?)',
-        args: [owner_username, sender_name, message, sender_website || ''] // Handle empty website
+        sql: 'INSERT INTO entries (owner_username, sender_name, message, sender_website, parent_id) VALUES (?, ?, ?, ?, ?)',
+        args: [
+          owner_username, 
+          sender_name, 
+          message, 
+          sender_website || '', 
+          parent_id || null // If null, it's a main thread. If ID, it's a reply.
+        ]
       });
       return res.status(201).json({ success: true });
     } catch (e) {
@@ -75,6 +92,8 @@ export default async function handler(req, res) {
       const { id } = JSON.parse(req.body);
       
       // Ensure user can only delete their OWN entries
+      // Note: We don't delete replies automatically here. 
+      // If a parent is deleted, replies become "orphans" in the UI (or you can add logic to hide them).
       const result = await db.execute({
         sql: 'DELETE FROM entries WHERE id = ? AND owner_username = ?',
         args: [id, decoded.username]
