@@ -49,8 +49,6 @@ button {
 
 input,
 textarea {
-  width: 75%;
-  padding: 8px;
 }
 
 textarea {
@@ -64,6 +62,7 @@ label {
 
 button {
   background: #000;
+  margin: 0.5rem;
   color: #fff;
   border: 1px solid #000;
   padding: 6px 12px;
