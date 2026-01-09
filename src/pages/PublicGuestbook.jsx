@@ -103,62 +103,82 @@ export default function PublicGuestbook({ overrideUsername }) {
   const getReplies = (parentId) => entries.filter(e => e.parent_id === parentId);
 
   const EntryForm = ({ isReply = false, onCancel }) => (
-    <form onSubmit={handleSubmit}>
-      <input 
-        type="text" 
-        name="website_url_check" 
-        value={botField} 
-        onChange={e => setBotField(e.target.value)}
-        tabIndex="-1"
-        autoComplete="off"
-      />
+  <form onSubmit={handleSubmit}>
 
-      <div>
-        <input 
-          placeholder="Name *" 
-          value={senderName} 
-          onChange={e => setSenderName(e.target.value)} 
-          required 
-        />
-        <input 
-          type="url" 
-          placeholder="Website (opt)" 
-          value={senderWebsite} 
-          onChange={e => setSenderWebsite(e.target.value)} 
-        />
-      </div>
-      
-      <textarea 
-        rows={isReply ? 2 : 4} 
-        placeholder={isReply ? "Write a reply..." : "Write a message..."} 
-        value={message} 
-        onChange={e => setMessage(e.target.value)} 
-        required 
-      />
-      
-      <div>
-        <label>
-          <input 
-            type="checkbox" 
-            checked={isPrivate} 
-            onChange={e => setIsPrivate(e.target.checked)} 
-          />
-          🔒 Private Message (Owner only)
-        </label>
+    {/* Honeypot field (hidden via CSS) */}
+    <input
+      type="text"
+      name="website_url_check"
+      value={botField}
+      onChange={e => setBotField(e.target.value)}
+      className="honeypot"
+      tabIndex="-1"
+      autoComplete="off"
+    />
 
-        <div>
-          <button type="submit">
-            {isReply ? 'Post Reply' : 'Post Message'}
-          </button>
-          {isReply && (
-            <button type="button" onClick={onCancel}>
-              Cancel
-            </button>
-          )}
-        </div>
-      </div>
-    </form>
-  );
+    <div>
+      <label htmlFor="sender-name">Name *</label>
+      <input
+        id="sender-name"
+        type="text"
+        placeholder="Your name"
+        value={senderName}
+        onChange={e => setSenderName(e.target.value)}
+        required
+      />
+    </div>
+
+    <div>
+      <label htmlFor="sender-website">Website (optional)</label>
+      <input
+        id="sender-website"
+        type="url"
+        placeholder="https://example.com"
+        value={senderWebsite}
+        onChange={e => setSenderWebsite(e.target.value)}
+      />
+    </div>
+
+    <div>
+      <label htmlFor="message">
+        {isReply ? 'Reply *' : 'Message *'}
+      </label>
+      <textarea
+        id="message"
+        rows={isReply ? 2 : 4}
+        placeholder={isReply ? 'Write a reply…' : 'Write a message…'}
+        value={message}
+        onChange={e => setMessage(e.target.value)}
+        required
+      />
+    </div>
+
+    <div>
+      <label>
+        <input
+          type="checkbox"
+          checked={isPrivate}
+          onChange={e => setIsPrivate(e.target.checked)}
+        />
+        🔒 Private message (owner only)
+      </label>
+    </div>
+
+    <div>
+      <button type="submit">
+        {isReply ? 'Post Reply' : 'Post Message'}
+      </button>
+
+      {isReply && (
+        <button type="button" onClick={onCancel}>
+          Cancel
+        </button>
+      )}
+    </div>
+
+  </form>
+);
+
 
   return (
     <div className="guestbook-container">
