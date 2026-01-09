@@ -126,6 +126,12 @@ export default function Dashboard() {
   return (
     <div>
       <h1>Dashboard: {username}</h1>
+      
+      {/* LINK TO GUESTBOOK PAGE */}
+      <p>
+        Your Guestbook Link: <a href={`/u/${username}`} target="_blank">/u/{username}</a>
+      </p>
+
       <button onClick={() => { localStorage.clear(); navigate('/'); }}>Logout</button>
       <hr />
 
