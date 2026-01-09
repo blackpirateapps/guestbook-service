@@ -5,38 +5,36 @@ const SECRET = process.env.JWT_SECRET || 'secret';
 
 export default async function handler(req, res) {
   const { method } = req;
-  const { user } = req.query; // Used for public fetching (e.g., ?user=sudip)
+  const { user } = req.query;
 
   // --------------------------------------------
-  // 1. GET: Fetch entries
+  // 1. GET: Fetch Entries
   // --------------------------------------------
   if (method === 'GET') {
     if (user) {
-      // PUBLIC: Fetch entries for a specific user's guestbook
-      // We explicitly select columns to ensure we get parent_id for threading
+      // PUBLIC MODE:
+      // - Must match owner
+      // - Must NOT be private
+      // - Must be APPROVED
       try {
         const result = await db.execute({
-          sql: `SELECT 
-                  id, 
-                  sender_name, 
-                  message, 
-                  sender_website, 
-                  parent_id, 
-                  created_at 
+          sql: `SELECT id, sender_name, message, sender_website, parent_id, created_at, likes, is_owner 
                 FROM entries 
                 WHERE owner_username = ? 
-                ORDER BY created_at DESC`, // Show newest first
+                  AND is_private = 0 
+                  AND status = 'approved'
+                ORDER BY created_at DESC`,
           args: [user]
         });
         return res.json(result.rows);
       } catch (e) {
-        console.error(e);
         return res.status(500).json({ error: 'Database error' });
       }
     } else {
-      // DASHBOARD: Fetch entries for the logged-in user (Requires Auth)
+      // DASHBOARD MODE (Auth Required):
+      // - Shows EVERYTHING (Private, Pending, Approved)
       const token = req.headers.authorization?.split(' ')[1];
-      if (!token) return res.status(401).json({ error: 'No token provided' });
+      if (!token) return res.status(401).json({ error: 'No token' });
 
       try {
         const decoded = jwt.verify(token, SECRET);
@@ -52,62 +50,120 @@ export default async function handler(req, res) {
   }
 
   // --------------------------------------------
-  // 2. POST: Create new entry or Reply
+  // 2. POST: Create Entry (or Reply)
   // --------------------------------------------
   if (method === 'POST') {
     try {
-      const { owner_username, sender_name, message, sender_website, parent_id } = JSON.parse(req.body);
+      const body = JSON.parse(req.body);
+      
+      // A. SPAM PROTECTION (Honeypot)
+      // If the hidden field "bot_field" has text, it's a bot. Fail silently (return 200).
+      if (body.bot_field) return res.json({ success: true });
 
-      // Simple validation
-      if (!owner_username || !sender_name || !message) {
-        return res.status(400).json({ error: 'Missing required fields' });
+      const { owner_username, sender_name, message, sender_website, parent_id, is_private } = body;
+      
+      // B. DETERMINE STATUS & OWNER
+      let status = 'approved';
+      let isOwner = 0;
+
+      // Check if the poster is actually the Owner (Logged in)
+      const token = req.headers.authorization?.split(' ')[1];
+      if (token) {
+        try {
+          const decoded = jwt.verify(token, SECRET);
+          if (decoded.username === owner_username) {
+            isOwner = 1; // Verified Owner
+            status = 'approved'; // Owners bypass moderation
+          }
+        } catch (e) { /* Invalid token, treat as guest */ }
       }
 
+      // If NOT owner, check Moderation Settings
+      if (!isOwner) {
+        const userRes = await db.execute({
+          sql: 'SELECT require_approval FROM users WHERE username = ?',
+          args: [owner_username]
+        });
+        if (userRes.rows.length > 0 && userRes.rows[0].require_approval === 1) {
+          status = 'pending';
+        }
+      }
+
+      // C. INSERT
       await db.execute({
-        sql: 'INSERT INTO entries (owner_username, sender_name, message, sender_website, parent_id) VALUES (?, ?, ?, ?, ?)',
+        sql: `INSERT INTO entries 
+              (owner_username, sender_name, message, sender_website, parent_id, is_private, is_owner, status) 
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
         args: [
           owner_username, 
           sender_name, 
           message, 
           sender_website || '', 
-          parent_id || null // If null, it's a main thread. If ID, it's a reply.
+          parent_id || null,
+          is_private ? 1 : 0,
+          isOwner,
+          status
         ]
       });
-      return res.status(201).json({ success: true });
+
+      return res.status(201).json({ success: true, status: status });
+
     } catch (e) {
       console.error(e);
-      return res.status(500).json({ error: 'Failed to post entry' });
+      return res.status(500).json({ error: 'Failed' });
     }
   }
 
   // --------------------------------------------
-  // 3. DELETE: Delete entry (Dashboard Only)
+  // 3. PUT: Likes or Moderation Approval
+  // --------------------------------------------
+  if (method === 'PUT') {
+    const { action, id } = JSON.parse(req.body);
+
+    // A. LIKE (Public, no auth needed)
+    if (action === 'like') {
+      await db.execute({
+        sql: 'UPDATE entries SET likes = likes + 1 WHERE id = ?',
+        args: [id]
+      });
+      return res.json({ success: true });
+    }
+
+    // B. APPROVE (Auth needed)
+    if (action === 'approve') {
+      const token = req.headers.authorization?.split(' ')[1];
+      if (!token) return res.status(401).json({ error: 'Unauthorized' });
+
+      try {
+        const decoded = jwt.verify(token, SECRET);
+        // Verify ownership before approving
+        await db.execute({
+          sql: "UPDATE entries SET status = 'approved' WHERE id = ? AND owner_username = ?",
+          args: [id, decoded.username]
+        });
+        return res.json({ success: true });
+      } catch (e) {
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
+    }
+  }
+
+  // --------------------------------------------
+  // 4. DELETE
   // --------------------------------------------
   if (method === 'DELETE') {
     const token = req.headers.authorization?.split(' ')[1];
-    if (!token) return res.status(401).json({ error: 'No token provided' });
-
     try {
       const decoded = jwt.verify(token, SECRET);
       const { id } = JSON.parse(req.body);
       
-      // Ensure user can only delete their OWN entries
-      // Note: We don't delete replies automatically here. 
-      // If a parent is deleted, replies become "orphans" in the UI (or you can add logic to hide them).
-      const result = await db.execute({
+      await db.execute({
         sql: 'DELETE FROM entries WHERE id = ? AND owner_username = ?',
         args: [id, decoded.username]
       });
-
-      if (result.rowsAffected === 0) {
-        return res.status(404).json({ error: 'Entry not found or unauthorized' });
-      }
-
       return res.json({ success: true });
     } catch (e) {
       return res.status(401).json({ error: 'Unauthorized' });
     }
   }
-
-  return res.status(405).json({ error: 'Method not allowed' });
 }
