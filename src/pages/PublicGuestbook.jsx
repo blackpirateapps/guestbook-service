@@ -5,9 +5,7 @@ import DOMPurify from 'dompurify';
 // -----------------------------------------------------------------------------
 // SECURITY CONFIGURATION
 // -----------------------------------------------------------------------------
-// We strictly define what is allowed. Everything else is stripped out.
 const SAFE_CONFIG = {
-  // 1. Only allow these specific tags (No <script>, <iframe, <form>, etc.)
   ALLOWED_TAGS: [
     'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 
     'p', 'span', 'div', 'br', 'hr',
@@ -15,27 +13,28 @@ const SAFE_CONFIG = {
     'ul', 'ol', 'li',
     'img', 'a' 
   ],
-  // 2. Only allow these attributes (No onclick, onerror, onload, etc.)
   ALLOWED_ATTR: [
     'href', 'src', 'alt', 'title', 'class', 'id', 'target', 'style', 'rel'
   ],
-  // 3. For extra safety, we can force specific protocols if needed, but 
-  // DOMPurify automatically strips 'javascript:' links by default.
 };
 
-// Security Hook: Prevent "Tabnabbing" attacks on links
 DOMPurify.addHook('afterSanitizeAttributes', function (node) {
   if ('target' in node && node.getAttribute('target') === '_blank') {
     node.setAttribute('rel', 'noopener noreferrer');
   }
 });
 
-
 // -----------------------------------------------------------------------------
 // COMPONENT
 // -----------------------------------------------------------------------------
-export default function PublicGuestbook() {
-  const { username } = useParams();
+// UPDATED: Now accepts 'overrideUsername' prop for Custom Domain support
+export default function PublicGuestbook({ overrideUsername }) {
+  const { username: paramUsername } = useParams();
+  
+  // LOGIC: If App.jsx passes a username (because of a custom domain), use it.
+  // Otherwise, grab it from the URL path (/u/username).
+  const username = overrideUsername || paramUsername;
+
   const [entries, setEntries] = useState([]);
   
   // Form State
@@ -51,9 +50,10 @@ export default function PublicGuestbook() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Parallel fetching for speed
-    Promise.all([fetchEntries(), fetchProfile()])
-      .then(() => setIsLoading(false));
+    if (username) {
+      Promise.all([fetchEntries(), fetchProfile()])
+        .then(() => setIsLoading(false));
+    }
   }, [username]);
 
   async function fetchEntries() {
@@ -81,7 +81,6 @@ export default function PublicGuestbook() {
   async function handleSubmit(e) {
     e.preventDefault();
     
-    // Basic Client-side validation
     if (!senderName.trim() || !message.trim()) return;
 
     try {
@@ -99,7 +98,7 @@ export default function PublicGuestbook() {
         setSenderName('');
         setSenderWebsite('');
         setMessage('');
-        fetchEntries(); // Refresh the list immediately
+        fetchEntries(); 
       } else {
         alert("Failed to post message. Please try again.");
       }
@@ -109,11 +108,11 @@ export default function PublicGuestbook() {
   }
 
   if (isLoading) return <div>Loading Guestbook...</div>;
+  if (!username) return <div>User not found.</div>;
 
   return (
     <div className="guestbook-container">
       {/* 1. Inject User's Custom CSS */}
-      {/* We purposefully put this inside the component so it unmounts when the user leaves */}
       <style>{customCss}</style>
 
       {/* 2. Inject User's Custom HTML (Strictly Sanitized) */}
@@ -185,7 +184,6 @@ export default function PublicGuestbook() {
             <div className="entry-header">
               <strong>{entry.sender_name}</strong>
               
-              {/* Only show website link if it exists */}
               {entry.sender_website && (
                 <span style={{ marginLeft: '10px', fontSize: '0.9em' }}>
                    • <a href={entry.sender_website} target="_blank" rel="noopener noreferrer">
