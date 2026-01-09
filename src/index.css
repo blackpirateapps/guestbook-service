@@ -171,5 +171,5 @@ footer {
   pointer-events: none;
 }
 input[type="checkbox"] {
-width: 10℅;
+width: 10℅ !important;
 }

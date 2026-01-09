@@ -32,7 +32,7 @@ export default function Auth() {
   }
 
   return (
-    <div>
+    <div className="guestbook-container">
       <h1>{isLogin ? 'Login' : 'Signup'}</h1>
       <form onSubmit={handleSubmit}>
         <label>Username: </label>
