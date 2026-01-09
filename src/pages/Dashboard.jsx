@@ -8,13 +8,10 @@ export default function Dashboard() {
   const [connectedDomain, setConnectedDomain] = useState(null);
   const [requireApproval, setRequireApproval] = useState(false);
   
-  // Domain State
   const [domainInput, setDomainInput] = useState('');
-  
-  // Reply State
   const [replyingTo, setReplyingTo] = useState(null);
   const [replyMsg, setReplyMsg] = useState('');
-
+  
   const navigate = useNavigate();
   const token = localStorage.getItem('token');
   const username = localStorage.getItem('username');
@@ -25,11 +22,11 @@ export default function Dashboard() {
   }, [token]);
 
   async function fetchData() {
-    // Fetch Entries
-    const entryRes = await fetch('/api/entries', { headers: { 'Authorization': `Bearer ${token}` } });
+    const entryRes = await fetch('/api/entries', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
     if (entryRes.ok) setEntries(await entryRes.json());
 
-    // Fetch Profile
     const profileRes = await fetch(`/api/profile?username=${username}`);
     if (profileRes.ok) {
       const data = await profileRes.json();
@@ -39,8 +36,6 @@ export default function Dashboard() {
       setRequireApproval(data.require_approval === 1);
     }
   }
-
-  // --- ACTIONS ---
 
   async function saveSettings() {
     await fetch('/api/profile', {
@@ -66,7 +61,7 @@ export default function Dashboard() {
     });
 
     if (res.ok) {
-      alert("Domain connected!");
+      alert("Domain connected! SSL generating...");
       setConnectedDomain(domainInput);
       setDomainInput('');
     } else {
@@ -84,7 +79,19 @@ export default function Dashboard() {
     if (res.ok) {
       setConnectedDomain(null);
       alert("Domain disconnected.");
+    } else {
+      alert("Failed.");
     }
+  }
+
+  async function deleteEntry(id) {
+    if(!confirm("Delete this entry?")) return;
+    await fetch('/api/entries', {
+      method: 'DELETE',
+      body: JSON.stringify({ id }),
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    fetchData();
   }
 
   async function approveEntry(id) {
@@ -96,21 +103,11 @@ export default function Dashboard() {
     fetchData();
   }
 
-  async function deleteEntry(id) {
-    if(!confirm("Delete this entry?")) return;
-    await fetch('/api/entries', {
-      method: 'DELETE',
-      headers: { 'Authorization': `Bearer ${token}` },
-      body: JSON.stringify({ id })
-    });
-    fetchData();
-  }
-
   async function sendReply(parentId) {
     if(!replyMsg.trim()) return;
     await fetch('/api/entries', {
       method: 'POST',
-      headers: { 'Authorization': `Bearer ${token}` }, // Token = Verified Owner Reply
+      headers: { 'Authorization': `Bearer ${token}` },
       body: JSON.stringify({
         owner_username: username,
         sender_name: username,
@@ -125,113 +122,124 @@ export default function Dashboard() {
 
   return (
     <div>
-      <h1>Dashboard: {username}</h1>
-      
-      {/* LINK TO GUESTBOOK PAGE */}
-      <p>
-        Your Guestbook Link: <a href={`/u/${username}`} target="_blank">/u/{username}</a>
-      </p>
+      <div>
+        <h1>Dashboard: {username}</h1>
+        <button onClick={() => { localStorage.clear(); navigate('/'); }}>Logout</button>
+      </div>
 
-      <button onClick={() => { localStorage.clear(); navigate('/'); }}>Logout</button>
+      <p>Public Vercel Link: <a href={`/u/${username}`} target="_blank">/u/{username}</a></p>
+      
       <hr />
 
-      {/* DOMAIN SECTION */}
       <div>
         <h3>Custom Domain</h3>
         {connectedDomain ? (
           <div>
-            <strong>Connected: </strong> 
-            <a href={`https://${connectedDomain}`} target="_blank">{connectedDomain}</a>
-            <br />
-            <button onClick={handleRemoveDomain}>Disconnect Domain</button>
+            <div>
+              <span>● Live</span>
+              <span>{connectedDomain}</span>
+            </div>
+            <div>
+              <a href={`https://${connectedDomain}`} target="_blank" rel="noreferrer">
+                <button>Visit Site ↗</button>
+              </a>
+              <button onClick={handleRemoveDomain}>Disconnect</button>
+            </div>
           </div>
         ) : (
           <div>
-            <p>1. Add CNAME record: cname.vercel-dns.com</p>
-            <input 
-              type="text" 
-              placeholder="guestbook.yoursite.com" 
-              value={domainInput}
-              onChange={e => setDomainInput(e.target.value)}
-            />
-            <button onClick={handleAddDomain}>Connect</button>
+            <p>
+              1. Add CNAME: <code>cname.vercel-dns.com</code><br/>
+              2. Enter domain:
+            </p>
+            <div>
+              <input
+                type="text"
+                placeholder="guestbook.yoursite.com"
+                value={domainInput}
+                onChange={e => setDomainInput(e.target.value)}
+              />
+              <button onClick={handleAddDomain}>Connect</button>
+            </div>
           </div>
         )}
       </div>
-      <hr />
 
-      {/* MODERATION SETTINGS */}
       <div>
-        <h3>🛡️ Moderation</h3>
+        <h3>🛡️ Moderation Settings</h3>
         <label>
           <input 
             type="checkbox" 
             checked={requireApproval} 
-            onChange={e => setRequireApproval(e.target.checked)} 
+            onChange={e => setRequireApproval(e.target.checked)}
           />
-          Require approval for new messages
+          <span>Require approval for new messages (Hold in Pending)</span>
         </label>
-        <button onClick={saveSettings}>Update Setting</button>
+        <br />
+        <button onClick={saveSettings}>Update Settings</button>
       </div>
-      <hr />
 
-      {/* DESIGN SETTINGS */}
+      <h3>Customize Design</h3>
       <div>
-        <h3>Design</h3>
-        <label>CSS</label><br/>
-        <textarea rows="4" value={customCss} onChange={e => setCustomCss(e.target.value)} /><br/>
-        <label>HTML Header</label><br/>
-        <textarea rows="4" value={customHtml} onChange={e => setCustomHtml(e.target.value)} /><br/>
-        <button onClick={saveSettings}>Save Design</button>
+        <div>
+          <label><strong>CSS</strong></label>
+          <textarea rows="6" value={customCss} onChange={e => setCustomCss(e.target.value)} />
+        </div>
+        <div>
+          <label><strong>HTML Header</strong></label>
+          <textarea rows="6" value={customHtml} onChange={e => setCustomHtml(e.target.value)} />
+        </div>
       </div>
+      <button onClick={saveSettings}>Save Design</button>
+
       <hr />
 
-      {/* ENTRIES LIST */}
       <h3>Guestbook Entries</h3>
-      
-      {entries.map(entry => (
-        <div key={entry.id}>
-          <hr />
-          
-          {/* Status Badges */}
-          <div>
-            {entry.status === 'pending' && <strong>[PENDING] </strong>}
-            {entry.is_private === 1 && <strong>[PRIVATE] </strong>}
-            {entry.is_owner === 1 && <strong>[YOU] </strong>}
-          </div>
+      {entries.length === 0 ? <p>No messages yet.</p> : (
+        <div>
+          {entries.map(entry => (
+            <div key={entry.id}>
+              <div>
+                {entry.status === 'pending' && <span>PENDING APPROVAL</span>}
+                {entry.is_private === 1 && <span>🔒 PRIVATE</span>}
+                {entry.is_owner === 1 && <span>👑 YOU</span>}
+              </div>
 
-          <strong>{entry.sender_name}</strong>
-          <p>{entry.message}</p>
-          
-          <small>
-            Likes: {entry.likes} • {new Date(entry.created_at).toLocaleString()}
-          </small>
-          <br />
+              <div>
+                <strong>{entry.sender_name}</strong>
+                {entry.sender_website && <span> • <a href={entry.sender_website} target="_blank">Website</a></span>}
+                <span>
+                  {new Date(entry.created_at).toLocaleString()} • ❤️ {entry.likes || 0}
+                </span>
+              </div>
+              
+              <p>{entry.message}</p>
+              
+              <div>
+                {entry.status === 'pending' && (
+                  <button onClick={() => approveEntry(entry.id)}>Approve</button>
+                )}
+                
+                <button onClick={() => setReplyingTo(entry.id)}>Reply</button>
+                <button onClick={() => deleteEntry(entry.id)}>Delete</button>
+              </div>
 
-          <div>
-            {entry.status === 'pending' && (
-              <button onClick={() => approveEntry(entry.id)}>Approve</button>
-            )}
-            
-            <button onClick={() => setReplyingTo(entry.id)}>Reply</button>
-            <button onClick={() => deleteEntry(entry.id)}>Delete</button>
-          </div>
-
-          {/* Inline Reply Form */}
-          {replyingTo === entry.id && (
-            <div>
-              <input 
-                type="text" 
-                value={replyMsg} 
-                onChange={e => setReplyMsg(e.target.value)} 
-                placeholder="Write your reply..."
-              />
-              <button onClick={() => sendReply(entry.id)}>Send</button>
-              <button onClick={() => setReplyingTo(null)}>Cancel</button>
+              {replyingTo === entry.id && (
+                <div>
+                  <input 
+                    type="text" 
+                    value={replyMsg} 
+                    onChange={e => setReplyMsg(e.target.value)} 
+                    placeholder="Write your reply..."
+                  />
+                  <button onClick={() => sendReply(entry.id)}>Send</button>
+                  <button onClick={() => setReplyingTo(null)}>Cancel</button>
+                </div>
+              )}
             </div>
-          )}
+          ))}
         </div>
-      ))}
+      )}
     </div>
   );
 }

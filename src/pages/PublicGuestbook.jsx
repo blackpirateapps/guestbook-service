@@ -4,7 +4,7 @@ import DOMPurify from 'dompurify';
 
 const SAFE_CONFIG = {
   ALLOWED_TAGS: ['h1', 'h2', 'h3', 'p', 'span', 'div', 'br', 'hr', 'b', 'i', 'strong', 'em', 'ul', 'li', 'img', 'a'],
-  ALLOWED_ATTR: ['href', 'src', 'alt', 'class', 'id', 'target', 'rel'],
+  ALLOWED_ATTR: ['href', 'src', 'alt', 'class', 'id', 'target', 'style', 'rel'],
 };
 
 DOMPurify.addHook('afterSanitizeAttributes', function (node) {
@@ -21,33 +21,41 @@ export default function PublicGuestbook({ overrideUsername }) {
   const [customCss, setCustomCss] = useState('');
   const [customHtml, setCustomHtml] = useState('');
   
-  // Form State
   const [senderName, setSenderName] = useState('');
   const [senderWebsite, setSenderWebsite] = useState('');
   const [message, setMessage] = useState('');
   const [isPrivate, setIsPrivate] = useState(false);
-  const [botField, setBotField] = useState(''); // Honeypot
+  const [botField, setBotField] = useState('');
 
   const [replyingTo, setReplyingTo] = useState(null);
 
-  useEffect(() => { if (username) Promise.all([fetchEntries(), fetchProfile()]); }, [username]);
+  useEffect(() => {
+    if (username) {
+      Promise.all([fetchEntries(), fetchProfile()]);
+    }
+  }, [username]);
 
   async function fetchEntries() {
-    const res = await fetch(`/api/entries?user=${username}`);
-    if (res.ok) setEntries(await res.json());
+    try {
+      const res = await fetch(`/api/entries?user=${username}`);
+      if (res.ok) setEntries(await res.json());
+    } catch (e) { console.error(e); }
   }
 
   async function fetchProfile() {
-    const res = await fetch(`/api/profile?username=${username}`);
-    if (res.ok) {
-      const data = await res.json();
-      setCustomCss(data.custom_css || '');
-      setCustomHtml(data.custom_html || '');
-    }
+    try {
+      const res = await fetch(`/api/profile?username=${username}`);
+      if (res.ok) {
+        const data = await res.json();
+        setCustomCss(data.custom_css || '');
+        setCustomHtml(data.custom_html || '');
+      }
+    } catch (e) { console.error(e); }
   }
 
   async function handleLike(id) {
-    setEntries(prev => prev.map(e => e.id === id ? { ...e, likes: e.likes + 1 } : e));
+    setEntries(prev => prev.map(e => e.id === id ? { ...e, likes: (e.likes || 0) + 1 } : e));
+    
     await fetch('/api/entries', {
       method: 'PUT',
       body: JSON.stringify({ action: 'like', id })
@@ -80,9 +88,9 @@ export default function PublicGuestbook({ overrideUsername }) {
       setReplyingTo(null);
       
       if (data.status === 'pending') {
-        alert("Message sent! It is waiting for approval.");
+        alert("Message sent! It is waiting for moderator approval.");
       } else if (isPrivate) {
-        alert("Private message sent!");
+        alert("Private message sent to the owner!");
       } else {
         fetchEntries();
       }
@@ -94,106 +102,150 @@ export default function PublicGuestbook({ overrideUsername }) {
   const rootEntries = entries.filter(e => !e.parent_id);
   const getReplies = (parentId) => entries.filter(e => e.parent_id === parentId);
 
-  // Reusable Form
   const EntryForm = ({ isReply = false, onCancel }) => (
     <form onSubmit={handleSubmit}>
-      
-      {/* HONEYPOT (Using hidden attribute) */}
       <input 
         type="text" 
         name="website_url_check" 
         value={botField} 
         onChange={e => setBotField(e.target.value)}
-        hidden 
+        tabIndex="-1"
         autoComplete="off"
       />
 
       <div>
-        <input placeholder="Name *" value={senderName} onChange={e => setSenderName(e.target.value)} required />
-        <input type="url" placeholder="Website (opt)" value={senderWebsite} onChange={e => setSenderWebsite(e.target.value)} />
+        <input 
+          placeholder="Name *" 
+          value={senderName} 
+          onChange={e => setSenderName(e.target.value)} 
+          required 
+        />
+        <input 
+          type="url" 
+          placeholder="Website (opt)" 
+          value={senderWebsite} 
+          onChange={e => setSenderWebsite(e.target.value)} 
+        />
       </div>
       
-      <div>
-        <textarea rows={isReply ? 2 : 4} placeholder={isReply ? "Write a reply..." : "Write a message..."} value={message} onChange={e => setMessage(e.target.value)} required />
-      </div>
+      <textarea 
+        rows={isReply ? 2 : 4} 
+        placeholder={isReply ? "Write a reply..." : "Write a message..."} 
+        value={message} 
+        onChange={e => setMessage(e.target.value)} 
+        required 
+      />
       
       <div>
         <label>
-          <input type="checkbox" checked={isPrivate} onChange={e => setIsPrivate(e.target.checked)} />
-          Private Message
+          <input 
+            type="checkbox" 
+            checked={isPrivate} 
+            onChange={e => setIsPrivate(e.target.checked)} 
+          />
+          🔒 Private Message (Owner only)
         </label>
-      </div>
 
-      <div>
-        <button type="submit">{isReply ? 'Reply' : 'Post'}</button>
-        {isReply && <button type="button" onClick={onCancel}>Cancel</button>}
+        <div>
+          <button type="submit">
+            {isReply ? 'Post Reply' : 'Post Message'}
+          </button>
+          {isReply && (
+            <button type="button" onClick={onCancel}>
+              Cancel
+            </button>
+          )}
+        </div>
       </div>
     </form>
   );
 
   return (
-    <div>
+    <div className="guestbook-container">
       <style>{customCss}</style>
-      <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(customHtml, SAFE_CONFIG) }} />
-      {!customHtml && <h1>{username}'s Guestbook</h1>}
-      <hr />
-
-      {!replyingTo && (
-        <div>
-          <h3>Sign Guestbook</h3>
-          <EntryForm />
-        </div>
-      )}
 
       <div>
-        {rootEntries.map(entry => (
-          <div key={entry.id}>
-            <hr />
-            <div>
-              <div>
-                <strong>{entry.sender_name}</strong>
-                {entry.is_owner === 1 && <span> [VERIFIED]</span>}
-                <small> - {new Date(entry.created_at).toLocaleDateString()}</small>
-              </div>
-              
-              <p>{entry.message}</p>
-              
-              <div>
-                <button onClick={() => handleLike(entry.id)}>
-                  ❤️ {entry.likes}
-                </button>
-                <button onClick={() => setReplyingTo(entry.id)}>
-                  Reply
-                </button>
-              </div>
-            </div>
+        <div className="user-custom-header" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(customHtml, SAFE_CONFIG) }} />
+        {!customHtml && <h1>{username}'s Guestbook</h1>}
+        <hr />
 
-            {/* Render Replies */}
-            {replyingTo === entry.id && (
-              <div>
-                <EntryForm isReply={true} onCancel={() => setReplyingTo(null)} />
-              </div>
-            )}
-
-            <div className="replies">
-              {getReplies(entry.id).map(reply => (
-                <div key={reply.id}>
-                   <blockquote>
-                      <strong>{reply.sender_name}</strong>
-                      {reply.is_owner === 1 && <span> [VERIFIED]</span>}
-                      : {reply.message}
-                   </blockquote>
-                </div>
-              ))}
-            </div>
+        {!replyingTo && (
+          <div className="guestbook-form-section">
+            <h3>Sign Guestbook</h3>
+            <EntryForm />
           </div>
-        ))}
+        )}
+
+        <br />
+
+        <div className="entries-list">
+          <h3>Messages ({rootEntries.length})</h3>
+          
+          {rootEntries.map(entry => (
+            <div key={entry.id} className="entry-thread">
+              
+              <div className="entry-item">
+                <div>
+                  <div>
+                    <strong>{entry.sender_name}</strong>
+                    {entry.is_owner === 1 && <span title="Verified Owner">✅</span>}
+                  </div>
+                  <small>{new Date(entry.created_at).toLocaleDateString()}</small>
+                </div>
+                
+                {entry.sender_website && (
+                  <div>
+                    <a href={entry.sender_website} target="_blank" rel="noopener noreferrer">Website</a>
+                  </div>
+                )}
+                
+                <p>{entry.message}</p>
+                
+                <div>
+                  <button onClick={() => handleLike(entry.id)}>
+                    ❤️ {entry.likes || 0}
+                  </button>
+                  
+                  <button 
+                    onClick={() => { setReplyingTo(entry.id); setMessage(''); setIsPrivate(false); }}
+                  >
+                    ↩ Reply
+                  </button>
+                </div>
+              </div>
+
+              {replyingTo === entry.id && (
+                <div>
+                  <EntryForm isReply={true} onCancel={() => setReplyingTo(null)} />
+                </div>
+              )}
+
+              <div className="replies">
+                {getReplies(entry.id).map(reply => (
+                  <div key={reply.id}>
+                     <div>
+                        <div>
+                          <strong>{reply.sender_name}</strong>
+                          {reply.is_owner === 1 && <span title="Verified Owner">✅</span>}
+                        </div>
+                        <small>{new Date(reply.created_at).toLocaleDateString()}</small>
+                     </div>
+                     <p>{reply.message}</p>
+                  </div>
+                ))}
+              </div>
+
+            </div>
+          ))}
+        </div>
       </div>
 
-      <hr />
       <footer>
-        <p>Guestbook Service by <a href="https://guestbook.blackpiratex.com" target="_blank">BlackPirateX</a></p>
+        <p>
+          Guestbook Service by <a href="https://guestbook.blackpiratex.com" target="_blank">BlackPirateX</a>
+        </p>
       </footer>
+
     </div>
   );
 }
