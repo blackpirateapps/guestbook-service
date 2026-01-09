@@ -45,16 +45,12 @@ input,
 textarea,
 button {
   font-family: inherit;
-  font-size: 14px;
 }
 
 input,
 textarea {
-  width: 100%;
+  width: 75%;
   padding: 8px;
-  border: 1px solid #000;
-  background: #fff;
-  color: #000;
 }
 
 textarea {
@@ -62,7 +58,6 @@ textarea {
 }
 
 label {
-  font-size: 13px;
 }
 
 /* Buttons */
@@ -96,8 +91,6 @@ button[type="button"] {
 }
 
 .entry-item {
-  border: 1px solid #000;
-  padding: 12px;
 }
 
 .entry-item strong {
@@ -105,7 +98,6 @@ button[type="button"] {
 }
 
 .entry-item p {
-  margin: 8px 0;
   white-space: pre-wrap;
 }
 
