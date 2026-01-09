@@ -121,7 +121,7 @@ export default function Dashboard() {
   }
 
   return (
-    <div>
+    <div className="guestbook-container">
       <div>
         <h1>Dashboard: {username}</h1>
         <button onClick={() => { localStorage.clear(); navigate('/'); }}>Logout</button>
