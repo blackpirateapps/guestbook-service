@@ -134,6 +134,13 @@ export default function Dashboard() {
   }
 
   const embedSrc = origin && username ? `${origin}/u/${username}?embed=1` : '';
+  const widgetSrc = origin ? `${origin}/guestbook-widget.js` : '';
+
+  const rootEntryCount = entries.filter(e => !e.parent_id).length;
+  const replyCount = entries.filter(e => !!e.parent_id).length;
+  const pendingCount = entries.filter(e => e.status === 'pending').length;
+  const privateCount = entries.filter(e => e.is_private === 1).length;
+  const likesTotal = entries.reduce((sum, e) => sum + (e.likes || 0), 0);
 
   const embedSnippet = embedSrc ? `<iframe
   id="guestbook-embed"
@@ -161,6 +168,57 @@ export default function Dashboard() {
     try {
       await navigator.clipboard.writeText(embedSnippet);
       alert('Embed code copied to clipboard.');
+    } catch {
+      alert('Could not copy automatically. Select the text and copy it manually.');
+    }
+  }
+
+  const headlessSubmitSnippet = origin && username ? `<form id="guestbook-form">
+  <input name="name" placeholder="Your name" required />
+  <input name="website" placeholder="https://example.com (optional)" />
+  <textarea name="message" placeholder="Leave a note..." required></textarea>
+  <button type="submit">Sign Guestbook</button>
+</form>
+
+<script>
+  const baseUrl = "${origin}";
+  const owner = "${username}";
+  document.getElementById("guestbook-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const payload = {
+      owner_username: owner,
+      sender_name: fd.get("name"),
+      sender_website: fd.get("website"),
+      message: fd.get("message"),
+      is_private: false,
+      bot_field: ""
+    };
+    const res = await fetch(baseUrl + "/api/entries", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    if (!res.ok) throw new Error("Failed to submit");
+    alert("Submitted!");
+  });
+</script>` : '';
+
+  const headlessWidgetSnippet = widgetSrc && username ? `<div id="guestbook-entries"></div>
+<script src="${widgetSrc}"></script>
+<script>
+  GuestbookWidget.mount({
+    baseUrl: "${origin}",
+    username: "${username}",
+    container: "#guestbook-entries"
+  });
+</script>` : '';
+
+  async function copyText(text) {
+    if (!text) return;
+    try {
+      await navigator.clipboard.writeText(text);
+      alert('Copied to clipboard.');
     } catch {
       alert('Could not copy automatically. Select the text and copy it manually.');
     }
@@ -219,6 +277,56 @@ export default function Dashboard() {
       </section>
 
       <hr />
+
+      <section className="dashboard-stats">
+        <div className="stat-card">
+          <div className="stat-label">Threads</div>
+          <div className="stat-value">{rootEntryCount}</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-label">Replies</div>
+          <div className="stat-value">{replyCount}</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-label">Pending</div>
+          <div className="stat-value">{pendingCount}</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-label">Private</div>
+          <div className="stat-value">{privateCount}</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-label">Total Likes</div>
+          <div className="stat-value">{likesTotal}</div>
+        </div>
+      </section>
+
+      <section className="card" style={{ marginBottom: '1.5rem' }}>
+        <h3 style={{ marginTop: 0 }}>Headless API (build your own UI)</h3>
+        <p style={{ color: 'var(--text-muted)', marginBottom: '0.75rem' }}>
+          Use your own form and layout. The API supports cross-origin requests, and you can optionally use the widget to populate entries.
+        </p>
+
+        <h4 style={{ margin: '0 0 0.5rem 0' }}>1) Custom form → API</h4>
+        <textarea className="code-textarea" rows={10} readOnly value={headlessSubmitSnippet || 'Loading...'} />
+        <div className="actions-row">
+          <button className="secondary icon-button" onClick={() => copyText(headlessSubmitSnippet)} disabled={!headlessSubmitSnippet}>
+            <IconCopy />
+            <span>Copy snippet</span>
+          </button>
+        </div>
+
+        <hr style={{ margin: '1rem 0' }} />
+
+        <h4 style={{ margin: '0 0 0.5rem 0' }}>2) Render entries with JS</h4>
+        <textarea className="code-textarea" rows={7} readOnly value={headlessWidgetSnippet || 'Loading...'} />
+        <div className="actions-row">
+          <button className="secondary icon-button" onClick={() => copyText(headlessWidgetSnippet)} disabled={!headlessWidgetSnippet}>
+            <IconCopy />
+            <span>Copy snippet</span>
+          </button>
+        </div>
+      </section>
 
       <div className="dashboard-grid">
         <section className="card">

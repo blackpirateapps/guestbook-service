@@ -3,6 +3,13 @@ import jwt from 'jsonwebtoken';
 
 const SECRET = process.env.JWT_SECRET || 'secret';
 
+function setCors(res) {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.setHeader('Access-Control-Max-Age', '86400');
+}
+
 function getJsonBody(req) {
   if (!req.body) return {};
   if (typeof req.body === 'string') {
@@ -12,6 +19,9 @@ function getJsonBody(req) {
 }
 
 export default async function handler(req, res) {
+  setCors(res);
+  if (req.method === 'OPTIONS') return res.status(204).end();
+
   const { method } = req;
   const { user } = req.query;
 
