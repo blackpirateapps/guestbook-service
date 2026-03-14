@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import DOMPurify from 'dompurify';
+import { IconExternalLink, IconHeart, IconReply } from '../components/Icons';
 
 const SAFE_CONFIG = {
   ALLOWED_TAGS: ['h1', 'h2', 'h3', 'p', 'span', 'div', 'br', 'hr', 'b', 'i', 'strong', 'em', 'ul', 'li', 'img', 'a'],
@@ -30,6 +31,7 @@ export default function PublicGuestbook({ overrideUsername }) {
   const [botField, setBotField] = useState('');
 
   const [replyingTo, setReplyingTo] = useState(null);
+  const [likingIds, setLikingIds] = useState(() => new Set());
 
   useEffect(() => {
     if (username) {
@@ -86,13 +88,22 @@ export default function PublicGuestbook({ overrideUsername }) {
   }
 
   async function handleLike(id) {
+    setLikingIds(prev => new Set(prev).add(id));
     setEntries(prev => prev.map(e => e.id === id ? { ...e, likes: (e.likes || 0) + 1 } : e));
 
-    await fetch('/api/entries', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'like', id })
-    });
+    try {
+      await fetch('/api/entries', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'like', id })
+      });
+    } finally {
+      setLikingIds(prev => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
+    }
   }
 
   async function handleSubmit(e) {
@@ -217,7 +228,8 @@ export default function PublicGuestbook({ overrideUsername }) {
 
   const embedBaseCss = isEmbed
     ? `
-      html, body { background: transparent; }
+      :root { color-scheme: light dark; }
+      html, body { background: var(--bg-color); color: var(--text-main); }
       footer { display: none; }
     `.trim()
     : '';
@@ -254,48 +266,69 @@ export default function PublicGuestbook({ overrideUsername }) {
       <hr />
 
       <section className="entries-list">
-        <h3>
-          Guestbook Entries ({rootEntries.length})
-        </h3>
+        <div className="entries-header">
+          <h3 style={{ margin: 0 }}>Guestbook Entries</h3>
+          <div className="entries-count">{rootEntries.length}</div>
+        </div>
 
         {rootEntries.length === 0 ? (
           <p style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>Be the first to sign this guestbook!</p>
         ) : (
           rootEntries.map(entry => (
             <article key={entry.id} className="entry-thread">
-              <div className="entry-item">
-                <div className="entry-header">
-                  <div className="entry-meta-top">
+              <div className="entry-card">
+                <header className="entry-card-header">
+                  <div className="entry-title-row">
                     <div className="entry-name">
                       {entry.sender_name}
                       {entry.is_owner === 1 && <span className="badge owner">Owner</span>}
-                      {entry.sender_website && (
-                        <a href={entry.sender_website} target="_blank" rel="noopener noreferrer" style={{ fontSize: '0.8rem', fontWeight: 'normal', color: 'var(--text-muted)', marginLeft: '6px', textDecoration: 'none' }}>
-                          🔗
-                        </a>
-                      )}
                     </div>
-                    <div className="entry-date">
-                      {new Date(entry.created_at).toLocaleString()}
-                    </div>
+
+                    {entry.sender_website && (
+                      <a
+                        className="entry-website"
+                        href={entry.sender_website}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        aria-label="Open sender website"
+                        title="Open sender website"
+                      >
+                        <IconExternalLink />
+                      </a>
+                    )}
                   </div>
-                </div>
+
+                  <div className="entry-date">
+                    {new Date(entry.created_at).toLocaleString()}
+                  </div>
+                </header>
 
                 <div className="entry-content">{entry.message}</div>
 
                 <div className="entry-actions">
-                  <button className="secondary" onClick={() => handleLike(entry.id)}>
-                    ❤️ {entry.likes || 0}
+                  <button
+                    className="secondary icon-button"
+                    onClick={() => handleLike(entry.id)}
+                    disabled={likingIds.has(entry.id)}
+                    aria-label="Like entry"
+                  >
+                    <IconHeart />
+                    <span>{entry.likes || 0}</span>
                   </button>
 
-                  <button className="secondary" onClick={() => { setReplyingTo(entry.id); setMessage(''); setIsPrivate(false); }}>
-                    Reply
+                  <button
+                    className="secondary icon-button"
+                    onClick={() => { setReplyingTo(entry.id); setMessage(''); setIsPrivate(false); }}
+                    aria-label="Reply to entry"
+                  >
+                    <IconReply />
+                    <span>Reply</span>
                   </button>
                 </div>
               </div>
 
               {replyingTo === entry.id && (
-                <div style={{ marginLeft: '1rem', marginTop: '1rem' }}>
+                <div className="reply-form-wrapper">
                   <EntryForm isReply={true} onCancel={() => setReplyingTo(null)} />
                 </div>
               )}
@@ -303,19 +336,17 @@ export default function PublicGuestbook({ overrideUsername }) {
               {getReplies(entry.id).length > 0 && (
                 <div className="replies">
                   {getReplies(entry.id).map(reply => (
-                    <div key={reply.id} className="reply-item">
-                      <div className="entry-header" style={{ marginBottom: '0.25rem' }}>
-                        <div className="entry-meta-top">
-                          <div className="entry-name" style={{ fontSize: '1rem' }}>
-                            {reply.sender_name}
-                            {reply.is_owner === 1 && <span className="badge owner">Owner</span>}
-                          </div>
-                          <div className="entry-date" style={{ fontSize: '0.8rem' }}>
-                            {new Date(reply.created_at).toLocaleString()}
-                          </div>
+                    <div key={reply.id} className="reply-card">
+                      <div className="reply-header">
+                        <div className="reply-name">
+                          {reply.sender_name}
+                          {reply.is_owner === 1 && <span className="badge owner">Owner</span>}
+                        </div>
+                        <div className="reply-date">
+                          {new Date(reply.created_at).toLocaleString()}
                         </div>
                       </div>
-                      <div className="entry-content" style={{ marginBottom: '0' }}>{reply.message}</div>
+                      <div className="reply-content">{reply.message}</div>
                     </div>
                   ))}
                 </div>

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { IconCheck, IconCopy, IconExternalLink, IconHeart, IconReply, IconTrash } from '../components/Icons';
 
 export default function Dashboard() {
   const [entries, setEntries] = useState([]);
@@ -116,29 +117,39 @@ export default function Dashboard() {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
-        <h1 style={{ margin: 0 }}>Dashboard</h1>
+      <div className="dashboard-header">
+        <div>
+          <h1 style={{ margin: 0 }}>Dashboard</h1>
+          <div className="dashboard-subheader">
+            <span>Your public link:</span>
+            <a className="dashboard-link" href={`/u/${username}`} target="_blank" rel="noreferrer">
+              /u/{username} <IconExternalLink />
+            </a>
+          </div>
+        </div>
         <button className="secondary" onClick={() => { localStorage.clear(); navigate('/'); }}>Logout</button>
       </div>
 
-      <div style={{ marginBottom: '2rem' }}>
-        <p>Your Public Guestbook Link: <a href={`/u/${username}`} target="_blank" rel="noreferrer">/u/{username}</a></p>
-      </div>
-
-      <section style={{ marginBottom: '2rem' }}>
-        <h3>Embed on your site</h3>
-        <p>Paste this snippet into any HTML page to embed your guestbook.</p>
+      <section className="card" style={{ marginBottom: '1.5rem' }}>
+        <h3 style={{ marginTop: 0 }}>Embed on your site</h3>
+        <p style={{ marginBottom: '0.75rem' }}>Paste this snippet into any HTML page to embed your guestbook.</p>
         <textarea
+          className="code-textarea"
           rows={10}
           readOnly
           value={embedSnippet || 'Loading embed code...'}
-          style={{ fontFamily: 'monospace' }}
         />
-        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-          <button className="secondary" onClick={copyEmbedSnippet} disabled={!embedSnippet}>Copy embed code</button>
+        <div className="actions-row">
+          <button className="secondary icon-button" onClick={copyEmbedSnippet} disabled={!embedSnippet}>
+            <IconCopy />
+            <span>Copy embed code</span>
+          </button>
           {embedSrc && (
             <a href={embedSrc} target="_blank" rel="noreferrer">
-              <button className="secondary" type="button">Preview embed</button>
+              <button className="secondary icon-button" type="button">
+                <IconExternalLink />
+                <span>Preview embed</span>
+              </button>
             </a>
           )}
         </div>
@@ -147,9 +158,9 @@ export default function Dashboard() {
       <hr />
 
       <div className="dashboard-grid">
-        <section>
-          <h3>Moderation</h3>
-          <p>Control how new messages appear on your guestbook.</p>
+        <section className="card">
+          <h3 style={{ marginTop: 0 }}>Moderation</h3>
+          <p style={{ marginBottom: '0.75rem' }}>Control how new messages appear on your guestbook.</p>
           <label className="checkbox-label" style={{ marginBottom: '1rem' }}>
             <input
               type="checkbox"
@@ -164,9 +175,9 @@ export default function Dashboard() {
 
       <hr />
 
-      <section style={{ marginBottom: '2rem' }}>
-        <h3>Customize Appearance</h3>
-        <p>Inject custom CSS and HTML into your public page.</p>
+      <section className="card" style={{ marginBottom: '1.5rem' }}>
+        <h3 style={{ marginTop: 0 }}>Customize Appearance</h3>
+        <p style={{ marginBottom: '0.75rem' }}>Inject custom CSS and HTML into your public page.</p>
         <div className="dashboard-grid">
           <div className="form-group">
             <label>Custom CSS</label>
@@ -175,7 +186,7 @@ export default function Dashboard() {
               value={customCss}
               onChange={e => setCustomCss(e.target.value)}
               placeholder="/* Add styles here */"
-              style={{ fontFamily: 'monospace' }}
+              className="code-textarea"
             />
           </div>
           <div className="form-group">
@@ -185,7 +196,7 @@ export default function Dashboard() {
               value={customHtml}
               onChange={e => setCustomHtml(e.target.value)}
               placeholder="<!-- Add HTML here -->"
-              style={{ fontFamily: 'monospace' }}
+              className="code-textarea"
             />
           </div>
         </div>
@@ -195,46 +206,67 @@ export default function Dashboard() {
       <hr />
 
       <section>
-        <h2>Recent Entries</h2>
+        <div className="entries-header">
+          <h2 style={{ margin: 0 }}>Recent Entries</h2>
+          <div className="entries-count">{entries.length}</div>
+        </div>
         {entries.length === 0 ? (
           <p>No messages yet.</p>
         ) : (
           <div className="entries-list">
             {entries.map(entry => (
-              <div key={entry.id} className="entry-item">
-                <div className="entry-header">
-                  <div className="entry-meta-top">
+              <div key={entry.id} className="entry-card">
+                <header className="entry-card-header">
+                  <div className="entry-title-row">
                     <div className="entry-name">
                       {entry.sender_name}
                       {entry.sender_website && (
-                        <a href={entry.sender_website} target="_blank" rel="noreferrer" style={{ fontSize: '0.8rem', fontWeight: 'normal', color: 'var(--text-muted)', marginLeft: '6px', textDecoration: 'none' }}>
-                          🔗
+                        <a
+                          className="entry-website"
+                          href={entry.sender_website}
+                          target="_blank"
+                          rel="noreferrer"
+                          aria-label="Open sender website"
+                          title="Open sender website"
+                        >
+                          <IconExternalLink />
                         </a>
                       )}
 
-                      <div style={{ display: 'inline', marginLeft: '0.5rem' }}>
+                      <span className="badge-group">
                         {entry.status === 'pending' && <span className="badge pending">Pending</span>}
                         {entry.is_private === 1 && <span className="badge private">Private</span>}
                         {entry.is_owner === 1 && <span className="badge owner">Owner</span>}
-                      </div>
+                      </span>
                     </div>
                     <div className="entry-date">
-                      {new Date(entry.created_at).toLocaleString()} • ❤️ {entry.likes || 0}
+                      {new Date(entry.created_at).toLocaleString()}
                     </div>
                   </div>
-                </div>
+                  <div className="entry-metrics">
+                    <IconHeart />
+                    <span>{entry.likes || 0}</span>
+                  </div>
+                </header>
 
-                <div className="entry-content">
-                  {entry.message}
-                </div>
+                <div className="entry-content">{entry.message}</div>
 
                 <div className="entry-actions">
                   {entry.status === 'pending' && (
-                    <button onClick={() => approveEntry(entry.id)}>Approve</button>
+                    <button className="icon-button" onClick={() => approveEntry(entry.id)}>
+                      <IconCheck />
+                      <span>Approve</span>
+                    </button>
                   )}
 
-                  <button className="secondary" onClick={() => setReplyingTo(entry.id)}>Reply</button>
-                  <button className="danger" onClick={() => deleteEntry(entry.id)}>Delete</button>
+                  <button className="secondary icon-button" onClick={() => setReplyingTo(entry.id)}>
+                    <IconReply />
+                    <span>Reply</span>
+                  </button>
+                  <button className="danger icon-button" onClick={() => deleteEntry(entry.id)}>
+                    <IconTrash />
+                    <span>Delete</span>
+                  </button>
                 </div>
 
                 {replyingTo === entry.id && (

@@ -37,6 +37,7 @@ The Guestbook Service is a lightweight, customizable web application that allows
 ## Key Mechanisms & Workflows
 1. **Client-Side Routing (`App.jsx`)**
    The application uses standard `react-router-dom` for internal navigation (`/`, `/dashboard`, `/u/:username`).
+   *Embed Mode:* Public guestbooks can be embedded via an iframe using `?embed=1` on `/u/:username`. In embed mode, the app renders only the public guestbook route (no navbar/layout), posts height updates to the parent window, and respects light/dark mode using the same CSS variables.
 
 2. **Serverless API Layer (`/api`)**
    APIs extract the JWT from the `Authorization` header to authenticate admin actions (deleting messages, updating settings). Public actions (viewing the guestbook, adding an unapproved entry) are unauthenticated but require the `owner_username`.

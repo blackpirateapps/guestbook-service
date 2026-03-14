@@ -3,6 +3,14 @@ import jwt from 'jsonwebtoken';
 
 const SECRET = process.env.JWT_SECRET || 'secret';
 
+function getJsonBody(req) {
+  if (!req.body) return {};
+  if (typeof req.body === 'string') {
+    try { return JSON.parse(req.body); } catch { return {}; }
+  }
+  return req.body;
+}
+
 export default async function handler(req, res) {
   const { method } = req;
   const { user } = req.query;
@@ -54,7 +62,7 @@ export default async function handler(req, res) {
   // --------------------------------------------
   if (method === 'POST') {
     try {
-      const body = JSON.parse(req.body);
+      const body = getJsonBody(req);
       
       // A. SPAM PROTECTION (Honeypot)
       // If the hidden field "bot_field" has text, it's a bot. Fail silently (return 200).
@@ -118,12 +126,12 @@ export default async function handler(req, res) {
   // 3. PUT: Likes or Moderation Approval
   // --------------------------------------------
   if (method === 'PUT') {
-    const { action, id } = JSON.parse(req.body);
+    const { action, id } = getJsonBody(req);
 
     // A. LIKE (Public, no auth needed)
     if (action === 'like') {
       await db.execute({
-        sql: 'UPDATE entries SET likes = likes + 1 WHERE id = ?',
+        sql: 'UPDATE entries SET likes = COALESCE(likes, 0) + 1 WHERE id = ?',
         args: [id]
       });
       return res.json({ success: true });
@@ -155,7 +163,7 @@ export default async function handler(req, res) {
     const token = req.headers.authorization?.split(' ')[1];
     try {
       const decoded = jwt.verify(token, SECRET);
-      const { id } = JSON.parse(req.body);
+      const { id } = getJsonBody(req);
       
       await db.execute({
         sql: 'DELETE FROM entries WHERE id = ? AND owner_username = ?',
