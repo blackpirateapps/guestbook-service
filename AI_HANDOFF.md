@@ -8,7 +8,7 @@ The Guestbook Service is a lightweight, customizable web application that allows
 ## Technology Stack
 - **Frontend Framework:** React 18, utilizing React Router DOM for routing.
 - **Build Tool:** Vite, configured for fast, modern frontend development.
-- **Styling:** Vanilla CSS (`src/index.css`) featuring a minimal, flat, Cupertino (iOS) white mode UI with system fonts and standard rounded corners.
+- **Styling:** Vanilla CSS (`src/index.css`) featuring a minimal, semantic HTML-driven design inspired by Bearblog or Pico.css. It uses system fonts and relies on standard HTML element styling for a clean, lean interface.
 - **Database:** LibSQL (Turso) via `@libsql/client`.
 - **Backend/API:** Serverless functions designed to be hosted on Vercel. Located in the `/api` directory.
 - **Security:** JWT for authentication, bcryptjs for password hashing, and DOMPurify for sanitizing user-provided custom HTML.
@@ -44,7 +44,7 @@ The Guestbook Service is a lightweight, customizable web application that allows
    APIs extract the JWT from the `Authorization` header to authenticate admin actions (deleting messages, updating settings). Public actions (viewing the guestbook, adding an unapproved entry) are unauthenticated but require the `owner_username`.
 
 3. **Styling and Theming**
-   The application fundamentally uses a minimalistic white iOS (Cupertino) theme styled in `src/index.css` leveraging CSS Variables (`--accent-primary`, `--bg-card`, etc). Ensure any new UI components utilize these variables to maintain the flat, bright, native feeling aesthetic.
+   The application uses a minimalistic, semantic HTML theme styled in `src/index.css`. It prioritizes readability and fast loading by staying close to browser defaults while providing a cohesive layout through CSS variables. It includes a basic responsive grid system and dark mode support via `prefers-color-scheme`.
 
 4. **Security & Moderation**
    - **XSS Prevention:** `DOMPurify` is strictly used in `PublicGuestbook.jsx` before rendering custom HTML fragments provided by the user.

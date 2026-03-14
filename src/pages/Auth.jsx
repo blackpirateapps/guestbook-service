@@ -32,55 +32,50 @@ export default function Auth() {
   }
 
   return (
-    <div className="guestbook-container auth-wrapper">
-      <div className="card auth-card">
-        <h1 className="text-center">{isLogin ? 'Welcome Back' : 'Create Account'}</h1>
-        <p className="text-center" style={{ color: 'var(--text-muted)', marginBottom: '24px' }}>
-          {isLogin ? 'Sign in to manage your guestbook' : 'Sign up to get started'}
-        </p>
+    <div className="auth-wrapper">
+      <h1 className="text-center">{isLogin ? 'Hello' : 'Welcome'}</h1>
+      <p className="text-center" style={{ color: 'var(--text-muted)' }}>
+        {isLogin ? 'Sign in to your guestbook' : 'Create your guestbook'}
+      </p>
 
-        <form onSubmit={handleSubmit}>
-          <div className="form-group">
-            <label>Username</label>
-            <input
-              type="text"
-              value={username}
-              onChange={e => setUsername(e.target.value)}
-              placeholder="Enter your username"
-              required
-            />
-          </div>
-
-          <div className="form-group">
-            <label>Password</label>
-            <input
-              type="password"
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-              placeholder="Enter your password"
-              required
-            />
-          </div>
-
-          <button type="submit" style={{ marginTop: '16px' }}>
-            {isLogin ? 'Login' : 'Sign Up'}
-          </button>
-        </form>
-
-        <hr style={{ margin: '24px 0' }} />
-
-        <div className="text-center">
-          <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>
-            {isLogin ? "Don't have an account? " : "Already have an account? "}
-            <a
-              href="#"
-              onClick={(e) => { e.preventDefault(); setIsLogin(!isLogin); }}
-              style={{ fontWeight: '500', cursor: 'pointer' }}
-            >
-              {isLogin ? 'Sign up' : 'Log in'}
-            </a>
-          </p>
+      <form onSubmit={handleSubmit} style={{ maxWidth: '400px', margin: '2rem auto' }}>
+        <div className="form-group">
+          <label>Username</label>
+          <input
+            type="text"
+            value={username}
+            onChange={e => setUsername(e.target.value)}
+            placeholder="Username"
+            required
+          />
         </div>
+
+        <div className="form-group">
+          <label>Password</label>
+          <input
+            type="password"
+            value={password}
+            onChange={e => setPassword(e.target.value)}
+            placeholder="Password"
+            required
+          />
+        </div>
+
+        <button type="submit" style={{ width: '100%', marginTop: '1rem' }}>
+          {isLogin ? 'Login' : 'Sign Up'}
+        </button>
+      </form>
+
+      <div className="text-center">
+        <p>
+          {isLogin ? "Don't have an account? " : "Already have an account? "}
+          <a
+            href="#"
+            onClick={(e) => { e.preventDefault(); setIsLogin(!isLogin); }}
+          >
+            {isLogin ? 'Create one' : 'Log in'}
+          </a>
+        </p>
       </div>
     </div>
   );
