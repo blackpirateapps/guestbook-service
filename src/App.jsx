@@ -16,7 +16,7 @@ function App() {
   async function checkDomain() {
     const hostname = window.location.hostname;
     // UPDATE THIS: The domain where your main app lives
-    const mainDomain = "your-app-name.vercel.app"; 
+    const mainDomain = "your-app-name.vercel.app";
 
     // Skip check for localhost or main domain
     if (hostname.includes('localhost') || hostname === mainDomain) {
@@ -46,18 +46,23 @@ function App() {
     return <PublicGuestbook overrideUsername={customDomainUser} />;
   }
 
-  if (loading) return <div className="container">Loading...</div>;
+  if (loading) return <div className="guestbook-container text-center" style={{ marginTop: '100px' }}>Loading application...</div>;
 
   // ----------------------------------------------------
   // SCENARIO B: NORMAL APP USAGE
   // ----------------------------------------------------
   return (
     <div className="container">
-      <nav>
-        <Link to="/">Home/Login</Link> | <Link to="/dashboard">Dashboard</Link>
+      <nav className="navbar">
+        <div style={{ fontWeight: '800', fontSize: '1.4rem', fontFamily: 'Outfit, sans-serif' }}>
+          <span style={{ color: 'var(--accent-primary)' }}>Guest</span>book
+        </div>
+        <div className="nav-links">
+          <Link to="/" style={{ color: 'var(--text-main)', fontSize: '0.95rem', fontWeight: '500' }}>Home</Link>
+          <Link to="/dashboard" style={{ color: 'var(--text-main)', fontSize: '0.95rem', fontWeight: '500' }}>Dashboard</Link>
+        </div>
       </nav>
-      <hr />
-      
+
       <Routes>
         <Route path="/" element={<Auth />} />
         <Route path="/dashboard" element={<Dashboard />} />

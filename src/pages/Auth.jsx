@@ -32,21 +32,56 @@ export default function Auth() {
   }
 
   return (
-    <div className="guestbook-container">
-      <h1>{isLogin ? 'Login' : 'Signup'}</h1>
-      <form onSubmit={handleSubmit}>
-        <label>Username: </label>
-        <input type="text" value={username} onChange={e => setUsername(e.target.value)} required />
-        <br /><br />
-        <label>Password: </label>
-        <input type="password" value={password} onChange={e => setPassword(e.target.value)} required />
-        <br /><br />
-        <button type="submit">{isLogin ? 'Login' : 'Sign Up'}</button>
-      </form>
-      <br />
-      <button onClick={() => setIsLogin(!isLogin)}>
-        Switch to {isLogin ? 'Sign Up' : 'Login'}
-      </button>
+    <div className="guestbook-container auth-wrapper">
+      <div className="card auth-card">
+        <h1 className="text-center">{isLogin ? 'Welcome Back' : 'Create Account'}</h1>
+        <p className="text-center" style={{ color: 'var(--text-muted)', marginBottom: '24px' }}>
+          {isLogin ? 'Sign in to manage your guestbook' : 'Sign up to get started'}
+        </p>
+
+        <form onSubmit={handleSubmit}>
+          <div className="form-group">
+            <label>Username</label>
+            <input 
+              type="text" 
+              value={username} 
+              onChange={e => setUsername(e.target.value)} 
+              placeholder="Enter your username"
+              required 
+            />
+          </div>
+
+          <div className="form-group">
+            <label>Password</label>
+            <input 
+              type="password" 
+              value={password} 
+              onChange={e => setPassword(e.target.value)} 
+              placeholder="Enter your password"
+              required 
+            />
+          </div>
+
+          <button type="submit" style={{ marginTop: '16px' }}>
+            {isLogin ? 'Login' : 'Sign Up'}
+          </button>
+        </form>
+
+        <hr style={{ margin: '24px 0' }}/>
+        
+        <div className="text-center">
+          <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>
+            {isLogin ? "Don't have an account? " : "Already have an account? "}
+            <a 
+              href="#" 
+              onClick={(e) => { e.preventDefault(); setIsLogin(!isLogin); }}
+              style={{ fontWeight: '600', cursor: 'pointer' }}
+            >
+              {isLogin ? 'Sign up' : 'Log in'}
+            </a>
+          </p>
+        </div>
+      </div>
     </div>
   );
 }

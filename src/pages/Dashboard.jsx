@@ -7,11 +7,11 @@ export default function Dashboard() {
   const [customHtml, setCustomHtml] = useState('');
   const [connectedDomain, setConnectedDomain] = useState(null);
   const [requireApproval, setRequireApproval] = useState(false);
-  
+
   const [domainInput, setDomainInput] = useState('');
   const [replyingTo, setReplyingTo] = useState(null);
   const [replyMsg, setReplyMsg] = useState('');
-  
+
   const navigate = useNavigate();
   const token = localStorage.getItem('token');
   const username = localStorage.getItem('username');
@@ -41,9 +41,9 @@ export default function Dashboard() {
     await fetch('/api/profile', {
       method: 'PUT',
       headers: { 'Authorization': `Bearer ${token}` },
-      body: JSON.stringify({ 
-        custom_css: customCss, 
-        custom_html: customHtml, 
+      body: JSON.stringify({
+        custom_css: customCss,
+        custom_html: customHtml,
         require_approval: requireApproval
       })
     });
@@ -52,7 +52,7 @@ export default function Dashboard() {
 
   async function handleAddDomain() {
     if (!domainInput) return;
-    if(!confirm(`Did you add the CNAME record for ${domainInput}?`)) return;
+    if (!confirm(`Did you add the CNAME record for ${domainInput}?`)) return;
 
     const res = await fetch('/api/domain', {
       method: 'POST',
@@ -71,7 +71,7 @@ export default function Dashboard() {
   }
 
   async function handleRemoveDomain() {
-    if(!confirm("Are you sure? This will take your site offline.")) return;
+    if (!confirm("Are you sure? This will take your site offline.")) return;
     const res = await fetch('/api/domain', {
       method: 'DELETE',
       headers: { 'Authorization': `Bearer ${token}` }
@@ -85,7 +85,7 @@ export default function Dashboard() {
   }
 
   async function deleteEntry(id) {
-    if(!confirm("Delete this entry?")) return;
+    if (!confirm("Delete this entry?")) return;
     await fetch('/api/entries', {
       method: 'DELETE',
       body: JSON.stringify({ id }),
@@ -104,7 +104,7 @@ export default function Dashboard() {
   }
 
   async function sendReply(parentId) {
-    if(!replyMsg.trim()) return;
+    if (!replyMsg.trim()) return;
     await fetch('/api/entries', {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${token}` },
@@ -121,119 +121,160 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="guestbook-container">
-      <div>
-        <h1>Dashboard: {username}</h1>
-        <button onClick={() => { localStorage.clear(); navigate('/'); }}>Logout</button>
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+        <h1 style={{ margin: 0 }}>Dashboard</h1>
+        <button className="secondary" onClick={() => { localStorage.clear(); navigate('/'); }}>Logout</button>
       </div>
 
-      <p>Public Vercel Link: <a href={`/u/${username}`} target="_blank">/u/{username}</a></p>
-      
-      <hr />
-
-      <div>
-        <h3>Custom Domain</h3>
-        {connectedDomain ? (
-          <div>
-            <div>
-              <span>● Live</span>
-              <span>{connectedDomain}</span>
-            </div>
-            <div>
-              <a href={`https://${connectedDomain}`} target="_blank" rel="noreferrer">
-                <button>Visit Site ↗</button>
-              </a>
-              <button onClick={handleRemoveDomain}>Disconnect</button>
-            </div>
-          </div>
-        ) : (
-          <div>
-            <p>
-              1. Add CNAME: <code>cname.vercel-dns.com</code><br/>
-              2. Enter domain:
-            </p>
-            <div>
-              <input
-                type="text"
-                placeholder="guestbook.yoursite.com"
-                value={domainInput}
-                onChange={e => setDomainInput(e.target.value)}
-              />
-              <button onClick={handleAddDomain}>Connect</button>
-            </div>
-          </div>
-        )}
-      </div>
-
-      <div>
-        <h3>🛡️ Moderation Settings</h3>
-        <label>
-          <input 
-            type="checkbox" 
-            checked={requireApproval} 
-            onChange={e => setRequireApproval(e.target.checked)}
-          />
-          <span>Require approval for new messages (Hold in Pending)</span>
-        </label>
-        <br />
-        <button onClick={saveSettings}>Update Settings</button>
-      </div>
-
-      <h3>Customize Design</h3>
-      <div>
+      <div className="card" style={{ marginBottom: '32px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div>
-          <label><strong>CSS</strong></label>
-          <textarea rows="6" value={customCss} onChange={e => setCustomCss(e.target.value)} />
+          <h3 style={{ margin: 0 }}>Public Guestbook</h3>
+          <p style={{ margin: '4px 0 0 0', color: 'var(--text-muted)' }}>Share this link to start receiving messages</p>
         </div>
-        <div>
-          <label><strong>HTML Header</strong></label>
-          <textarea rows="6" value={customHtml} onChange={e => setCustomHtml(e.target.value)} />
+        <a href={`/u/${username}`} target="_blank" rel="noreferrer" style={{ background: 'var(--accent-gradient)', padding: '10px 20px', borderRadius: '10px', color: '#fff', fontWeight: 'bold' }}>
+          Visit Link ↗
+        </a>
+      </div>
+
+      <div className="dashboard-grid">
+        <div className="card">
+          <h3>Domain Setup</h3>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '16px' }}>Link a custom domain to your guestbook.</p>
+
+          {connectedDomain ? (
+            <div>
+              <div className="domain-status">
+                <div className="status-dot"></div>
+                <span>Live on <strong>{connectedDomain}</strong></span>
+              </div>
+              <div style={{ display: 'flex', gap: '12px', marginTop: '16px' }}>
+                <a href={`https://${connectedDomain}`} target="_blank" rel="noreferrer">
+                  <button>Visit Site ↗</button>
+                </a>
+                <button className="danger" onClick={handleRemoveDomain}>Disconnect</button>
+              </div>
+            </div>
+          ) : (
+            <div>
+              <ol style={{ paddingLeft: '16px', color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '20px' }}>
+                <li>Add CNAME: <code>cname.vercel-dns.com</code> to your DNS records.</li>
+                <li>Enter your domain below:</li>
+              </ol>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <input
+                  type="text"
+                  placeholder="guestbook.yoursite.com"
+                  value={domainInput}
+                  onChange={e => setDomainInput(e.target.value)}
+                  style={{ flex: 1 }}
+                />
+                <button onClick={handleAddDomain}>Connect</button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="card">
+          <h3>🛡️ Moderation</h3>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '16px' }}>Control how new messages appear on your guestbook.</p>
+          <label className="checkbox-label" style={{ marginBottom: '24px' }}>
+            <input
+              type="checkbox"
+              checked={requireApproval}
+              onChange={e => setRequireApproval(e.target.checked)}
+            />
+            Require approval for new messages
+          </label>
+          <button onClick={saveSettings}>Update Moderation</button>
         </div>
       </div>
-      <button onClick={saveSettings}>Save Design</button>
 
-      <hr />
+      <div className="card" style={{ marginBottom: '40px' }}>
+        <h3>Customize Appearance</h3>
+        <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '20px' }}>Inject custom CSS and HTML into your public page.</p>
+        <div className="dashboard-grid">
+          <div className="form-group">
+            <label>Custom CSS</label>
+            <textarea
+              rows="6"
+              value={customCss}
+              onChange={e => setCustomCss(e.target.value)}
+              placeholder="/* Add your styles here */"
+              style={{ fontFamily: 'monospace' }}
+            />
+          </div>
+          <div className="form-group">
+            <label>Custom HTML <span style={{ textTransform: 'none' }}>(e.g., Header)</span></label>
+            <textarea
+              rows="6"
+              value={customHtml}
+              onChange={e => setCustomHtml(e.target.value)}
+              placeholder="<!-- Add your HTML here -->"
+              style={{ fontFamily: 'monospace' }}
+            />
+          </div>
+        </div>
+        <button onClick={saveSettings}>Save Appearance</button>
+      </div>
 
-      <h3>Guestbook Entries</h3>
-      {entries.length === 0 ? <p>No messages yet.</p> : (
-        <div>
+      <h2 style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '12px', marginBottom: '24px' }}>Recent Entries</h2>
+      {entries.length === 0 ? (
+        <div className="card text-center" style={{ padding: '40px 20px', borderStyle: 'dashed' }}>
+          <h3 style={{ color: 'var(--text-muted)' }}>No messages yet</h3>
+          <p style={{ color: 'var(--text-muted)' }}>Share your link to get your first guestbook entry!</p>
+        </div>
+      ) : (
+        <div className="entries-list">
           {entries.map(entry => (
-            <div key={entry.id}>
-              <div>
-                {entry.status === 'pending' && <span>PENDING APPROVAL</span>}
-                {entry.is_private === 1 && <span>🔒 PRIVATE</span>}
-                {entry.is_owner === 1 && <span>👑 YOU</span>}
+            <div key={entry.id} className="entry-item">
+              <div className="entry-header">
+                <div className="entry-meta-top">
+                  <div className="entry-name">
+                    {entry.sender_name}
+                    {entry.sender_website && (
+                      <a href={entry.sender_website} target="_blank" rel="noreferrer" style={{ fontSize: '0.8rem', fontWeight: 'normal', color: 'var(--text-muted)', marginLeft: '8px' }}>
+                        🔗 Website
+                      </a>
+                    )}
+                  </div>
+                  <div className="entry-date">
+                    {new Date(entry.created_at).toLocaleString()} • ❤️ {entry.likes || 0}
+                  </div>
+                </div>
+                <div className="entry-badges">
+                  {entry.status === 'pending' && <span className="badge pending">Pending</span>}
+                  {entry.is_private === 1 && <span className="badge private">Private</span>}
+                  {entry.is_owner === 1 && <span className="badge owner">Owner</span>}
+                </div>
               </div>
 
-              <div>
-                <strong>{entry.sender_name}</strong>
-                {entry.sender_website && <span> • <a href={entry.sender_website} target="_blank">Website</a></span>}
-                <span>
-                  {new Date(entry.created_at).toLocaleString()} • ❤️ {entry.likes || 0}
-                </span>
+              <div className="entry-content">
+                {entry.message}
               </div>
-              
-              <p>{entry.message}</p>
-              
-              <div>
+
+              <div className="entry-actions">
                 {entry.status === 'pending' && (
-                  <button onClick={() => approveEntry(entry.id)}>Approve</button>
+                  <button onClick={() => approveEntry(entry.id)} style={{ background: 'var(--success)', boxShadow: 'none' }}>✓ Approve</button>
                 )}
-                
-                <button onClick={() => setReplyingTo(entry.id)}>Reply</button>
-                <button onClick={() => deleteEntry(entry.id)}>Delete</button>
+
+                <button className="secondary" onClick={() => setReplyingTo(entry.id)}>↩ Reply</button>
+                <button className="danger" onClick={() => deleteEntry(entry.id)}>🗑 Delete</button>
               </div>
 
               {replyingTo === entry.id && (
-                <div>
-                  <input 
-                    type="text" 
-                    value={replyMsg} 
-                    onChange={e => setReplyMsg(e.target.value)} 
-                    placeholder="Write your reply..."
+                <div style={{ marginTop: '16px', background: 'rgba(0,0,0,0.2)', padding: '16px', borderRadius: '12px' }}>
+                  <textarea
+                    rows="3"
+                    value={replyMsg}
+                    onChange={e => setReplyMsg(e.target.value)}
+                    placeholder="Write a reply as the owner..."
+                    style={{ marginBottom: '12px', minHeight: '80px' }}
                   />
-                  <button onClick={() => sendReply(entry.id)}>Send</button>
-                  <button onClick={() => setReplyingTo(null)}>Cancel</button>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button onClick={() => sendReply(entry.id)}>Send Reply</button>
+                    <button className="secondary" onClick={() => setReplyingTo(null)}>Cancel</button>
+                  </div>
                 </div>
               )}
             </div>
