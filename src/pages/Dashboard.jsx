@@ -122,17 +122,17 @@ export default function Dashboard() {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
         <h1 style={{ margin: 0 }}>Dashboard</h1>
         <button className="secondary" onClick={() => { localStorage.clear(); navigate('/'); }}>Logout</button>
       </div>
 
-      <div className="card" style={{ marginBottom: '32px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      <div className="card" style={{ marginBottom: '24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div>
           <h3 style={{ margin: 0 }}>Public Guestbook</h3>
-          <p style={{ margin: '4px 0 0 0', color: 'var(--text-muted)' }}>Share this link to start receiving messages</p>
+          <p style={{ margin: '4px 0 0 0', color: 'var(--text-muted)', fontSize: '0.9rem' }}>Share this link to start receiving messages</p>
         </div>
-        <a href={`/u/${username}`} target="_blank" rel="noreferrer" style={{ background: 'var(--accent-gradient)', padding: '10px 20px', borderRadius: '10px', color: '#fff', fontWeight: 'bold' }}>
+        <a href={`/u/${username}`} target="_blank" rel="noreferrer" style={{ background: 'var(--accent-primary)', padding: '8px 16px', borderRadius: '8px', color: '#fff', fontWeight: '600', fontSize: '0.9rem' }}>
           Visit Link ↗
         </a>
       </div>
@@ -140,7 +140,7 @@ export default function Dashboard() {
       <div className="dashboard-grid">
         <div className="card">
           <h3>Domain Setup</h3>
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '16px' }}>Link a custom domain to your guestbook.</p>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '16px' }}>Link a custom domain to your guestbook.</p>
 
           {connectedDomain ? (
             <div>
@@ -148,18 +148,18 @@ export default function Dashboard() {
                 <div className="status-dot"></div>
                 <span>Live on <strong>{connectedDomain}</strong></span>
               </div>
-              <div style={{ display: 'flex', gap: '12px', marginTop: '16px' }}>
+              <div style={{ display: 'flex', gap: '8px', marginTop: '16px' }}>
                 <a href={`https://${connectedDomain}`} target="_blank" rel="noreferrer">
-                  <button>Visit Site ↗</button>
+                  <button className="secondary">Visit Site ↗</button>
                 </a>
                 <button className="danger" onClick={handleRemoveDomain}>Disconnect</button>
               </div>
             </div>
           ) : (
             <div>
-              <ol style={{ paddingLeft: '16px', color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '20px' }}>
-                <li>Add CNAME: <code>cname.vercel-dns.com</code> to your DNS records.</li>
-                <li>Enter your domain below:</li>
+              <ol style={{ paddingLeft: '16px', color: 'var(--text-muted)', fontSize: '0.85rem', margin: '0 0 16px 0' }}>
+                <li>Add CNAME: <code>cname.vercel-dns.com</code></li>
+                <li>Enter domain below:</li>
               </ol>
               <div style={{ display: 'flex', gap: '8px' }}>
                 <input
@@ -176,65 +176,65 @@ export default function Dashboard() {
         </div>
 
         <div className="card">
-          <h3>🛡️ Moderation</h3>
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '16px' }}>Control how new messages appear on your guestbook.</p>
-          <label className="checkbox-label" style={{ marginBottom: '24px' }}>
+          <h3>Moderation</h3>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '16px' }}>Control how new messages appear on your guestbook.</p>
+          <label className="checkbox-label" style={{ marginBottom: '16px' }}>
             <input
               type="checkbox"
               checked={requireApproval}
               onChange={e => setRequireApproval(e.target.checked)}
             />
-            Require approval for new messages
+            Require approval
           </label>
-          <button onClick={saveSettings}>Update Moderation</button>
+          <button className="secondary" onClick={saveSettings}>Save changes</button>
         </div>
       </div>
 
-      <div className="card" style={{ marginBottom: '40px' }}>
+      <div className="card" style={{ marginBottom: '32px' }}>
         <h3>Customize Appearance</h3>
-        <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '20px' }}>Inject custom CSS and HTML into your public page.</p>
+        <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '16px' }}>Inject custom CSS and HTML into your public page.</p>
         <div className="dashboard-grid">
           <div className="form-group">
             <label>Custom CSS</label>
             <textarea
-              rows="6"
+              rows="5"
               value={customCss}
               onChange={e => setCustomCss(e.target.value)}
-              placeholder="/* Add your styles here */"
-              style={{ fontFamily: 'monospace' }}
+              placeholder="/* Add styles here */"
+              style={{ fontFamily: 'monospace', fontSize: '0.85rem' }}
             />
           </div>
           <div className="form-group">
-            <label>Custom HTML <span style={{ textTransform: 'none' }}>(e.g., Header)</span></label>
+            <label>Custom HTML Menu</label>
             <textarea
-              rows="6"
+              rows="5"
               value={customHtml}
               onChange={e => setCustomHtml(e.target.value)}
-              placeholder="<!-- Add your HTML here -->"
-              style={{ fontFamily: 'monospace' }}
+              placeholder="<!-- Add HTML here -->"
+              style={{ fontFamily: 'monospace', fontSize: '0.85rem' }}
             />
           </div>
         </div>
-        <button onClick={saveSettings}>Save Appearance</button>
+        <button className="secondary" onClick={saveSettings}>Save changes</button>
       </div>
 
-      <h2 style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '12px', marginBottom: '24px' }}>Recent Entries</h2>
+      <h2 style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '8px', marginBottom: '20px' }}>Recent Entries</h2>
       {entries.length === 0 ? (
-        <div className="card text-center" style={{ padding: '40px 20px', borderStyle: 'dashed' }}>
+        <div className="card text-center" style={{ padding: '32px 20px', backgroundColor: 'var(--bg-color)', boxShadow: 'none' }}>
           <h3 style={{ color: 'var(--text-muted)' }}>No messages yet</h3>
-          <p style={{ color: 'var(--text-muted)' }}>Share your link to get your first guestbook entry!</p>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Share your link to get your first guestbook entry!</p>
         </div>
       ) : (
         <div className="entries-list">
           {entries.map(entry => (
-            <div key={entry.id} className="entry-item">
+            <div key={entry.id} className="entry-item card">
               <div className="entry-header">
                 <div className="entry-meta-top">
                   <div className="entry-name">
                     {entry.sender_name}
                     {entry.sender_website && (
-                      <a href={entry.sender_website} target="_blank" rel="noreferrer" style={{ fontSize: '0.8rem', fontWeight: 'normal', color: 'var(--text-muted)', marginLeft: '8px' }}>
-                        🔗 Website
+                      <a href={entry.sender_website} target="_blank" rel="noreferrer" style={{ fontSize: '0.8rem', fontWeight: 'normal', color: 'var(--text-muted)', marginLeft: '6px' }}>
+                        🔗
                       </a>
                     )}
                   </div>
@@ -255,24 +255,24 @@ export default function Dashboard() {
 
               <div className="entry-actions">
                 {entry.status === 'pending' && (
-                  <button onClick={() => approveEntry(entry.id)} style={{ background: 'var(--success)', boxShadow: 'none' }}>✓ Approve</button>
+                  <button onClick={() => approveEntry(entry.id)} style={{ background: 'var(--success)' }}>Approve</button>
                 )}
 
-                <button className="secondary" onClick={() => setReplyingTo(entry.id)}>↩ Reply</button>
-                <button className="danger" onClick={() => deleteEntry(entry.id)}>🗑 Delete</button>
+                <button className="secondary" onClick={() => setReplyingTo(entry.id)}>Reply</button>
+                <button className="danger" onClick={() => deleteEntry(entry.id)}>Delete</button>
               </div>
 
               {replyingTo === entry.id && (
-                <div style={{ marginTop: '16px', background: 'rgba(0,0,0,0.2)', padding: '16px', borderRadius: '12px' }}>
+                <div style={{ marginTop: '16px', background: 'var(--bg-color)', padding: '12px', borderRadius: '8px' }}>
                   <textarea
-                    rows="3"
+                    rows="2"
                     value={replyMsg}
                     onChange={e => setReplyMsg(e.target.value)}
                     placeholder="Write a reply as the owner..."
-                    style={{ marginBottom: '12px', minHeight: '80px' }}
+                    style={{ marginBottom: '8px', minHeight: '60px' }}
                   />
                   <div style={{ display: 'flex', gap: '8px' }}>
-                    <button onClick={() => sendReply(entry.id)}>Send Reply</button>
+                    <button onClick={() => sendReply(entry.id)}>Send</button>
                     <button className="secondary" onClick={() => setReplyingTo(null)}>Cancel</button>
                   </div>
                 </div>

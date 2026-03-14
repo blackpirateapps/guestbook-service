@@ -46,7 +46,7 @@ function App() {
     return <PublicGuestbook overrideUsername={customDomainUser} />;
   }
 
-  if (loading) return <div className="guestbook-container text-center" style={{ marginTop: '100px' }}>Loading application...</div>;
+  if (loading) return <div className="guestbook-container text-center" style={{ marginTop: '100px', color: 'var(--text-muted)' }}>Loading application...</div>;
 
   // ----------------------------------------------------
   // SCENARIO B: NORMAL APP USAGE
@@ -54,7 +54,7 @@ function App() {
   return (
     <div className="container">
       <nav className="navbar">
-        <div style={{ fontWeight: '800', fontSize: '1.4rem', fontFamily: 'Outfit, sans-serif' }}>
+        <div style={{ fontWeight: '700', fontSize: '1.25rem', letterSpacing: '-0.02em' }}>
           <span style={{ color: 'var(--accent-primary)' }}>Guest</span>book
         </div>
         <div className="nav-links">

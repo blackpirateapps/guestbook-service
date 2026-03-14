@@ -10,7 +10,7 @@ export default function Auth() {
   async function handleSubmit(e) {
     e.preventDefault();
     const endpoint = isLogin ? '/api/login' : '/api/signup';
-    
+
     const res = await fetch(endpoint, {
       method: 'POST',
       body: JSON.stringify({ username, password })
@@ -42,23 +42,23 @@ export default function Auth() {
         <form onSubmit={handleSubmit}>
           <div className="form-group">
             <label>Username</label>
-            <input 
-              type="text" 
-              value={username} 
-              onChange={e => setUsername(e.target.value)} 
+            <input
+              type="text"
+              value={username}
+              onChange={e => setUsername(e.target.value)}
               placeholder="Enter your username"
-              required 
+              required
             />
           </div>
 
           <div className="form-group">
             <label>Password</label>
-            <input 
-              type="password" 
-              value={password} 
-              onChange={e => setPassword(e.target.value)} 
+            <input
+              type="password"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
               placeholder="Enter your password"
-              required 
+              required
             />
           </div>
 
@@ -67,15 +67,15 @@ export default function Auth() {
           </button>
         </form>
 
-        <hr style={{ margin: '24px 0' }}/>
-        
+        <hr style={{ margin: '24px 0' }} />
+
         <div className="text-center">
           <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>
             {isLogin ? "Don't have an account? " : "Already have an account? "}
-            <a 
-              href="#" 
+            <a
+              href="#"
               onClick={(e) => { e.preventDefault(); setIsLogin(!isLogin); }}
-              style={{ fontWeight: '600', cursor: 'pointer' }}
+              style={{ fontWeight: '500', cursor: 'pointer' }}
             >
               {isLogin ? 'Sign up' : 'Log in'}
             </a>

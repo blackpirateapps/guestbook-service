@@ -90,7 +90,7 @@ export default function PublicGuestbook({ overrideUsername }) {
       setReplyingTo(null);
 
       if (data.status === 'pending') {
-        alert("Message sent! It is waiting for moderator approval.");
+        alert("Message sent! waiting for moderator approval.");
       } else if (isPrivate) {
         alert("Private message sent to the owner!");
       } else {
@@ -105,11 +105,10 @@ export default function PublicGuestbook({ overrideUsername }) {
   const getReplies = (parentId) => entries.filter(e => e.parent_id === parentId);
 
   const EntryForm = ({ isReply = false, onCancel }) => (
-    <form onSubmit={handleSubmit} className="entry-form-wrapper">
-      <h3 style={{ marginTop: 0, marginBottom: '16px', fontSize: isReply ? '1.1rem' : '1.3rem' }}>
+    <form onSubmit={handleSubmit} className="entry-form-wrapper card">
+      <h3 style={{ marginTop: 0, marginBottom: '16px', fontSize: isReply ? '1.1rem' : '1.25rem' }}>
         {isReply ? 'Reply to message' : 'Sign the Guestbook'}
       </h3>
-      {/* Honeypot field (hidden) */}
       <input
         type="text"
         name="website_url_check"
@@ -151,8 +150,8 @@ export default function PublicGuestbook({ overrideUsername }) {
         </label>
         <textarea
           id={`message-${isReply ? 'reply' : 'main'}`}
-          rows={isReply ? 3 : 5}
-          placeholder={isReply ? 'Write a friendly reply...' : 'Leave a note, share a thought, or just say hi...'}
+          rows={isReply ? 3 : 4}
+          placeholder={isReply ? 'Write a reply...' : 'Leave a note...'}
           value={message}
           onChange={e => setMessage(e.target.value)}
           required
@@ -160,17 +159,17 @@ export default function PublicGuestbook({ overrideUsername }) {
       </div>
 
       {!isReply && (
-        <label className="checkbox-label" style={{ marginTop: '8px' }}>
+        <label className="checkbox-label" style={{ marginTop: '4px' }}>
           <input
             type="checkbox"
             checked={isPrivate}
             onChange={e => setIsPrivate(e.target.checked)}
           />
-          🔒 Private message (Only the owner can see this)
+          🔒 Private message (Owner only)
         </label>
       )}
 
-      <div style={{ display: 'flex', gap: '12px', marginTop: '16px' }}>
+      <div style={{ display: 'flex', gap: '8px', marginTop: '16px' }}>
         <button type="submit">
           {isReply ? 'Post Reply' : 'Publish Note'}
         </button>
@@ -189,68 +188,69 @@ export default function PublicGuestbook({ overrideUsername }) {
       <style>{customCss}</style>
 
       {/* Hero Section */}
-      <div className="card text-center" style={{ marginBottom: '40px', padding: '40px 24px' }}>
+      <div className="text-center" style={{ marginBottom: '32px', padding: '24px 16px' }}>
         <div className="user-custom-header" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(customHtml, SAFE_CONFIG) }} />
         {!customHtml && (
           <>
             <div style={{
-              width: '80px',
-              height: '80px',
+              width: '64px',
+              height: '64px',
               borderRadius: '50%',
-              background: 'var(--accent-gradient)',
+              background: 'var(--accent-primary)',
+              color: 'white',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              fontSize: '2rem',
-              fontWeight: 'bold',
-              margin: '0 auto 20px auto',
-              boxShadow: '0 10px 20px rgba(139, 92, 246, 0.4)'
+              fontSize: '1.8rem',
+              fontWeight: '600',
+              margin: '0 auto 16px auto',
             }}>
               {username.charAt(0).toUpperCase()}
             </div>
             <h1>{username}'s Guestbook</h1>
-            <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem', maxWidth: '500px', margin: '0 auto' }}>
-              Welcome to my digital space. I'd love to hear from you. Drop a message below to let me know you were here!
+            <p style={{ color: 'var(--text-muted)', fontSize: '1rem', maxWidth: '440px', margin: '0 auto' }}>
+              Welcome to my space. Leave a note below.
             </p>
           </>
         )}
       </div>
 
       {!replyingTo && (
-        <div style={{ marginBottom: '40px' }}>
+        <div style={{ marginBottom: '32px' }}>
           <EntryForm />
         </div>
       )}
 
       <div className="entries-list">
-        <h3 style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+        <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           Guestbook Entries
           <span style={{
-            background: 'rgba(255,255,255,0.1)',
-            padding: '4px 12px',
-            borderRadius: '20px',
-            fontSize: '0.9rem'
+            background: 'var(--border-color)',
+            padding: '2px 8px',
+            borderRadius: '12px',
+            fontSize: '0.8rem',
+            color: 'var(--text-main)'
           }}>
             {rootEntries.length}
           </span>
         </h3>
 
         {rootEntries.length === 0 ? (
-          <div className="card text-center" style={{ padding: '40px 20px', borderStyle: 'dashed' }}>
+          <div className="card text-center" style={{ padding: '32px 20px', backgroundColor: 'transparent', borderStyle: 'dashed' }}>
             <p style={{ color: 'var(--text-muted)' }}>Be the first to sign this guestbook!</p>
           </div>
         ) : (
           rootEntries.map(entry => (
             <div key={entry.id} className="entry-thread">
-              <div className="entry-item card" style={{ background: 'var(--bg-card)' }}>
+              <div className="entry-item card">
                 <div className="entry-header">
                   <div className="entry-meta-top">
                     <div className="entry-name">
                       {entry.sender_name}
-                      {entry.is_owner === 1 && <span title="Verified Owner" style={{ fontSize: '1rem' }}>👑</span>}
+                      {entry.is_owner === 1 && <span title="Verified Owner" style={{ fontSize: '0.9rem' }}>✓</span>}
                       {entry.sender_website && (
-                        <a href={entry.sender_website} target="_blank" rel="noopener noreferrer" style={{ fontSize: '0.8rem', fontWeight: 'normal', color: 'var(--text-muted)', marginLeft: '8px' }}>
-                          🔗 Website
+                        <a href={entry.sender_website} target="_blank" rel="noopener noreferrer" style={{ fontSize: '0.8rem', fontWeight: 'normal', color: 'var(--text-muted)', marginLeft: '6px' }}>
+                          🔗
                         </a>
                       )}
                     </div>
@@ -274,7 +274,7 @@ export default function PublicGuestbook({ overrideUsername }) {
               </div>
 
               {replyingTo === entry.id && (
-                <div style={{ marginLeft: '24px' }}>
+                <div style={{ marginLeft: '16px' }}>
                   <EntryForm isReply={true} onCancel={() => setReplyingTo(null)} />
                 </div>
               )}
@@ -283,11 +283,11 @@ export default function PublicGuestbook({ overrideUsername }) {
                 <div className="replies">
                   {getReplies(entry.id).map(reply => (
                     <div key={reply.id} className="reply-item">
-                      <div className="entry-header" style={{ marginBottom: '8px' }}>
+                      <div className="entry-header" style={{ marginBottom: '4px' }}>
                         <div className="entry-meta-top">
-                          <div className="entry-name" style={{ fontSize: '1rem' }}>
+                          <div className="entry-name" style={{ fontSize: '0.95rem' }}>
                             {reply.sender_name}
-                            {reply.is_owner === 1 && <span title="Verified Owner" style={{ fontSize: '0.9rem' }}>👑</span>}
+                            {reply.is_owner === 1 && <span title="Verified Owner" style={{ fontSize: '0.85rem', color: 'var(--success)' }}>✓</span>}
                           </div>
                           <div className="entry-date" style={{ fontSize: '0.75rem' }}>
                             {new Date(reply.created_at).toLocaleString()}
@@ -304,7 +304,7 @@ export default function PublicGuestbook({ overrideUsername }) {
         )}
       </div>
 
-      <footer style={{ marginTop: '80px', marginBottom: '40px' }}>
+      <footer style={{ marginTop: '60px', marginBottom: '32px' }}>
         <p>
           Powered by <a href="https://guestbook.blackpiratex.com" target="_blank" rel="noreferrer">Guestbook Service</a>
         </p>

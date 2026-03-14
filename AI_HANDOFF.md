@@ -8,7 +8,7 @@ The Guestbook Service is a lightweight, customizable web application that allows
 ## Technology Stack
 - **Frontend Framework:** React 18, utilizing React Router DOM for routing.
 - **Build Tool:** Vite, configured for fast, modern frontend development.
-- **Styling:** Vanilla CSS (`src/index.css`) featuring a modern "Glassmorphism" dark mode UI with interactive gradients and micro-animations.
+- **Styling:** Vanilla CSS (`src/index.css`) featuring a minimal, flat, Cupertino (iOS) white mode UI with system fonts and standard rounded corners.
 - **Database:** LibSQL (Turso) via `@libsql/client`.
 - **Backend/API:** Serverless functions designed to be hosted on Vercel. Located in the `/api` directory.
 - **Security:** JWT for authentication, bcryptjs for password hashing, and DOMPurify for sanitizing user-provided custom HTML.
@@ -44,7 +44,7 @@ The Guestbook Service is a lightweight, customizable web application that allows
    APIs extract the JWT from the `Authorization` header to authenticate admin actions (deleting messages, updating settings). Public actions (viewing the guestbook, adding an unapproved entry) are unauthenticated but require the `owner_username`.
 
 3. **Styling and Theming**
-   The application fundamentally uses a dark mode template styled in `src/index.css` leveraging CSS Variables (`--accent-primary`, `--bg-card`, etc). Ensure any new UI components utilize these variables to maintain the premium aesthetic.
+   The application fundamentally uses a minimalistic white iOS (Cupertino) theme styled in `src/index.css` leveraging CSS Variables (`--accent-primary`, `--bg-card`, etc). Ensure any new UI components utilize these variables to maintain the flat, bright, native feeling aesthetic.
 
 4. **Security & Moderation**
    - **XSS Prevention:** `DOMPurify` is strictly used in `PublicGuestbook.jsx` before rendering custom HTML fragments provided by the user.
