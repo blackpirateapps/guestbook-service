@@ -44,6 +44,7 @@ The Guestbook Service is a lightweight, customizable web application that allows
 
 3. **Styling and Theming**
    The application uses a minimalistic, semantic HTML theme styled in `src/index.css`. It prioritizes readability and fast loading by staying close to browser defaults while providing a cohesive layout through CSS variables. It includes a basic responsive grid system and dark mode support via `prefers-color-scheme`.
+   *Entry Styling:* Public guestbook entries are rendered as card-like message blocks with indented replies (all using the same system font stack as the rest of the app).
 
 4. **Security & Moderation**
    - **XSS Prevention:** `DOMPurify` is strictly used in `PublicGuestbook.jsx` before rendering custom HTML fragments provided by the user.

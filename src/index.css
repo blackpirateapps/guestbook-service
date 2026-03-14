@@ -14,7 +14,6 @@
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
   --entry-bg: #f6f7f8;
   --reply-bg: #f0f2f3;
-  --serif-font: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -317,14 +316,6 @@ button.icon-button svg {
   margin-top: 2rem;
 }
 
-.public-entries,
-.public-entries .entry-content,
-.public-entries .reply-content,
-.public-entries .entry-name,
-.public-entries .reply-name {
-  font-family: var(--serif-font);
-}
-
 .entries-header {
   display: flex;
   align-items: baseline;
@@ -420,11 +411,41 @@ button.icon-button svg {
   margin-bottom: 0.25rem;
 }
 
-.entry-title-row .entry-name {
+.entry-title-left {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.25rem;
+  flex-wrap: wrap;
+}
+
+.entry-author,
+.entry-author-link {
+  font-weight: 600;
+  font-size: 1.1rem;
   color: var(--accent-primary);
 }
 
+.entry-author-link {
+  text-decoration: none;
+}
+
+.entry-author-link:hover {
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+}
+
+.entry-date-inline {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
+
+.entry-title-left .badge {
+  margin-left: 0.25rem;
+}
+
 .entry-website {
+  /* retained for dashboard entries list */
   color: var(--text-muted);
   display: inline-flex;
   align-items: center;
@@ -473,6 +494,7 @@ button.icon-button svg {
 /* Replies */
 .replies {
   margin-left: 1.25rem;
+  margin-top: 0.75rem;
   padding-left: 0.75rem;
   border-left: 1px solid var(--border-color);
 }

@@ -214,7 +214,7 @@ export default function PublicGuestbook({ overrideUsername }) {
 
       <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem' }}>
         <button type="submit">
-          {isReply ? 'Post Reply' : 'Publish Note'}
+          {isReply ? 'Post Reply' : 'Sign Guestbook'}
         </button>
 
         {isReply && (
@@ -279,27 +279,22 @@ export default function PublicGuestbook({ overrideUsername }) {
               <div className="entry-card">
                 <header className="entry-card-header">
                   <div className="entry-title-row">
-                    <div className="entry-name">
-                      {entry.sender_name}
+                    <div className="entry-title-left">
+                      {entry.sender_website ? (
+                        <a
+                          className="entry-author-link"
+                          href={entry.sender_website}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          {entry.sender_name}
+                        </a>
+                      ) : (
+                        <span className="entry-author">{entry.sender_name}</span>
+                      )}
+                      <span className="entry-date-inline"> - {new Date(entry.created_at).toLocaleString()}</span>
                       {entry.is_owner === 1 && <span className="badge owner">Owner</span>}
                     </div>
-
-                    {entry.sender_website && (
-                      <a
-                        className="entry-website"
-                        href={entry.sender_website}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        aria-label="Open sender website"
-                        title="Open sender website"
-                      >
-                        <IconExternalLink />
-                      </a>
-                    )}
-                  </div>
-
-                  <div className="entry-date">
-                    {new Date(entry.created_at).toLocaleString()}
                   </div>
                 </header>
 
