@@ -103,7 +103,10 @@ export default function Dashboard() {
   }
   window.addEventListener('message', onMessage, false);
 })();
-</script>` : '';
+</script>
+<div style="margin-top:8px;font-size:12px;opacity:.75;font-family:ui-serif,Georgia,Cambria,'Times New Roman',Times,serif">
+  Powered by <a href="https://guestbook.blackpiratex.com" target="_blank" rel="noreferrer">Guestbook Service</a>
+</div>` : '';
 
   async function copyEmbedSnippet() {
     if (!embedSnippet) return;

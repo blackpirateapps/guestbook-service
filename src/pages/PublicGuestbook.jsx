@@ -265,7 +265,7 @@ export default function PublicGuestbook({ overrideUsername }) {
 
       <hr />
 
-      <section className="entries-list">
+      <section className="entries-list public-entries">
         <div className="entries-header">
           <h3 style={{ margin: 0 }}>Guestbook Entries</h3>
           <div className="entries-count">{rootEntries.length}</div>
