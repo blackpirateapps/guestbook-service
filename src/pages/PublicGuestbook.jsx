@@ -300,31 +300,33 @@ export default function PublicGuestbook({ overrideUsername }) {
                       <span className="entry-date-inline"> - {new Date(entry.created_at).toLocaleString()}</span>
                       {entry.is_owner === 1 && <span className="badge owner">Owner</span>}
                     </div>
+
+                    <div className="entry-title-right">
+                      <button
+                        className="secondary icon-button entry-action-button"
+                        onClick={() => handleLike(entry.id)}
+                        disabled={likingIds.has(entry.id)}
+                        aria-label="Like entry"
+                        title="Like"
+                      >
+                        <IconHeart />
+                        <span>{entry.likes || 0}</span>
+                      </button>
+
+                      <button
+                        className="secondary icon-button entry-action-button"
+                        onClick={() => { setReplyingTo(entry.id); setMessage(''); setIsPrivate(false); }}
+                        aria-label="Reply to entry"
+                        title="Reply"
+                      >
+                        <IconReply />
+                        <span className="entry-action-label">Reply</span>
+                      </button>
+                    </div>
                   </div>
                 </header>
 
                 <div className="entry-content">{entry.message}</div>
-
-                <div className="entry-actions">
-                  <button
-                    className="secondary icon-button"
-                    onClick={() => handleLike(entry.id)}
-                    disabled={likingIds.has(entry.id)}
-                    aria-label="Like entry"
-                  >
-                    <IconHeart />
-                    <span>{entry.likes || 0}</span>
-                  </button>
-
-                  <button
-                    className="secondary icon-button"
-                    onClick={() => { setReplyingTo(entry.id); setMessage(''); setIsPrivate(false); }}
-                    aria-label="Reply to entry"
-                  >
-                    <IconReply />
-                    <span>Reply</span>
-                  </button>
-                </div>
               </div>
 
               {replyingTo === entry.id && (

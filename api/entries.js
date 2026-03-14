@@ -63,6 +63,62 @@ export default async function handler(req, res) {
   if (method === 'POST') {
     try {
       const body = getJsonBody(req);
+
+      // OWNER IMPORT MODE (Auth Required):
+      // Allows owners to manually import older entries with a specified date.
+      if (body.action === 'import') {
+        const token = req.headers.authorization?.split(' ')[1];
+        if (!token) return res.status(401).json({ error: 'Unauthorized' });
+
+        let decoded;
+        try {
+          decoded = jwt.verify(token, SECRET);
+        } catch {
+          return res.status(401).json({ error: 'Unauthorized' });
+        }
+
+        const ownerUsername = (body.owner_username || '').trim();
+        const senderName = (body.sender_name || '').trim();
+        const senderWebsite = (body.sender_website || '').trim();
+        const message = (body.message || '').trim();
+        const createdAtRaw = (body.created_at || '').trim();
+
+        if (!ownerUsername || decoded.username !== ownerUsername) {
+          return res.status(403).json({ error: 'Forbidden' });
+        }
+        if (!senderName || !message || !createdAtRaw) {
+          return res.status(400).json({ error: 'Name, message, and date are required' });
+        }
+
+        const createdAt = new Date(createdAtRaw);
+        if (Number.isNaN(createdAt.getTime())) {
+          return res.status(400).json({ error: 'Invalid date' });
+        }
+
+        // Basic URL sanity (optional field)
+        if (senderWebsite) {
+          try { new URL(senderWebsite); } catch { return res.status(400).json({ error: 'Invalid website URL' }); }
+        }
+
+        try {
+          await db.execute({
+            sql: `INSERT INTO entries
+                  (owner_username, sender_name, message, sender_website, parent_id, is_private, is_owner, status, created_at)
+                  VALUES (?, ?, ?, ?, NULL, 0, 0, 'approved', ?)`,
+            args: [ownerUsername, senderName, message, senderWebsite, createdAt.toISOString()]
+          });
+        } catch (e) {
+          // Backward-compatible fallback if the DB doesn't support setting created_at explicitly.
+          await db.execute({
+            sql: `INSERT INTO entries
+                  (owner_username, sender_name, message, sender_website, parent_id, is_private, is_owner, status)
+                  VALUES (?, ?, ?, ?, NULL, 0, 0, 'approved')`,
+            args: [ownerUsername, senderName, message, senderWebsite]
+          });
+        }
+
+        return res.status(201).json({ success: true });
+      }
       
       // A. SPAM PROTECTION (Honeypot)
       // If the hidden field "bot_field" has text, it's a bot. Fail silently (return 200).

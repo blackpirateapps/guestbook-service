@@ -41,6 +41,7 @@ The Guestbook Service is a lightweight, customizable web application that allows
 
 2. **Serverless API Layer (`/api`)**
    APIs extract the JWT from the `Authorization` header to authenticate admin actions (deleting messages, updating settings). Public actions (viewing the guestbook, adding an unapproved entry) are unauthenticated but require the `owner_username`.
+   *Manual Imports:* The dashboard can create “past” guestbook entries via an authenticated `POST /api/entries` with `action: 'import'`, allowing the owner to set the display name, website, message, and date.
 
 3. **Styling and Theming**
    The application uses a minimalistic, semantic HTML theme styled in `src/index.css`. It prioritizes readability and fast loading by staying close to browser defaults while providing a cohesive layout through CSS variables. It includes a basic responsive grid system and dark mode support via `prefers-color-scheme`.

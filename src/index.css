@@ -12,8 +12,8 @@
   --bg-input: #fafafa;
   --card-bg: #ffffff;
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
-  --entry-bg: #f6f7f8;
-  --reply-bg: #f0f2f3;
+  --entry-bg: var(--card-bg);
+  --reply-bg: var(--bg-input);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -25,8 +25,8 @@
     --bg-input: #1a1a1a;
     --card-bg: #141414;
     --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35);
-    --entry-bg: #242a2f;
-    --reply-bg: #1f252a;
+    --entry-bg: var(--card-bg);
+    --reply-bg: var(--bg-input);
   }
 }
 
@@ -457,6 +457,25 @@ button.icon-button svg {
   flex-wrap: wrap;
 }
 
+.entry-title-right {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  flex: 0 0 auto;
+}
+
+.entry-action-button {
+  padding: 0.25rem 0.6rem;
+  font-size: 0.85rem;
+}
+
+@media (max-width: 420px) {
+  .entry-action-label {
+    display: none;
+  }
+}
+
 .entry-author,
 .entry-author-link {
   font-weight: 600;
@@ -503,7 +522,7 @@ button.icon-button svg {
 
 .reply-form-wrapper {
   margin-left: 1rem;
-  margin-top: 0.75rem;
+  margin-top: 1rem;
 }
 
 .badge {
@@ -533,7 +552,7 @@ button.icon-button svg {
 /* Replies */
 .replies {
   margin-left: 1.25rem;
-  margin-top: 0.75rem;
+  margin-top: 1rem;
   padding-left: 0.75rem;
   border-left: 1px solid var(--border-color);
 }

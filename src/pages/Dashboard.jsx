@@ -11,6 +11,10 @@ export default function Dashboard() {
   const [origin, setOrigin] = useState('');
   const [replyingTo, setReplyingTo] = useState(null);
   const [replyMsg, setReplyMsg] = useState('');
+  const [importName, setImportName] = useState('');
+  const [importWebsite, setImportWebsite] = useState('');
+  const [importDate, setImportDate] = useState('');
+  const [importMessage, setImportMessage] = useState('');
 
   const navigate = useNavigate();
   const token = localStorage.getItem('token');
@@ -91,6 +95,42 @@ export default function Dashboard() {
     setReplyMsg('');
     setReplyingTo(null);
     fetchData();
+  }
+
+  async function addImportedEntry(e) {
+    e.preventDefault();
+    if (!importName.trim() || !importMessage.trim() || !importDate) return;
+
+    const dateObj = new Date(importDate);
+    if (Number.isNaN(dateObj.getTime())) {
+      alert('Please provide a valid date.');
+      return;
+    }
+
+    const res = await fetch('/api/entries', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({
+        action: 'import',
+        owner_username: username,
+        sender_name: importName,
+        sender_website: importWebsite,
+        message: importMessage,
+        created_at: dateObj.toISOString()
+      })
+    });
+
+    if (res.ok) {
+      setImportName('');
+      setImportWebsite('');
+      setImportDate('');
+      setImportMessage('');
+      fetchData();
+      alert('Entry added.');
+    } else {
+      const data = await res.json().catch(() => ({}));
+      alert(data.error || 'Failed to add entry.');
+    }
   }
 
   const embedSrc = origin && username ? `${origin}/u/${username}?embed=1` : '';
@@ -233,6 +273,65 @@ export default function Dashboard() {
           <h2 style={{ margin: 0 }}>Recent Entries</h2>
           <div className="entries-count">{entries.length}</div>
         </div>
+
+        <section className="card" style={{ marginBottom: '1.5rem' }}>
+          <h3 style={{ marginTop: 0 }}>Add past entry</h3>
+          <p style={{ color: 'var(--text-muted)', marginBottom: '0.75rem' }}>
+            Manually import entries from an older guestbook. These will appear as approved public entries.
+          </p>
+
+          <form onSubmit={addImportedEntry} style={{ marginBottom: 0 }}>
+            <div className="dashboard-grid">
+              <div className="form-group">
+                <label>Name *</label>
+                <input
+                  type="text"
+                  value={importName}
+                  onChange={e => setImportName(e.target.value)}
+                  placeholder="Jane Doe"
+                  required
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Website (optional)</label>
+                <input
+                  type="url"
+                  value={importWebsite}
+                  onChange={e => setImportWebsite(e.target.value)}
+                  placeholder="https://example.com"
+                />
+              </div>
+            </div>
+
+            <div className="dashboard-grid">
+              <div className="form-group">
+                <label>Date *</label>
+                <input
+                  type="datetime-local"
+                  value={importDate}
+                  onChange={e => setImportDate(e.target.value)}
+                  required
+                />
+              </div>
+              <div className="form-group" />
+            </div>
+
+            <div className="form-group">
+              <label>Message *</label>
+              <textarea
+                rows={4}
+                value={importMessage}
+                onChange={e => setImportMessage(e.target.value)}
+                placeholder="Write the original message..."
+                required
+              />
+            </div>
+
+            <button type="submit" className="secondary">Add entry</button>
+          </form>
+        </section>
+
         {entries.length === 0 ? (
           <p>No messages yet.</p>
         ) : (
