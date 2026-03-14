@@ -6,6 +6,7 @@ export default function Dashboard() {
   const [entries, setEntries] = useState([]);
   const [customCss, setCustomCss] = useState('');
   const [customHtml, setCustomHtml] = useState('');
+  const [embedCssUrl, setEmbedCssUrl] = useState('');
   const [requireApproval, setRequireApproval] = useState(false);
   const [origin, setOrigin] = useState('');
   const [replyingTo, setReplyingTo] = useState(null);
@@ -32,21 +33,28 @@ export default function Dashboard() {
       const data = await profileRes.json();
       setCustomCss(data.custom_css || '');
       setCustomHtml(data.custom_html || '');
+      setEmbedCssUrl(data.embed_css_url || '');
       setRequireApproval(data.require_approval === 1);
     }
   }
 
   async function saveSettings() {
-    await fetch('/api/profile', {
+    const res = await fetch('/api/profile', {
       method: 'PUT',
       headers: { 'Authorization': `Bearer ${token}` },
       body: JSON.stringify({
         custom_css: customCss,
         custom_html: customHtml,
+        embed_css_url: embedCssUrl,
         require_approval: requireApproval
       })
     });
-    alert('Settings saved!');
+    if (res.ok) {
+      alert('Settings saved!');
+    } else {
+      const data = await res.json().catch(() => ({}));
+      alert(data.error || 'Failed to save settings.');
+    }
   }
 
   async function deleteEntry(id) {
@@ -142,6 +150,18 @@ export default function Dashboard() {
           readOnly
           value={embedSnippet || 'Loading embed code...'}
         />
+        <div className="form-group" style={{ marginTop: '0.75rem' }}>
+          <label>Embed CSS URL (optional)</label>
+          <input
+            type="url"
+            placeholder="https://example.com/embed.css"
+            value={embedCssUrl}
+            onChange={e => setEmbedCssUrl(e.target.value)}
+          />
+          <p style={{ color: 'var(--text-muted)', marginBottom: 0 }}>
+            This stylesheet loads inside the iframe so you can style the embed independently. Must be publicly accessible over <code>https://</code>.
+          </p>
+        </div>
         <div className="actions-row">
           <button className="secondary icon-button" onClick={copyEmbedSnippet} disabled={!embedSnippet}>
             <IconCopy />

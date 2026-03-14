@@ -23,6 +23,7 @@ export default function PublicGuestbook({ overrideUsername }) {
   const [entries, setEntries] = useState([]);
   const [customCss, setCustomCss] = useState('');
   const [customHtml, setCustomHtml] = useState('');
+  const [embedCssUrl, setEmbedCssUrl] = useState('');
 
   const [senderName, setSenderName] = useState('');
   const [senderWebsite, setSenderWebsite] = useState('');
@@ -83,6 +84,7 @@ export default function PublicGuestbook({ overrideUsername }) {
         const data = await res.json();
         setCustomCss(data.custom_css || '');
         setCustomHtml(data.custom_html || '');
+        setEmbedCssUrl(data.embed_css_url || '');
       }
     } catch (e) { console.error(e); }
   }
@@ -243,6 +245,9 @@ export default function PublicGuestbook({ overrideUsername }) {
         padding: isEmbed ? '1rem' : 0,
       }}
     >
+      {isEmbed && embedCssUrl && (
+        <link rel="stylesheet" href={embedCssUrl} />
+      )}
       <style>{`${embedBaseCss}\n${customCss}`}</style>
 
       <header style={{ marginBottom: '2rem' }}>

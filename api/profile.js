@@ -3,6 +3,14 @@ import jwt from 'jsonwebtoken';
 
 const SECRET = process.env.JWT_SECRET || 'secret';
 
+async function ensureEmbedCssUrlColumn() {
+  try {
+    await db.execute({ sql: 'ALTER TABLE users ADD COLUMN embed_css_url TEXT' });
+  } catch {
+    // Column likely already exists (or DB doesn't support this exact syntax); ignore.
+  }
+}
+
 export default async function handler(req, res) {
   const { method } = req;
 
@@ -17,9 +25,10 @@ export default async function handler(req, res) {
     }
 
     try {
+      await ensureEmbedCssUrlColumn();
       // Fetch custom design
       const result = await db.execute({
-        sql: 'SELECT custom_css, custom_html, require_approval FROM users WHERE username = ?',
+        sql: 'SELECT custom_css, custom_html, require_approval, embed_css_url FROM users WHERE username = ?',
         args: [username]
       });
       
@@ -32,7 +41,8 @@ export default async function handler(req, res) {
       return res.json({
         custom_css: profile.custom_css || '',
         custom_html: profile.custom_html || '',
-        require_approval: profile.require_approval === 1 ? 1 : 0
+        require_approval: profile.require_approval === 1 ? 1 : 0,
+        embed_css_url: profile.embed_css_url || ''
       });
 
     } catch (e) {
@@ -49,12 +59,25 @@ export default async function handler(req, res) {
     if (!token) return res.status(401).json({ error: 'Unauthorized' });
 
     try {
+      await ensureEmbedCssUrlColumn();
       const decoded = jwt.verify(token, SECRET);
-      const { custom_css, custom_html, require_approval } = JSON.parse(req.body);
+      const { custom_css, custom_html, require_approval, embed_css_url } = JSON.parse(req.body);
+
+      const nextEmbedCssUrl = (embed_css_url || '').trim();
+      if (nextEmbedCssUrl) {
+        try {
+          const parsed = new URL(nextEmbedCssUrl);
+          if (parsed.protocol !== 'https:') {
+            return res.status(400).json({ error: 'Embed CSS URL must start with https://' });
+          }
+        } catch {
+          return res.status(400).json({ error: 'Embed CSS URL must be a valid URL' });
+        }
+      }
 
       await db.execute({
-        sql: 'UPDATE users SET custom_css = ?, custom_html = ?, require_approval = ? WHERE username = ?',
-        args: [custom_css || '', custom_html || '', require_approval ? 1 : 0, decoded.username]
+        sql: 'UPDATE users SET custom_css = ?, custom_html = ?, require_approval = ?, embed_css_url = ? WHERE username = ?',
+        args: [custom_css || '', custom_html || '', require_approval ? 1 : 0, nextEmbedCssUrl, decoded.username]
       });
 
       return res.json({ success: true });

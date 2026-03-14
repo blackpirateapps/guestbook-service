@@ -228,6 +228,45 @@ button.icon-button svg {
   margin-top: 4rem;
 }
 
+.home-hero {
+  margin: 1rem 0 2rem 0;
+}
+
+.home-subtitle {
+  color: var(--text-muted);
+  margin: 0 0 0.5rem 0;
+}
+
+.home-meta {
+  color: var(--text-muted);
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.home-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.25rem;
+  margin-top: 1.5rem;
+}
+
+@media (min-width: 860px) {
+  .home-grid {
+    grid-template-columns: 1fr 1fr;
+    align-items: start;
+  }
+}
+
+.home-bullets {
+  margin: 0;
+  padding-left: 1.25rem;
+  color: var(--text-main);
+}
+
+.home-bullets li {
+  margin: 0.4rem 0;
+}
+
 .navbar {
   display: flex;
   justify-content: space-between;
