@@ -377,11 +377,6 @@ export default function Dashboard() {
       <hr />
 
       <section>
-        <div className="entries-header">
-          <h2 style={{ margin: 0 }}>Recent Entries</h2>
-          <div className="entries-count">{entries.length}</div>
-        </div>
-
         <section className="card" style={{ marginBottom: '1.5rem' }}>
           <h3 style={{ marginTop: 0 }}>Add past entry</h3>
           <p style={{ color: 'var(--text-muted)', marginBottom: '0.75rem' }}>
@@ -440,84 +435,93 @@ export default function Dashboard() {
           </form>
         </section>
 
-        {entries.length === 0 ? (
-          <p>No messages yet.</p>
-        ) : (
-          <div className="entries-list">
-            {entries.map(entry => (
-              <div key={entry.id} className="entry-card">
-                <header className="entry-card-header">
-                  <div className="entry-title-row">
-                    <div className="entry-name">
-                      {entry.sender_name}
-                      {entry.sender_website && (
-                        <a
-                          className="entry-website"
-                          href={entry.sender_website}
-                          target="_blank"
-                          rel="noreferrer"
-                          aria-label="Open sender website"
-                          title="Open sender website"
-                        >
-                          <IconExternalLink />
-                        </a>
+        <details className="card collapsible">
+          <summary className="collapsible-summary">
+            <span>Recent Entries</span>
+            <span className="entries-count">{entries.length}</span>
+          </summary>
+
+          <div style={{ marginTop: '1rem' }}>
+            {entries.length === 0 ? (
+              <p style={{ marginBottom: 0 }}>No messages yet.</p>
+            ) : (
+              <div className="entries-list" style={{ marginTop: 0 }}>
+                {entries.map(entry => (
+                  <div key={entry.id} className="entry-card">
+                    <header className="entry-card-header">
+                      <div className="entry-title-row">
+                        <div className="entry-name">
+                          {entry.sender_name}
+                          {entry.sender_website && (
+                            <a
+                              className="entry-website"
+                              href={entry.sender_website}
+                              target="_blank"
+                              rel="noreferrer"
+                              aria-label="Open sender website"
+                              title="Open sender website"
+                            >
+                              <IconExternalLink />
+                            </a>
+                          )}
+
+                          <span className="badge-group">
+                            {entry.status === 'pending' && <span className="badge pending">Pending</span>}
+                            {entry.is_private === 1 && <span className="badge private">Private</span>}
+                            {entry.is_owner === 1 && <span className="badge owner">Owner</span>}
+                          </span>
+                        </div>
+                        <div className="entry-date">
+                          {new Date(entry.created_at).toLocaleString()}
+                        </div>
+                      </div>
+                      <div className="entry-metrics">
+                        <IconHeart />
+                        <span>{entry.likes || 0}</span>
+                      </div>
+                    </header>
+
+                    <div className="entry-content">{entry.message}</div>
+
+                    <div className="entry-actions">
+                      {entry.status === 'pending' && (
+                        <button className="icon-button" onClick={() => approveEntry(entry.id)}>
+                          <IconCheck />
+                          <span>Approve</span>
+                        </button>
                       )}
 
-                      <span className="badge-group">
-                        {entry.status === 'pending' && <span className="badge pending">Pending</span>}
-                        {entry.is_private === 1 && <span className="badge private">Private</span>}
-                        {entry.is_owner === 1 && <span className="badge owner">Owner</span>}
-                      </span>
+                      <button className="secondary icon-button" onClick={() => setReplyingTo(entry.id)}>
+                        <IconReply />
+                        <span>Reply</span>
+                      </button>
+                      <button className="danger icon-button" onClick={() => deleteEntry(entry.id)}>
+                        <IconTrash />
+                        <span>Delete</span>
+                      </button>
                     </div>
-                    <div className="entry-date">
-                      {new Date(entry.created_at).toLocaleString()}
-                    </div>
+
+                    {replyingTo === entry.id && (
+                      <div style={{ marginTop: '1rem' }}>
+                        <textarea
+                          rows="2"
+                          value={replyMsg}
+                          onChange={e => setReplyMsg(e.target.value)}
+                          placeholder="Write a reply as the owner..."
+                          style={{ marginBottom: '0.5rem', minHeight: '80px' }}
+                        />
+                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                          <button onClick={() => sendReply(entry.id)}>Send</button>
+                          <button className="secondary" onClick={() => setReplyingTo(null)}>Cancel</button>
+                        </div>
+                      </div>
+                    )}
                   </div>
-                  <div className="entry-metrics">
-                    <IconHeart />
-                    <span>{entry.likes || 0}</span>
-                  </div>
-                </header>
-
-                <div className="entry-content">{entry.message}</div>
-
-                <div className="entry-actions">
-                  {entry.status === 'pending' && (
-                    <button className="icon-button" onClick={() => approveEntry(entry.id)}>
-                      <IconCheck />
-                      <span>Approve</span>
-                    </button>
-                  )}
-
-                  <button className="secondary icon-button" onClick={() => setReplyingTo(entry.id)}>
-                    <IconReply />
-                    <span>Reply</span>
-                  </button>
-                  <button className="danger icon-button" onClick={() => deleteEntry(entry.id)}>
-                    <IconTrash />
-                    <span>Delete</span>
-                  </button>
-                </div>
-
-                {replyingTo === entry.id && (
-                  <div style={{ marginTop: '1rem' }}>
-                    <textarea
-                      rows="2"
-                      value={replyMsg}
-                      onChange={e => setReplyMsg(e.target.value)}
-                      placeholder="Write a reply as the owner..."
-                      style={{ marginBottom: '0.5rem', minHeight: '80px' }}
-                    />
-                    <div style={{ display: 'flex', gap: '0.5rem' }}>
-                      <button onClick={() => sendReply(entry.id)}>Send</button>
-                      <button className="secondary" onClick={() => setReplyingTo(null)}>Cancel</button>
-                    </div>
-                  </div>
-                )}
+                ))}
               </div>
-            ))}
+            )}
           </div>
-        )}
+        </details>
       </section>
     </div>
   );

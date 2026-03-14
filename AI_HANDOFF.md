@@ -63,4 +63,7 @@ This repository is pre-configured to be deployed natively on **Vercel**.
 - The `vercel.json` ensures that all requests to `/api/*` fall back to the Node functions, while all root `/` requests fall back to the Vite frontend's `index.html`. 
 - Environment variables (e.g., `TURSO_DB_URL`, `TURSO_DB_AUTH_TOKEN`, `JWT_SECRET`) must be provided in the Vercel dashboard.
 
+## API Documentation
+See `README.md` for headless API + widget usage examples.
+
 > **Note for AI Agents:** When modifying files, always ensure that absolute paths are specifically referenced. Do not change the overall routing model unless specifically instructed, as it dictates the Vercel edge compatibility.
