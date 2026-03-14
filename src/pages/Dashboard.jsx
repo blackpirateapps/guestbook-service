@@ -214,6 +214,45 @@ export default function Dashboard() {
   });
 </script>` : '';
 
+  const headlessCssExample = `/* Example styling for the default GuestbookWidget markup */
+#guestbook-entries {
+  max-width: 720px;
+  margin: 0 auto;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+}
+
+.gbw-entry {
+  background: #fff;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  border-radius: 12px;
+  padding: 16px;
+  margin: 0 0 16px 0;
+}
+
+.gbw-entry-title {
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.gbw-author {
+  color: #007aff;
+  text-decoration: none;
+}
+
+.gbw-author:hover {
+  text-decoration: underline;
+}
+
+.gbw-date {
+  color: rgba(0, 0, 0, 0.6);
+  font-weight: 500;
+}
+
+.gbw-entry-body {
+  white-space: pre-wrap;
+  line-height: 1.55;
+}`;
+
   async function copyText(text) {
     if (!text) return;
     try {
@@ -326,6 +365,20 @@ export default function Dashboard() {
             <span>Copy snippet</span>
           </button>
         </div>
+
+        <hr style={{ margin: '1rem 0' }} />
+
+        <h4 style={{ margin: '0 0 0.5rem 0' }}>3) Example CSS</h4>
+        <p style={{ color: 'var(--text-muted)', marginBottom: '0.75rem' }}>
+          If you use the default widget renderer, style these classes (or override rendering with your own JS).
+        </p>
+        <textarea className="code-textarea" rows={12} readOnly value={headlessCssExample} />
+        <div className="actions-row">
+          <button className="secondary icon-button" onClick={() => copyText(headlessCssExample)}>
+            <IconCopy />
+            <span>Copy CSS</span>
+          </button>
+        </div>
       </section>
 
       <div className="dashboard-grid">
@@ -377,63 +430,69 @@ export default function Dashboard() {
       <hr />
 
       <section>
-        <section className="card" style={{ marginBottom: '1.5rem' }}>
-          <h3 style={{ marginTop: 0 }}>Add past entry</h3>
-          <p style={{ color: 'var(--text-muted)', marginBottom: '0.75rem' }}>
-            Manually import entries from an older guestbook. These will appear as approved public entries.
-          </p>
+        <details className="card collapsible" style={{ marginBottom: '1.5rem' }}>
+          <summary className="collapsible-summary">
+            <span>Add past entry</span>
+            <span style={{ color: 'var(--text-muted)', fontWeight: 500, fontSize: '0.9rem' }}>Import older guestbook posts</span>
+          </summary>
 
-          <form onSubmit={addImportedEntry} style={{ marginBottom: 0 }}>
-            <div className="dashboard-grid">
+          <div style={{ marginTop: '1rem' }}>
+            <p style={{ color: 'var(--text-muted)', marginBottom: '0.75rem' }}>
+              Manually import entries from an older guestbook. These will appear as approved public entries.
+            </p>
+
+            <form onSubmit={addImportedEntry} style={{ marginBottom: 0 }}>
+              <div className="dashboard-grid">
+                <div className="form-group">
+                  <label>Name *</label>
+                  <input
+                    type="text"
+                    value={importName}
+                    onChange={e => setImportName(e.target.value)}
+                    placeholder="Jane Doe"
+                    required
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>Website (optional)</label>
+                  <input
+                    type="url"
+                    value={importWebsite}
+                    onChange={e => setImportWebsite(e.target.value)}
+                    placeholder="https://example.com"
+                  />
+                </div>
+              </div>
+
+              <div className="dashboard-grid">
+                <div className="form-group">
+                  <label>Date *</label>
+                  <input
+                    type="datetime-local"
+                    value={importDate}
+                    onChange={e => setImportDate(e.target.value)}
+                    required
+                  />
+                </div>
+                <div className="form-group" />
+              </div>
+
               <div className="form-group">
-                <label>Name *</label>
-                <input
-                  type="text"
-                  value={importName}
-                  onChange={e => setImportName(e.target.value)}
-                  placeholder="Jane Doe"
+                <label>Message *</label>
+                <textarea
+                  rows={4}
+                  value={importMessage}
+                  onChange={e => setImportMessage(e.target.value)}
+                  placeholder="Write the original message..."
                   required
                 />
               </div>
 
-              <div className="form-group">
-                <label>Website (optional)</label>
-                <input
-                  type="url"
-                  value={importWebsite}
-                  onChange={e => setImportWebsite(e.target.value)}
-                  placeholder="https://example.com"
-                />
-              </div>
-            </div>
-
-            <div className="dashboard-grid">
-              <div className="form-group">
-                <label>Date *</label>
-                <input
-                  type="datetime-local"
-                  value={importDate}
-                  onChange={e => setImportDate(e.target.value)}
-                  required
-                />
-              </div>
-              <div className="form-group" />
-            </div>
-
-            <div className="form-group">
-              <label>Message *</label>
-              <textarea
-                rows={4}
-                value={importMessage}
-                onChange={e => setImportMessage(e.target.value)}
-                placeholder="Write the original message..."
-                required
-              />
-            </div>
-
-            <button type="submit" className="secondary">Add entry</button>
-          </form>
-        </section>
+              <button type="submit" className="secondary">Add entry</button>
+            </form>
+          </div>
+        </details>
 
         <details className="card collapsible">
           <summary className="collapsible-summary">
