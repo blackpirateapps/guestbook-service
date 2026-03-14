@@ -5,10 +5,8 @@ export default function Dashboard() {
   const [entries, setEntries] = useState([]);
   const [customCss, setCustomCss] = useState('');
   const [customHtml, setCustomHtml] = useState('');
-  const [connectedDomain, setConnectedDomain] = useState(null);
   const [requireApproval, setRequireApproval] = useState(false);
-
-  const [domainInput, setDomainInput] = useState('');
+  const [origin, setOrigin] = useState('');
   const [replyingTo, setReplyingTo] = useState(null);
   const [replyMsg, setReplyMsg] = useState('');
 
@@ -17,6 +15,7 @@ export default function Dashboard() {
   const username = localStorage.getItem('username');
 
   useEffect(() => {
+    setOrigin(window.location.origin);
     if (!token) { navigate('/'); return; }
     fetchData();
   }, [token]);
@@ -32,7 +31,6 @@ export default function Dashboard() {
       const data = await profileRes.json();
       setCustomCss(data.custom_css || '');
       setCustomHtml(data.custom_html || '');
-      setConnectedDomain(data.custom_domain);
       setRequireApproval(data.require_approval === 1);
     }
   }
@@ -48,40 +46,6 @@ export default function Dashboard() {
       })
     });
     alert('Settings saved!');
-  }
-
-  async function handleAddDomain() {
-    if (!domainInput) return;
-    if (!confirm(`Did you add the CNAME record for ${domainInput}?`)) return;
-
-    const res = await fetch('/api/domain', {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${token}` },
-      body: JSON.stringify({ custom_domain: domainInput })
-    });
-
-    if (res.ok) {
-      alert("Domain connected! SSL generating...");
-      setConnectedDomain(domainInput);
-      setDomainInput('');
-    } else {
-      const data = await res.json();
-      alert("Error: " + data.error);
-    }
-  }
-
-  async function handleRemoveDomain() {
-    if (!confirm("Are you sure? This will take your site offline.")) return;
-    const res = await fetch('/api/domain', {
-      method: 'DELETE',
-      headers: { 'Authorization': `Bearer ${token}` }
-    });
-    if (res.ok) {
-      setConnectedDomain(null);
-      alert("Domain disconnected.");
-    } else {
-      alert("Failed.");
-    }
   }
 
   async function deleteEntry(id) {
@@ -120,6 +84,36 @@ export default function Dashboard() {
     fetchData();
   }
 
+  const embedSrc = origin && username ? `${origin}/u/${username}?embed=1` : '';
+
+  const embedSnippet = embedSrc ? `<iframe
+  id="guestbook-embed"
+  src="${embedSrc}"
+  style="width:100%;border:0;height:650px"
+  loading="lazy"
+></iframe>
+<script>
+(function () {
+  var iframe = document.getElementById('guestbook-embed');
+  function onMessage(e) {
+    if (!iframe || e.source !== iframe.contentWindow) return;
+    if (!e.data || e.data.type !== 'guestbook:resize') return;
+    if (typeof e.data.height === 'number') iframe.style.height = (e.data.height + 20) + 'px';
+  }
+  window.addEventListener('message', onMessage, false);
+})();
+</script>` : '';
+
+  async function copyEmbedSnippet() {
+    if (!embedSnippet) return;
+    try {
+      await navigator.clipboard.writeText(embedSnippet);
+      alert('Embed code copied to clipboard.');
+    } catch {
+      alert('Could not copy automatically. Select the text and copy it manually.');
+    }
+  }
+
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
@@ -131,44 +125,28 @@ export default function Dashboard() {
         <p>Your Public Guestbook Link: <a href={`/u/${username}`} target="_blank" rel="noreferrer">/u/{username}</a></p>
       </div>
 
+      <section style={{ marginBottom: '2rem' }}>
+        <h3>Embed on your site</h3>
+        <p>Paste this snippet into any HTML page to embed your guestbook.</p>
+        <textarea
+          rows={10}
+          readOnly
+          value={embedSnippet || 'Loading embed code...'}
+          style={{ fontFamily: 'monospace' }}
+        />
+        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+          <button className="secondary" onClick={copyEmbedSnippet} disabled={!embedSnippet}>Copy embed code</button>
+          {embedSrc && (
+            <a href={embedSrc} target="_blank" rel="noreferrer">
+              <button className="secondary" type="button">Preview embed</button>
+            </a>
+          )}
+        </div>
+      </section>
+
       <hr />
 
       <div className="dashboard-grid">
-        <section>
-          <h3>Domain Setup</h3>
-
-          {connectedDomain ? (
-            <div>
-              <div className="domain-status">
-                Connected to: <strong>{connectedDomain}</strong>
-              </div>
-              <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem' }}>
-                <a href={`https://${connectedDomain}`} target="_blank" rel="noreferrer">
-                  <button className="secondary">Visit Site</button>
-                </a>
-                <button className="danger" onClick={handleRemoveDomain}>Disconnect</button>
-              </div>
-            </div>
-          ) : (
-            <div>
-              <p style={{ margin: '0 0 1rem 0' }}>
-                1. Add CNAME <code>cname.vercel-dns.com</code><br />
-                2. Enter domain below:
-              </p>
-              <div style={{ display: 'flex', gap: '0.5rem' }}>
-                <input
-                  type="text"
-                  placeholder="guestbook.yoursite.com"
-                  value={domainInput}
-                  onChange={e => setDomainInput(e.target.value)}
-                  style={{ flex: 1, margin: 0 }}
-                />
-                <button onClick={handleAddDomain}>Connect</button>
-              </div>
-            </div>
-          )}
-        </section>
-
         <section>
           <h3>Moderation</h3>
           <p>Control how new messages appear on your guestbook.</p>

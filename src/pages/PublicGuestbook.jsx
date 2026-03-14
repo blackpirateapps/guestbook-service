@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import DOMPurify from 'dompurify';
 
@@ -16,6 +16,8 @@ DOMPurify.addHook('afterSanitizeAttributes', function (node) {
 export default function PublicGuestbook({ overrideUsername }) {
   const { username: paramUsername } = useParams();
   const username = overrideUsername || paramUsername;
+  const isEmbed = useMemo(() => new URLSearchParams(window.location.search).get('embed') === '1', []);
+  const rootRef = useRef(null);
 
   const [entries, setEntries] = useState([]);
   const [customCss, setCustomCss] = useState('');
@@ -34,6 +36,36 @@ export default function PublicGuestbook({ overrideUsername }) {
       Promise.all([fetchEntries(), fetchProfile()]);
     }
   }, [username]);
+
+  useEffect(() => {
+    if (!isEmbed) return;
+    const root = rootRef.current;
+    if (!root) return;
+
+    let rafId = 0;
+    const sendHeight = () => {
+      if (rafId) cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(() => {
+        const height = Math.max(root.scrollHeight, root.offsetHeight);
+        window.parent?.postMessage({ type: 'guestbook:resize', height }, '*');
+      });
+    };
+
+    sendHeight();
+
+    let resizeObserver;
+    if ('ResizeObserver' in window) {
+      resizeObserver = new ResizeObserver(() => sendHeight());
+      resizeObserver.observe(root);
+    }
+
+    window.addEventListener('load', sendHeight);
+    return () => {
+      if (rafId) cancelAnimationFrame(rafId);
+      resizeObserver?.disconnect();
+      window.removeEventListener('load', sendHeight);
+    };
+  }, [isEmbed]);
 
   async function fetchEntries() {
     try {
@@ -183,9 +215,23 @@ export default function PublicGuestbook({ overrideUsername }) {
     </form>
   );
 
+  const embedBaseCss = isEmbed
+    ? `
+      html, body { background: transparent; }
+      footer { display: none; }
+    `.trim()
+    : '';
+
   return (
-    <div style={{ maxWidth: overrideUsername ? '800px' : '100%', margin: '0 auto' }}>
-      <style>{customCss}</style>
+    <div
+      ref={rootRef}
+      style={{
+        maxWidth: isEmbed ? '100%' : (overrideUsername ? '800px' : '100%'),
+        margin: isEmbed ? 0 : '0 auto',
+        padding: isEmbed ? '1rem' : 0,
+      }}
+    >
+      <style>{`${embedBaseCss}\n${customCss}`}</style>
 
       <header style={{ marginBottom: '2rem' }}>
         <div className="user-custom-header" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(customHtml, SAFE_CONFIG) }} />

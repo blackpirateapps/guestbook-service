@@ -7,7 +7,7 @@ export default async function handler(req, res) {
   const { method } = req;
 
   // ---------------------------------------------------------
-  // 1. GET: Fetch Profile (CSS, HTML, and Domain)
+  // 1. GET: Fetch Profile (CSS, HTML, moderation)
   // ---------------------------------------------------------
   if (method === 'GET') {
     const { username } = req.query;
@@ -17,9 +17,9 @@ export default async function handler(req, res) {
     }
 
     try {
-      // Fetch custom design AND the connected domain
+      // Fetch custom design
       const result = await db.execute({
-        sql: 'SELECT custom_css, custom_html, custom_domain FROM users WHERE username = ?',
+        sql: 'SELECT custom_css, custom_html, require_approval FROM users WHERE username = ?',
         args: [username]
       });
       
@@ -32,7 +32,7 @@ export default async function handler(req, res) {
       return res.json({
         custom_css: profile.custom_css || '',
         custom_html: profile.custom_html || '',
-        custom_domain: profile.custom_domain || null 
+        require_approval: profile.require_approval === 1 ? 1 : 0
       });
 
     } catch (e) {
@@ -50,12 +50,11 @@ export default async function handler(req, res) {
 
     try {
       const decoded = jwt.verify(token, SECRET);
-      const { custom_css, custom_html } = JSON.parse(req.body);
+      const { custom_css, custom_html, require_approval } = JSON.parse(req.body);
 
-      // We do NOT update custom_domain here (that's handled in api/domain.js)
       await db.execute({
-        sql: 'UPDATE users SET custom_css = ?, custom_html = ? WHERE username = ?',
-        args: [custom_css || '', custom_html || '', decoded.username]
+        sql: 'UPDATE users SET custom_css = ?, custom_html = ?, require_approval = ? WHERE username = ?',
+        args: [custom_css || '', custom_html || '', require_approval ? 1 : 0, decoded.username]
       });
 
       return res.json({ success: true });

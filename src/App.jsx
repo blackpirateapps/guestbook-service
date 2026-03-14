@@ -6,50 +6,28 @@ import PublicGuestbook from './pages/PublicGuestbook';
 import './index.css';
 
 function App() {
-  const [customDomainUser, setCustomDomainUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const isEmbedRequest = new URLSearchParams(window.location.search).get('embed') === '1';
 
   useEffect(() => {
-    checkDomain();
+    setLoading(false);
   }, []);
-
-  async function checkDomain() {
-    const hostname = window.location.hostname;
-    // UPDATE THIS: The domain where your main app lives
-    const mainDomain = "your-app-name.vercel.app";
-
-    // Skip check for localhost or main domain
-    if (hostname.includes('localhost') || hostname === mainDomain) {
-      setLoading(false);
-      return;
-    }
-
-    try {
-      // Updated: Now using the unified /api/domain endpoint
-      const res = await fetch(`/api/domain?domain=${hostname}`);
-      if (res.ok) {
-        const data = await res.json();
-        setCustomDomainUser(data.username);
-      }
-    } catch (err) {
-      console.error("Domain resolution failed", err);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  // ----------------------------------------------------
-  // SCENARIO A: VISITING VIA CUSTOM DOMAIN
-  // ----------------------------------------------------
-  if (customDomainUser) {
-    // We override the username prop directly
-    return <PublicGuestbook overrideUsername={customDomainUser} />;
-  }
 
   if (loading) return <div className="guestbook-container text-center" style={{ marginTop: '100px', color: 'var(--text-muted)' }}>Loading application...</div>;
 
+  if (isEmbedRequest) {
+    return (
+      <div className="guestbook-container" style={{ padding: 0, maxWidth: '100%' }}>
+        <Routes>
+          <Route path="/u/:username" element={<PublicGuestbook />} />
+          <Route path="*" element={<div style={{ padding: '1rem', color: 'var(--text-muted)' }}>Invalid embed URL.</div>} />
+        </Routes>
+      </div>
+    );
+  }
+
   // ----------------------------------------------------
-  // SCENARIO B: NORMAL APP USAGE
+  // NORMAL APP USAGE
   // ----------------------------------------------------
   return (
     <div className="container">

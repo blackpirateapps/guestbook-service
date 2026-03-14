@@ -3,7 +3,7 @@
 Welcome, Agent. This document provides a high-level overview of the Guestbook Service web application to help you quickly understand the codebase, its architecture, and how to operate within it.
 
 ## Overview
-The Guestbook Service is a lightweight, customizable web application that allows users to create their own digital guestbook. It supports custom domains, private messages, moderation (approval flows), and custom appearance settings (CSS & HTML injection) per user.
+The Guestbook Service is a lightweight, customizable web application that allows users to create their own digital guestbook. It supports private messages, moderation (approval flows), and custom appearance settings (CSS & HTML injection) per user.
 
 ## Technology Stack
 - **Frontend Framework:** React 18, utilizing React Router DOM for routing.
@@ -20,9 +20,8 @@ The Guestbook Service is a lightweight, customizable web application that allows
 │   ├── db.js        # LibSQL database connection utility
 │   ├── login.js     # User authentication endpoint
 │   ├── signup.js    # User registration endpoint
-│   ├── profile.js   # Getting/updating user settings (custom domain, design)
+│   ├── profile.js   # Getting/updating user settings (design)
 │   ├── entries.js   # CRUD operations for guestbook messages & replies
-│   └── domain.js    # Handling custom domain configuration checks
 ├── src/             # React Frontend Code
 │   ├── App.jsx      # Main application router and shell
 │   ├── index.css    # Global styling and design system
@@ -37,8 +36,7 @@ The Guestbook Service is a lightweight, customizable web application that allows
 
 ## Key Mechanisms & Workflows
 1. **Client-Side Routing (`App.jsx`)**
-   The application uses standard `react-router-dom` for internal navigation (`/`, `/dashboard`, `/u/:username`). 
-   *Custom Domain Support:* The `App.jsx` performs a hostname check upon initialization. If a custom domain request resolves via `/api/domain`, the app skips the standard router and directly mounts the `PublicGuestbook` component with the respective owner's data.
+   The application uses standard `react-router-dom` for internal navigation (`/`, `/dashboard`, `/u/:username`).
 
 2. **Serverless API Layer (`/api`)**
    APIs extract the JWT from the `Authorization` header to authenticate admin actions (deleting messages, updating settings). Public actions (viewing the guestbook, adding an unapproved entry) are unauthenticated but require the `owner_username`.
