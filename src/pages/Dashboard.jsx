@@ -11,10 +11,24 @@ import {
 
 const TABS = [
   { id: "overview", label: "Overview" },
+  { id: "forms", label: "Forms" },
+  { id: "submissions", label: "Submissions" },
   { id: "embed", label: "Embed" },
   { id: "settings", label: "Settings" },
   { id: "data", label: "Data" },
   { id: "tester", label: "API Tester" },
+];
+
+const FIELD_TYPES = [
+  { value: "text", label: "Text" },
+  { value: "email", label: "Email" },
+  { value: "textarea", label: "Textarea" },
+  { value: "number", label: "Number" },
+  { value: "phone", label: "Phone" },
+  { value: "url", label: "URL" },
+  { value: "checkbox", label: "Checkbox" },
+  { value: "select", label: "Dropdown" },
+  { value: "radio", label: "Radio Buttons" },
 ];
 
 export default function Dashboard() {
@@ -40,6 +54,18 @@ export default function Dashboard() {
   const [testerResult, setTesterResult] = useState("");
   const [testerBusy, setTesterBusy] = useState(false);
   const [dataTransferBusy, setDataTransferBusy] = useState(false);
+
+  // Forms feature state
+  const [forms, setForms] = useState([]);
+  const [formsBusy, setFormsBusy] = useState(false);
+  const [editingForm, setEditingForm] = useState(null);
+  const [formName, setFormName] = useState("");
+  const [formFields, setFormFields] = useState([]);
+  const [formRequireApproval, setFormRequireApproval] = useState(false);
+  const [selectedFormId, setSelectedFormId] = useState("");
+  const [submissions, setSubmissions] = useState([]);
+  const [submissionsBusy, setSubmissionsBusy] = useState(false);
+  const [expandedSubmission, setExpandedSubmission] = useState(null);
 
   const importFileRef = useRef(null);
   const [searchParams, setSearchParams] = useSearchParams();
@@ -77,6 +103,34 @@ export default function Dashboard() {
       setEmbedCssUrl(data.embed_css_url || "");
       setRequireApproval(data.require_approval === 1);
     }
+
+    // Fetch forms
+    fetchForms();
+  }
+
+  async function fetchForms() {
+    const res = await fetch("/api/forms", {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (res.ok) {
+      const data = await res.json();
+      setForms(data);
+    }
+  }
+
+  async function fetchSubmissions(formId) {
+    if (!formId) {
+      setSubmissions([]);
+      return;
+    }
+    setSubmissionsBusy(true);
+    const res = await fetch(`/api/submissions?form=${formId}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (res.ok) {
+      setSubmissions(await res.json());
+    }
+    setSubmissionsBusy(false);
   }
 
   async function saveSettings() {
@@ -559,6 +613,255 @@ DELETE ${origin}/api/entries (Owner only)
     }
   }
 
+  // Form management functions
+  function startNewForm() {
+    setEditingForm("new");
+    setFormName("");
+    setFormFields([
+      { name: "name", label: "Name", type: "text", required: true },
+      { name: "email", label: "Email", type: "email", required: true },
+      { name: "message", label: "Message", type: "textarea", required: true },
+    ]);
+    setFormRequireApproval(false);
+  }
+
+  function startEditForm(form) {
+    setEditingForm(form.id);
+    setFormName(form.name);
+    setFormFields([...form.fields]);
+    setFormRequireApproval(form.require_approval === 1);
+  }
+
+  function cancelFormEdit() {
+    setEditingForm(null);
+    setFormName("");
+    setFormFields([]);
+    setFormRequireApproval(false);
+  }
+
+  function addField() {
+    const newFieldName = `field_${formFields.length + 1}`;
+    setFormFields([
+      ...formFields,
+      { name: newFieldName, label: "New Field", type: "text", required: false },
+    ]);
+  }
+
+  function updateField(index, updates) {
+    const updated = [...formFields];
+    updated[index] = { ...updated[index], ...updates };
+    // Auto-generate name from label if label changed
+    if (updates.label !== undefined) {
+      updated[index].name = updates.label
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "_")
+        .replace(/^_|_$/g, "");
+    }
+    setFormFields(updated);
+  }
+
+  function removeField(index) {
+    setFormFields(formFields.filter((_, i) => i !== index));
+  }
+
+  function moveField(index, direction) {
+    const newIndex = index + direction;
+    if (newIndex < 0 || newIndex >= formFields.length) return;
+    const updated = [...formFields];
+    [updated[index], updated[newIndex]] = [updated[newIndex], updated[index]];
+    setFormFields(updated);
+  }
+
+  async function saveForm() {
+    if (!formName.trim()) {
+      alert("Form name is required");
+      return;
+    }
+    if (formFields.length === 0) {
+      alert("At least one field is required");
+      return;
+    }
+
+    setFormsBusy(true);
+    const payload = {
+      name: formName,
+      fields: formFields,
+      require_approval: formRequireApproval,
+    };
+
+    if (editingForm !== "new") {
+      payload.id = editingForm;
+    }
+
+    const res = await fetch("/api/forms", {
+      method: editingForm === "new" ? "POST" : "PUT",
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify(payload),
+    });
+
+    if (res.ok) {
+      alert(editingForm === "new" ? "Form created!" : "Form updated!");
+      cancelFormEdit();
+      fetchForms();
+    } else {
+      const data = await res.json().catch(() => ({}));
+      alert(data.error || "Failed to save form");
+    }
+    setFormsBusy(false);
+  }
+
+  async function deleteForm(formId) {
+    if (!confirm("Delete this form and all its submissions?")) return;
+
+    const res = await fetch("/api/forms", {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ id: formId }),
+    });
+
+    if (res.ok) {
+      fetchForms();
+      if (selectedFormId === formId) {
+        setSelectedFormId("");
+        setSubmissions([]);
+      }
+    } else {
+      const data = await res.json().catch(() => ({}));
+      alert(data.error || "Failed to delete form");
+    }
+  }
+
+  async function approveSubmission(id) {
+    const res = await fetch("/api/submissions", {
+      method: "PUT",
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ id, action: "approve" }),
+    });
+    if (res.ok) fetchSubmissions(selectedFormId);
+  }
+
+  async function deleteSubmission(id) {
+    if (!confirm("Delete this submission?")) return;
+    const res = await fetch("/api/submissions", {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ id }),
+    });
+    if (res.ok) fetchSubmissions(selectedFormId);
+  }
+
+  async function exportFormSubmissions() {
+    if (!selectedFormId) return;
+    const res = await fetch(`/api/submissions?form=${selectedFormId}&export=1`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (res.ok) {
+      const data = await res.json();
+      const blob = new Blob([JSON.stringify(data, null, 2)], {
+        type: "application/json",
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      const formName = forms.find((f) => f.id === selectedFormId)?.name || "form";
+      a.download = `${formName}-submissions-${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+  }
+
+  function getFormEndpoint(formId) {
+    return `${origin}/api/submit?form=${formId}`;
+  }
+
+  function generateHtmlSnippet(form) {
+    const fields = form.fields
+      .map((f) => {
+        const required = f.required ? " required" : "";
+        const reqLabel = f.required ? " *" : "";
+        
+        if (f.type === "textarea") {
+          return `  <div class="form-group">
+    <label for="${f.name}">${f.label}${reqLabel}</label>
+    <textarea id="${f.name}" name="${f.name}"${required}></textarea>
+  </div>`;
+        }
+        
+        if (f.type === "checkbox") {
+          return `  <div class="form-group">
+    <label>
+      <input type="checkbox" name="${f.name}"${required}>
+      ${f.label}
+    </label>
+  </div>`;
+        }
+        
+        if (f.type === "select") {
+          const options = (f.options || [])
+            .map((opt) => `      <option value="${opt}">${opt}</option>`)
+            .join("\n");
+          return `  <div class="form-group">
+    <label for="${f.name}">${f.label}${reqLabel}</label>
+    <select id="${f.name}" name="${f.name}"${required}>
+      <option value="">Select...</option>
+${options}
+    </select>
+  </div>`;
+        }
+        
+        if (f.type === "radio") {
+          const radios = (f.options || [])
+            .map(
+              (opt) =>
+                `    <label><input type="radio" name="${f.name}" value="${opt}"${required}> ${opt}</label>`,
+            )
+            .join("\n");
+          return `  <div class="form-group">
+    <label>${f.label}${reqLabel}</label>
+${radios}
+  </div>`;
+        }
+        
+        const inputType =
+          f.type === "phone" ? "tel" : f.type === "url" ? "url" : f.type === "number" ? "number" : f.type === "email" ? "email" : "text";
+        
+        return `  <div class="form-group">
+    <label for="${f.name}">${f.label}${reqLabel}</label>
+    <input type="${inputType}" id="${f.name}" name="${f.name}"${required}>
+  </div>`;
+      })
+      .join("\n");
+
+    return `<form id="contact-form-${form.id}">
+${fields}
+  <!-- Honeypot field for spam protection -->
+  <input type="text" name="_honeypot" style="display:none" tabindex="-1" autocomplete="off">
+  <button type="submit">Submit</button>
+</form>
+
+<script>
+document.getElementById("contact-form-${form.id}").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const fd = new FormData(e.target);
+  const data = Object.fromEntries(fd.entries());
+  
+  const res = await fetch("${getFormEndpoint(form.id)}", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data)
+  });
+  
+  const result = await res.json();
+  if (res.ok) {
+    alert(result.message || "Form submitted successfully!");
+    e.target.reset();
+  } else {
+    alert(result.error || "Failed to submit form");
+  }
+});
+</script>`;
+  }
+
   // Tab content components
   const OverviewTab = () => (
     <>
@@ -692,6 +995,403 @@ DELETE ${origin}/api/entries (Owner only)
       </div>
     </>
   );
+
+  const FormsTab = () => (
+    <>
+      {editingForm ? (
+        <div className="panel-card">
+          <h3>{editingForm === "new" ? "Create New Form" : "Edit Form"}</h3>
+          <p>Define your form fields. Each field will be validated on submission.</p>
+
+          <div className="form-group">
+            <label>Form Name *</label>
+            <input
+              type="text"
+              value={formName}
+              onChange={(e) => setFormName(e.target.value)}
+              placeholder="Contact Form"
+            />
+          </div>
+
+          <div style={{ marginBottom: "1rem" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.75rem" }}>
+              <label style={{ margin: 0 }}>Fields</label>
+              <button className="secondary" onClick={addField} style={{ padding: "0.375rem 0.75rem", fontSize: "0.8125rem" }}>
+                + Add Field
+              </button>
+            </div>
+
+            {formFields.map((field, index) => (
+              <div key={index} className="field-editor">
+                <div className="field-editor-row">
+                  <input
+                    type="text"
+                    value={field.label}
+                    onChange={(e) => updateField(index, { label: e.target.value })}
+                    placeholder="Field Label"
+                    style={{ flex: 2 }}
+                  />
+                  <select
+                    value={field.type}
+                    onChange={(e) => updateField(index, { type: e.target.value })}
+                    style={{ flex: 1 }}
+                  >
+                    {FIELD_TYPES.map((t) => (
+                      <option key={t.value} value={t.value}>
+                        {t.label}
+                      </option>
+                    ))}
+                  </select>
+                  <label className="checkbox-label" style={{ flex: 0, whiteSpace: "nowrap" }}>
+                    <input
+                      type="checkbox"
+                      checked={field.required}
+                      onChange={(e) => updateField(index, { required: e.target.checked })}
+                    />
+                    Required
+                  </label>
+                  <div className="field-editor-actions">
+                    <button
+                      className="secondary"
+                      onClick={() => moveField(index, -1)}
+                      disabled={index === 0}
+                      style={{ padding: "0.25rem 0.5rem" }}
+                      title="Move up"
+                    >
+                      ↑
+                    </button>
+                    <button
+                      className="secondary"
+                      onClick={() => moveField(index, 1)}
+                      disabled={index === formFields.length - 1}
+                      style={{ padding: "0.25rem 0.5rem" }}
+                      title="Move down"
+                    >
+                      ↓
+                    </button>
+                    <button
+                      className="danger"
+                      onClick={() => removeField(index)}
+                      style={{ padding: "0.25rem 0.5rem" }}
+                      title="Remove field"
+                    >
+                      <IconTrash />
+                    </button>
+                  </div>
+                </div>
+                {(field.type === "select" || field.type === "radio") && (
+                  <div style={{ marginTop: "0.5rem" }}>
+                    <input
+                      type="text"
+                      value={(field.options || []).join(", ")}
+                      onChange={(e) =>
+                        updateField(index, {
+                          options: e.target.value.split(",").map((o) => o.trim()).filter(Boolean),
+                        })
+                      }
+                      placeholder="Options (comma separated): Option 1, Option 2, Option 3"
+                      style={{ fontSize: "0.875rem" }}
+                    />
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+
+          <label className="checkbox-label" style={{ marginBottom: "1rem" }}>
+            <input
+              type="checkbox"
+              checked={formRequireApproval}
+              onChange={(e) => setFormRequireApproval(e.target.checked)}
+            />
+            Require approval for submissions
+          </label>
+
+          {/* Form Preview */}
+          <div style={{ marginBottom: "1rem" }}>
+            <h4 style={{ marginTop: 0, marginBottom: "0.75rem" }}>Preview</h4>
+            <div className="form-preview">
+              {formFields.map((field, index) => (
+                <div key={index} className="form-group" style={{ marginBottom: "0.75rem" }}>
+                  <label>
+                    {field.label}
+                    {field.required && <span style={{ color: "#dc2626" }}> *</span>}
+                  </label>
+                  {field.type === "textarea" ? (
+                    <textarea rows={3} disabled placeholder={`Enter ${field.label.toLowerCase()}...`} />
+                  ) : field.type === "checkbox" ? (
+                    <label className="checkbox-label">
+                      <input type="checkbox" disabled />
+                      {field.label}
+                    </label>
+                  ) : field.type === "select" ? (
+                    <select disabled>
+                      <option>Select {field.label.toLowerCase()}...</option>
+                      {(field.options || []).map((opt, i) => (
+                        <option key={i}>{opt}</option>
+                      ))}
+                    </select>
+                  ) : field.type === "radio" ? (
+                    <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap" }}>
+                      {(field.options || []).map((opt, i) => (
+                        <label key={i} className="checkbox-label">
+                          <input type="radio" name={`preview_${field.name}`} disabled />
+                          {opt}
+                        </label>
+                      ))}
+                    </div>
+                  ) : (
+                    <input
+                      type={field.type === "phone" ? "tel" : field.type}
+                      disabled
+                      placeholder={`Enter ${field.label.toLowerCase()}...`}
+                    />
+                  )}
+                </div>
+              ))}
+              <button disabled style={{ opacity: 0.6 }}>Submit</button>
+            </div>
+          </div>
+
+          <div className="actions-row">
+            <button onClick={saveForm} disabled={formsBusy}>
+              {editingForm === "new" ? "Create Form" : "Save Changes"}
+            </button>
+            <button className="secondary" onClick={cancelFormEdit}>
+              Cancel
+            </button>
+          </div>
+        </div>
+      ) : (
+        <>
+          <div className="panel-card">
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1rem" }}>
+              <div>
+                <h3 style={{ margin: 0 }}>Contact Forms</h3>
+                <p style={{ margin: "0.25rem 0 0 0", fontSize: "0.875rem", color: "var(--text-muted)" }}>
+                  Create custom forms for external websites
+                </p>
+              </div>
+              <button onClick={startNewForm}>+ New Form</button>
+            </div>
+
+            {forms.length === 0 ? (
+              <p style={{ color: "var(--text-muted)", marginBottom: 0 }}>
+                No forms created yet. Click "New Form" to create your first contact form.
+              </p>
+            ) : (
+              <div className="forms-list">
+                {forms.map((form) => (
+                  <div key={form.id} className="form-item">
+                    <div className="form-item-info">
+                      <div className="form-item-name">{form.name}</div>
+                      <div className="form-item-meta">
+                        {form.fields.length} fields | {form.submission_count || 0} submissions
+                        {form.require_approval === 1 && <span className="badge" style={{ marginLeft: "0.5rem" }}>Moderated</span>}
+                      </div>
+                    </div>
+                    <div className="form-item-actions">
+                      <button className="secondary" onClick={() => startEditForm(form)} style={{ padding: "0.375rem 0.75rem", fontSize: "0.8125rem" }}>
+                        Edit
+                      </button>
+                      <button className="danger" onClick={() => deleteForm(form.id)} style={{ padding: "0.375rem 0.75rem", fontSize: "0.8125rem" }}>
+                        <IconTrash />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {forms.length > 0 && (
+            <div className="panel-card">
+              <h3>Integration</h3>
+              <p>Select a form to get the embed code and API endpoint.</p>
+
+              <div className="form-group">
+                <label>Select Form</label>
+                <select
+                  value={selectedFormId}
+                  onChange={(e) => setSelectedFormId(e.target.value)}
+                >
+                  <option value="">Choose a form...</option>
+                  {forms.map((form) => (
+                    <option key={form.id} value={form.id}>
+                      {form.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {selectedFormId && (
+                <>
+                  <div className="form-group">
+                    <label>API Endpoint</label>
+                    <div style={{ display: "flex", gap: "0.5rem" }}>
+                      <input
+                        type="text"
+                        readOnly
+                        value={getFormEndpoint(selectedFormId)}
+                        style={{ fontFamily: "monospace", fontSize: "0.875rem" }}
+                      />
+                      <button
+                        className="secondary"
+                        onClick={() => copyText(getFormEndpoint(selectedFormId))}
+                        style={{ whiteSpace: "nowrap" }}
+                      >
+                        <IconCopy /> Copy
+                      </button>
+                    </div>
+                    <p style={{ color: "var(--text-muted)", fontSize: "0.8125rem", marginTop: "0.5rem", marginBottom: 0 }}>
+                      POST JSON data to this endpoint from any website.
+                    </p>
+                  </div>
+
+                  <h4 style={{ marginTop: "1.5rem" }}>HTML Form Snippet</h4>
+                  <textarea
+                    className="code-textarea"
+                    rows={20}
+                    readOnly
+                    value={generateHtmlSnippet(forms.find((f) => f.id === selectedFormId))}
+                  />
+                  <div className="actions-row">
+                    <button
+                      className="secondary"
+                      onClick={() =>
+                        copyText(generateHtmlSnippet(forms.find((f) => f.id === selectedFormId)))
+                      }
+                    >
+                      <IconCopy /> Copy HTML
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+        </>
+      )}
+    </>
+  );
+
+  const SubmissionsTab = () => {
+    // Fetch submissions when form changes
+    useEffect(() => {
+      if (selectedFormId) {
+        fetchSubmissions(selectedFormId);
+      }
+    }, [selectedFormId]);
+
+    return (
+      <>
+        <div className="panel-card">
+          <h3>Form Submissions</h3>
+          <p>View and manage submissions from your contact forms.</p>
+
+          <div className="form-group">
+            <label>Select Form</label>
+            <select
+              value={selectedFormId}
+              onChange={(e) => {
+                setSelectedFormId(e.target.value);
+                setExpandedSubmission(null);
+              }}
+            >
+              <option value="">Choose a form...</option>
+              {forms.map((form) => (
+                <option key={form.id} value={form.id}>
+                  {form.name} ({form.submission_count || 0})
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {selectedFormId && (
+            <div className="actions-row" style={{ marginTop: 0, marginBottom: "1rem" }}>
+              <button className="secondary" onClick={() => fetchSubmissions(selectedFormId)} disabled={submissionsBusy}>
+                Refresh
+              </button>
+              <button className="secondary" onClick={exportFormSubmissions} disabled={submissions.length === 0}>
+                Export JSON
+              </button>
+            </div>
+          )}
+
+          {!selectedFormId ? (
+            <p style={{ color: "var(--text-muted)", marginBottom: 0 }}>
+              Select a form above to view its submissions.
+            </p>
+          ) : submissionsBusy ? (
+            <p style={{ color: "var(--text-muted)", marginBottom: 0 }}>Loading...</p>
+          ) : submissions.length === 0 ? (
+            <p style={{ color: "var(--text-muted)", marginBottom: 0 }}>
+              No submissions yet for this form.
+            </p>
+          ) : (
+            <div className="submissions-list">
+              {submissions.map((sub) => {
+                const form = forms.find((f) => f.id === selectedFormId);
+                const isExpanded = expandedSubmission === sub.id;
+
+                return (
+                  <div key={sub.id} className="submission-item">
+                    <div
+                      className="submission-header"
+                      onClick={() => setExpandedSubmission(isExpanded ? null : sub.id)}
+                      style={{ cursor: "pointer" }}
+                    >
+                      <div className="submission-preview">
+                        <span className="submission-id">#{sub.id}</span>
+                        <span className="submission-summary">
+                          {Object.values(sub.data).slice(0, 2).join(" - ").substring(0, 60)}
+                          {Object.values(sub.data).slice(0, 2).join(" - ").length > 60 && "..."}
+                        </span>
+                        {sub.status === "pending" && <span className="badge pending">Pending</span>}
+                      </div>
+                      <div className="submission-date">
+                        {new Date(sub.created_at).toLocaleString()}
+                      </div>
+                    </div>
+
+                    {isExpanded && (
+                      <div className="submission-details">
+                        <table className="submission-table">
+                          <tbody>
+                            {form?.fields.map((field) => (
+                              <tr key={field.name}>
+                                <td className="submission-label">{field.label}</td>
+                                <td className="submission-value">
+                                  {field.type === "checkbox"
+                                    ? sub.data[field.name]
+                                      ? "Yes"
+                                      : "No"
+                                    : sub.data[field.name] || "-"}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                        <div className="submission-actions">
+                          {sub.status === "pending" && (
+                            <button onClick={() => approveSubmission(sub.id)}>
+                              <IconCheck /> Approve
+                            </button>
+                          )}
+                          <button className="danger" onClick={() => deleteSubmission(sub.id)}>
+                            <IconTrash /> Delete
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </>
+    );
+  };
 
   const EmbedTab = () => (
     <>
@@ -1128,6 +1828,10 @@ DELETE ${origin}/api/entries (Owner only)
     switch (activeTab) {
       case "overview":
         return <OverviewTab />;
+      case "forms":
+        return <FormsTab />;
+      case "submissions":
+        return <SubmissionsTab />;
       case "embed":
         return <EmbedTab />;
       case "settings":

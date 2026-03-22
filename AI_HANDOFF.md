@@ -6,6 +6,8 @@ Welcome, Agent. This document provides a high-level overview of the Guestbook Se
 
 The Guestbook Service is a lightweight, customizable web application that allows users to create their own digital guestbook. It supports private messages, moderation (approval flows), and custom appearance settings (CSS & HTML injection) per user.
 
+**Additionally**, the service includes a **Contact Form Builder** feature that allows users to create custom forms with configurable fields and receive submissions from external websites via a public API endpoint.
+
 ## Technology Stack
 
 - **Frontend Framework:** React 18, utilizing React Router DOM for routing.
@@ -20,11 +22,14 @@ The Guestbook Service is a lightweight, customizable web application that allows
 ```
 /home/dog/git/guestbook-service/
 ├── api/             # Vercel Serverless Functions
-│   ├── db.js        # LibSQL database connection utility
+│   ├── db.js        # LibSQL database connection utility + table init
 │   ├── login.js     # User authentication endpoint
 │   ├── signup.js    # User registration endpoint
 │   ├── profile.js   # Getting/updating user settings (design)
 │   ├── entries.js   # CRUD operations for guestbook messages & replies
+│   ├── forms.js     # Contact form CRUD (create, update, delete forms)
+│   ├── submit.js    # Public endpoint for form submissions
+│   └── submissions.js # View and manage form submissions
 ├── src/             # React Frontend Code
 │   ├── App.jsx      # Main application router and shell with navbar
 │   ├── index.css    # Global design system (colors, typography, components)
@@ -74,15 +79,17 @@ The application uses `react-router-dom` for navigation (`/`, `/dashboard`, `/u/:
 
 ### 2. Dashboard (`Dashboard.jsx`)
 
-The dashboard uses **URL-based tabbed navigation** with 5 tabs:
+The dashboard uses **URL-based tabbed navigation** with 7 tabs:
 
-| Tab        | URL             | Content                                                  |
-| ---------- | --------------- | -------------------------------------------------------- |
-| Overview   | `?tab=overview` | Stats cards, recent entries list with moderation actions |
-| Embed      | `?tab=embed`    | Embed snippet, CSS URL config, Headless API docs         |
-| Settings   | `?tab=settings` | Moderation toggle, Custom CSS/HTML appearance            |
-| Data       | `?tab=data`     | Export/Import JSON backup, Add past entries              |
-| API Tester | `?tab=tester`   | Live API testing for entries, replies, likes             |
+| Tab         | URL                | Content                                                  |
+| ----------- | ------------------ | -------------------------------------------------------- |
+| Overview    | `?tab=overview`    | Stats cards, recent entries list with moderation actions |
+| Forms       | `?tab=forms`       | Contact form builder, create/edit forms, integration code|
+| Submissions | `?tab=submissions` | View and manage form submissions                         |
+| Embed       | `?tab=embed`       | Embed snippet, CSS URL config, Headless API docs         |
+| Settings    | `?tab=settings`    | Moderation toggle, Custom CSS/HTML appearance            |
+| Data        | `?tab=data`        | Export/Import JSON backup, Add past entries              |
+| API Tester  | `?tab=tester`      | Live API testing for entries, replies, likes             |
 
 Tab state is managed via `useSearchParams` from react-router-dom.
 
@@ -106,11 +113,48 @@ APIs extract JWT from `Authorization` header for authenticated actions. Public a
 - `DELETE /api/entries` - Delete entry (auth required)
 - `GET /api/entries?export=1` - Export all data (auth required)
 
+**Contact Form Endpoints:**
+
+- `GET /api/forms` - List user's forms (auth required)
+- `POST /api/forms` - Create new form (auth required)
+- `PUT /api/forms` - Update form (auth required)
+- `DELETE /api/forms` - Delete form (auth required)
+- `POST /api/submit?form=:formId` - Submit to form (public, CORS enabled)
+- `GET /api/submissions?form=:formId` - List submissions (auth required)
+- `PUT /api/submissions` - Approve/reject submission (auth required)
+- `DELETE /api/submissions` - Delete submission (auth required)
+
 ### 5. Security & Moderation
 
 - **XSS Prevention:** DOMPurify sanitizes custom HTML in `PublicGuestbook.jsx`
-- **Honeypot:** Hidden `website_url_check` field catches spam bots
+- **Honeypot:** Hidden `website_url_check` field catches spam bots (guestbook), `_honeypot` field for contact forms
 - **Moderation:** Optional approval flow holds entries with `status: 'pending'`
+
+### 6. Contact Form Builder
+
+The Contact Form Builder allows users to create custom forms for external websites:
+
+**Database Tables:**
+- `forms` - Stores form definitions (id, owner_username, name, fields JSON, require_approval, created_at)
+- `form_submissions` - Stores submissions (id, form_id, data JSON, status, ip_address, created_at)
+
+**Supported Field Types:**
+- `text`, `email`, `textarea`, `checkbox`, `number`, `phone`, `url`, `select`, `radio`
+
+**Form Fields Schema (JSON):**
+```json
+[
+  { "name": "email", "label": "Email", "type": "email", "required": true },
+  { "name": "plan", "label": "Plan", "type": "select", "options": ["Basic", "Pro"], "required": false }
+]
+```
+
+**Public Submission Endpoint:**
+- `POST /api/submit?form=:formId` - CORS enabled, validates against form schema
+- Honeypot protection via `_honeypot` field
+- Returns JSON: `{ success: true, message: "...", status: "approved"|"pending" }`
+
+**Integration:** The Forms tab provides ready-to-use HTML/JS snippets for embedding forms on external sites.
 
 ## Development & Testing Workflow
 
