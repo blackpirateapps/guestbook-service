@@ -100,6 +100,8 @@ The dashboard uses **URL-based tabbed navigation** grouped into two sections:
 
 Tab state is managed via `useSearchParams` from react-router-dom.
 
+**Navigation UI model:** The tab navigation is rendered as a modern segmented surface (`.dashboard-nav-surface`) with two pill-style clusters (`Guestbook`, `Contact Forms`) using horizontally scrollable rows on small screens and a two-column cluster layout on desktop.
+
 ### 3. Authentication (`Auth.jsx`)
 
 The homepage displays a centered single-column layout with:

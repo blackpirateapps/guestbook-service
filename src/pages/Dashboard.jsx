@@ -1867,17 +1867,23 @@ document.getElementById("contact-form-${form.id}").addEventListener("submit", as
         </button>
       </div>
 
-      <div className="dashboard-tab-groups">
-        <div className="dashboard-tab-group">
-          <div className="tab-group-title">Guestbook</div>
-          <div className="tabs" role="tablist" aria-label="Guestbook tabs">
+      <div className="dashboard-nav-surface">
+        <div className="dashboard-nav-header">
+          <h2>Workspace</h2>
+          <p>Choose an area, then switch between tools.</p>
+        </div>
+
+        <div className="dashboard-tab-clusters">
+          <div className="dashboard-tab-cluster">
+            <div className="dashboard-tab-cluster-label">Guestbook</div>
+            <div className="dashboard-tab-row" role="tablist" aria-label="Guestbook tabs">
             {GUESTBOOK_TABS.map((tab) => (
               <button
                 key={tab.id}
                 type="button"
                 role="tab"
                 aria-selected={activeTab === tab.id}
-                className={`tab-button${activeTab === tab.id ? " active" : ""}`}
+                className={`dashboard-tab-pill${activeTab === tab.id ? " active" : ""}`}
                 onClick={() => handleTabChange(tab.id)}
               >
                 {tab.label}
@@ -1886,16 +1892,16 @@ document.getElementById("contact-form-${form.id}").addEventListener("submit", as
           </div>
         </div>
 
-        <div className="dashboard-tab-group">
-          <div className="tab-group-title">Contact Forms</div>
-          <div className="tabs" role="tablist" aria-label="Contact form tabs">
+          <div className="dashboard-tab-cluster">
+            <div className="dashboard-tab-cluster-label">Contact Forms</div>
+            <div className="dashboard-tab-row" role="tablist" aria-label="Contact form tabs">
             {CONTACT_FORM_TABS.map((tab) => (
               <button
                 key={tab.id}
                 type="button"
                 role="tab"
                 aria-selected={activeTab === tab.id}
-                className={`tab-button${activeTab === tab.id ? " active" : ""}`}
+                className={`dashboard-tab-pill${activeTab === tab.id ? " active" : ""}`}
                 onClick={() => handleTabChange(tab.id)}
               >
                 {tab.label}
@@ -1903,6 +1909,7 @@ document.getElementById("contact-form-${form.id}").addEventListener("submit", as
             ))}
           </div>
         </div>
+      </div>
       </div>
 
       <div className="tab-content">{renderTabContent()}</div>
