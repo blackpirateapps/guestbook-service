@@ -76,7 +76,8 @@ export default async function handler(req, res) {
         const a = Math.floor(Math.random() * 10) + 1;
         const b = Math.floor(Math.random() * 10) + 1;
         const answer = (a + b).toString();
-        const hash = await bcrypt.hash(answer, 8);
+        // Simpler hash for captcha to avoid potential bcrypt overhead in serverless
+        const hash = await bcrypt.hash(answer, 4); 
         captcha = {
           question: `${a} + ${b}`,
           key: hash

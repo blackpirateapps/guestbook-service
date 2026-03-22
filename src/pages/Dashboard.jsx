@@ -981,13 +981,19 @@ ${formFields}
 
   // Fetch captcha
   async function loadCaptcha() {
-    const res = await fetch(baseUrl + "/api/comments?section=" + sectionId + "&page_url=" + encodeURIComponent(pageUrl));
-    const data = await res.json();
-    if (data.captcha) {
-      const label = document.getElementById("captcha-label");
-      if (label) label.innerText = "Prove you are human: " + data.captcha.question + " = ?";
-      const keyInput = document.getElementById("captcha-key");
-      if (keyInput) keyInput.value = data.captcha.key;
+    const label = document.getElementById("captcha-label");
+    try {
+      const res = await fetch(baseUrl + "/api/comments?section=" + sectionId + "&page_url=" + encodeURIComponent(pageUrl));
+      const data = await res.json();
+      if (data.captcha) {
+        if (label) label.innerText = "Prove you are human: " + data.captcha.question + " = ?";
+        const keyInput = document.getElementById("captcha-key");
+        if (keyInput) keyInput.value = data.captcha.key;
+      } else {
+        if (label) label.innerText = "Failed to load captcha (No data)";
+      }
+    } catch (err) {
+      if (label) label.innerText = "Error loading captcha: " + err.message;
     }
   }
   ${settings.use_captcha ? "loadCaptcha();" : ""}
