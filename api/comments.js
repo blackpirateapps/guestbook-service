@@ -1,4 +1,4 @@
-import { db, initCommentsTables } from './db.js';
+import { db, initCommentsTables, initRateLimitTable } from './db.js';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 
@@ -25,6 +25,7 @@ export default async function handler(req, res) {
 
   try {
     await initCommentsTables();
+    await initRateLimitTable();
   } catch (e) {}
 
   const { method } = req;
@@ -90,12 +91,18 @@ export default async function handler(req, res) {
       sender_url, 
       comment_text, 
       is_anonymous,
+      website_url_check // Honeypot
     } = body;
     let { page_url } = body;
     if (page_url && !page_url.endsWith('/')) page_url += '/';
 
     if (!section_id || !comment_text) {
       return res.status(400).json({ error: 'Section ID and comment text are required' });
+    }
+
+    if (website_url_check) {
+      // Bot detected via honeypot
+      return res.status(400).json({ error: 'Spam detected' });
     }
 
     // Get section settings
@@ -109,7 +116,7 @@ export default async function handler(req, res) {
     const settings = JSON.parse(section.settings);
     const owner_username = section.owner_username;
 
-    // Check if owner is posting (bypass moderation)
+    // Check if owner is posting (bypass moderation and rate limiting)
     const token = req.headers.authorization?.split(' ')[1];
     let isOwnerPosting = false;
     if (token) {
@@ -119,7 +126,51 @@ export default async function handler(req, res) {
       } catch (e) {}
     }
 
+    const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown';
+
     if (!isOwnerPosting) {
+      // Rate Limiting
+      const now = Date.now();
+      const rateKey = `comments:${ip}`;
+      
+      const rateRes = await db.execute({
+        sql: 'SELECT * FROM rate_limits WHERE key = ?',
+        args: [rateKey]
+      });
+
+      if (rateRes.rows.length > 0) {
+        let { last_attempt, hourly_count, window_reset } = rateRes.rows[0];
+        
+        // 5 second cooldown
+        if (now - last_attempt < 5000) {
+          return res.status(429).json({ error: 'Please wait 5 seconds between comments' });
+        }
+
+        // 10 comments per hour
+        if (now > window_reset) {
+          // Reset window
+          hourly_count = 1;
+          window_reset = now + 3600000;
+        } else {
+          if (hourly_count >= 10) {
+            const minutesLeft = Math.ceil((window_reset - now) / 60000);
+            return res.status(429).json({ error: `Too many comments. Try again in ${minutesLeft} minutes.` });
+          }
+          hourly_count += 1;
+        }
+
+        await db.execute({
+          sql: 'UPDATE rate_limits SET last_attempt = ?, hourly_count = ?, window_reset = ? WHERE key = ?',
+          args: [now, hourly_count, window_reset, rateKey]
+        });
+      } else {
+        // First attempt for this IP
+        await db.execute({
+          sql: 'INSERT INTO rate_limits (key, last_attempt, hourly_count, window_reset) VALUES (?, ?, ?, ?)',
+          args: [rateKey, now, 1, now + 3600000]
+        });
+      }
+
       // Validate Required Fields
       if (!is_anonymous) {
         if (settings.fields?.name?.required && !sender_name) {

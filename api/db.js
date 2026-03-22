@@ -32,6 +32,18 @@ export async function initFormsTables() {
   `);
 }
 
+// Initialize rate_limits table
+export async function initRateLimitTable() {
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS rate_limits (
+      key TEXT PRIMARY KEY,
+      last_attempt INTEGER DEFAULT 0,
+      hourly_count INTEGER DEFAULT 0,
+      window_reset INTEGER DEFAULT 0
+    )
+  `);
+}
+
 // Initialize comment_sections and comments tables
 export async function initCommentsTables() {
   await db.execute(`

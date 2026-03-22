@@ -968,6 +968,7 @@ DELETE ${origin}/api/entries (Owner only)
   <!-- Post Comment Form -->
   <form id="comment-form-${section.id}">
     <h3>Post a Comment</h3>
+    <input type="text" name="website_url_check" style="display:none !important;" tabindex="-1" autocomplete="off">
 ${formFields}
     <input type="hidden" name="parent_id" id="parent-id-${section.id}">
     <div id="replying-to-info-${section.id}" style="display:none; margin-bottom: 1rem; color: #666;">
