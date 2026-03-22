@@ -990,7 +990,7 @@ ${formFields}
       if (keyInput) keyInput.value = data.captcha.key;
     }
   }
-  loadCaptcha();
+  ${settings.use_captcha ? "loadCaptcha();" : ""}
 
   // Handle anonymous toggle
   const anonCheck = document.getElementById("anon-check");
@@ -1029,7 +1029,7 @@ ${formFields}
     if (res.ok) {
       alert(result.status === "pending" ? "Awaiting approval!" : "Comment posted!");
       e.target.reset();
-      loadCaptcha();
+      ${settings.use_captcha ? "loadCaptcha();" : ""}
     } else {
       alert(result.error || "Failed to post");
     }
