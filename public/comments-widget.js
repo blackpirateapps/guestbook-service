@@ -68,7 +68,7 @@
     return await res.json();
   }
 
-  function renderForm(section, parentId = null, captcha = null) {
+  function renderForm(section, parentId = null) {
     var settings = section.settings;
     var fields = settings.fields;
     
@@ -92,14 +92,6 @@
     html += '</div>';
 
     html += '<div class="cw-form-group"><label>Comment *</label><textarea name="comment_text" required></textarea></div>';
-
-    if (settings.use_captcha && captcha) {
-      html += '<div class="cw-form-group cw-captcha">';
-      html += '<label>Prove you are human: ' + escapeHtml(captcha.question) + ' = ?</label>';
-      html += '<input type="number" name="captcha_answer" required>';
-      html += '<input type="hidden" name="captcha_key" value="' + escapeHtml(captcha.key) + '">';
-      html += '</div>';
-    }
 
     html += '<div class="cw-form-actions"><button type="submit">Post Comment</button>';
     if (parentId) html += '<button type="button" class="cw-cancel-reply">Cancel</button>';
@@ -174,7 +166,6 @@
         .cw-form-actions { display: flex; gap: 0.5rem; }
         .cw-form button[type="submit"] { background: #007aff; color: white; border: none; padding: 0.6rem 1.2rem; border-radius: 4px; cursor: pointer; font-weight: 600; }
         .cw-cancel-reply { background: #eee; color: #333; border: none; padding: 0.6rem 1.2rem; border-radius: 4px; cursor: pointer; }
-        .cw-captcha { display: flex; flex-direction: column; gap: 0.5rem; max-width: 200px; }
       `;
       document.head.appendChild(style);
     }
@@ -188,7 +179,7 @@
         ]);
 
         var html = '<div class="cw-container">';
-        html += '<div id="cw-main-form-container">' + renderForm(section, null, data.captcha) + '</div>';
+        html += '<div id="cw-main-form-container">' + renderForm(section, null) + '</div>';
         html += '<div class="cw-comments-list">';
         
         var roots = data.comments.filter(c => !c.parent_id);
@@ -242,7 +233,7 @@
             if (existingForm) return;
             
             var formWrapper = document.createElement('div');
-            formWrapper.innerHTML = renderForm(section, id, data.captcha);
+            formWrapper.innerHTML = renderForm(section, id);
             commentEl.querySelector('.cw-comment-footer').after(formWrapper);
             
             formWrapper.querySelector('.cw-cancel-reply').onclick = () => formWrapper.remove();

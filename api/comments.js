@@ -3,7 +3,6 @@ import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 
 const SECRET = process.env.JWT_SECRET || 'secret';
-const CAPTCHA_SALT = process.env.CAPTCHA_SALT || SECRET;
 
 function setCors(res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -71,23 +70,8 @@ export default async function handler(req, res) {
 
       const result = await db.execute({ sql, args });
       
-      // Generate captcha for public users
-      let captcha = null;
-      if (!isOwner) {
-        const a = Math.floor(Math.random() * 10) + 1;
-        const b = Math.floor(Math.random() * 10) + 1;
-        const answer = (a + b).toString();
-        // Use crypto for fast, synchronous hashing in serverless
-        const hash = crypto.createHash('sha256').update(answer + CAPTCHA_SALT).digest('hex');
-        captcha = {
-          question: `${a} + ${b}`,
-          key: hash
-        };
-      }
-
       return res.json({
-        comments: result.rows,
-        captcha
+        comments: result.rows
       });
     } catch (e) {
       return res.status(500).json({ error: 'Database error' });
@@ -105,8 +89,6 @@ export default async function handler(req, res) {
       sender_url, 
       comment_text, 
       is_anonymous,
-      captcha_answer,
-      captcha_key,
       page_url
     } = body;
 
@@ -125,7 +107,7 @@ export default async function handler(req, res) {
     const settings = JSON.parse(section.settings);
     const owner_username = section.owner_username;
 
-    // Check if owner is posting (bypass captcha/moderation)
+    // Check if owner is posting (bypass moderation)
     const token = req.headers.authorization?.split(' ')[1];
     let isOwnerPosting = false;
     if (token) {
@@ -136,15 +118,6 @@ export default async function handler(req, res) {
     }
 
     if (!isOwnerPosting) {
-      // Validate Captcha
-      if (settings.use_captcha) {
-        if (!captcha_answer || !captcha_key) {
-          return res.status(400).json({ error: 'Captcha is required' });
-        }
-        const expectedHash = crypto.createHash('sha256').update(captcha_answer.toString() + CAPTCHA_SALT).digest('hex');
-        if (expectedHash !== captcha_key) return res.status(400).json({ error: 'Invalid captcha answer' });
-      }
-
       // Validate Required Fields
       if (!is_anonymous) {
         if (settings.fields?.name?.required && !sender_name) {

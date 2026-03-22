@@ -126,7 +126,7 @@ APIs extract JWT from `Authorization` header for authenticated actions. Public a
 - `POST /api/comment-sections` - Create new section (auth)
 - `PUT /api/comment-sections` - Update section settings (auth)
 - `DELETE /api/comment-sections` - Delete section (auth)
-- `GET /api/comments?section=:id` - Fetch public comments + captcha (public)
+- `GET /api/comments?section=:id` - Fetch public comments (public)
 - `POST /api/comments` - Post a new comment (public)
 - `PUT /api/comments` - Like or approve a comment
 - `DELETE /api/comments` - Delete a comment (auth)
@@ -135,7 +135,6 @@ APIs extract JWT from `Authorization` header for authenticated actions. Public a
 
 - **XSS Prevention:** DOMPurify sanitizes custom HTML in `PublicGuestbook.jsx`. Widget uses basic HTML escaping.
 - **Honeypot:** Hidden `website_url_check` field catches spam bots (guestbook), `_honeypot` field for contact forms
-- **Captcha:** Simple math-based captcha for comments (`a + b = ?`). Verified via bcrypt-hashed answers.
 - **Moderation:** Optional approval flow holds entries with `status: 'pending'`
 
 ### 6. Contact Form Builder
@@ -179,7 +178,6 @@ The Comments System allows users to embed threaded discussions on any page.
 **Settings (JSON):**
 - `fields`: Toggle visibility and requirement for `name`, `email`, and `url`.
 - `allow_anonymous`: Boolean.
-- `use_captcha`: Boolean (Math captcha).
 - `allow_likes`: Boolean.
 - `require_approval`: Boolean.
 

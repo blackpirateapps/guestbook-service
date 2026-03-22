@@ -98,12 +98,12 @@ export default function Dashboard() {
     fields: {
       name: { show: true, required: true },
       email: { show: true, required: true },
-      url: { show: true, required: false },
+      url: { show: false, required: false },
     },
-    allow_anonymous: true,
-    use_captcha: true,
+    allow_anonymous: false,
     allow_likes: true,
     require_approval: false,
+
   });
   const [selectedSectionId, setSelectedSectionId] = useState("");
   const [allComments, setAllComments] = useState([]);
@@ -823,12 +823,12 @@ DELETE ${origin}/api/entries (Owner only)
       fields: {
         name: { show: true, required: true },
         email: { show: true, required: true },
-        url: { show: true, required: false },
+        url: { show: false, required: false },
       },
-      allow_anonymous: true,
-      use_captcha: true,
+      allow_anonymous: false,
       allow_likes: true,
       require_approval: false,
+
     });
   }
 
@@ -959,14 +959,6 @@ DELETE ${origin}/api/entries (Owner only)
     <textarea id="comment" name="comment_text" required></textarea>
   </div>`;
 
-    if (settings.use_captcha) {
-      formFields += `\n  <div class="form-group">
-    <label id="captcha-label">Loading captcha...</label>
-    <input type="number" name="captcha_answer" required>
-    <input type="hidden" name="captcha_key" id="captcha-key">
-  </div>`;
-    }
-
     return `<form id="comment-form-${section.id}">
 ${formFields}
   <button type="submit">Post Comment</button>
@@ -978,25 +970,6 @@ ${formFields}
   const baseUrl = "${origin}";
   const sectionId = "${section.id}";
   const pageUrl = window.location.origin + window.location.pathname;
-
-  // Fetch captcha
-  async function loadCaptcha() {
-    const label = document.getElementById("captcha-label");
-    try {
-      const res = await fetch(baseUrl + "/api/comments?section=" + sectionId + "&page_url=" + encodeURIComponent(pageUrl));
-      const data = await res.json();
-      if (data.captcha) {
-        if (label) label.innerText = "Prove you are human: " + data.captcha.question + " = ?";
-        const keyInput = document.getElementById("captcha-key");
-        if (keyInput) keyInput.value = data.captcha.key;
-      } else {
-        if (label) label.innerText = "Failed to load captcha (No data)";
-      }
-    } catch (err) {
-      if (label) label.innerText = "Error loading captcha: " + err.message;
-    }
-  }
-  ${settings.use_captcha ? "loadCaptcha();" : ""}
 
   // Handle anonymous toggle
   const anonCheck = document.getElementById("anon-check");
@@ -1035,7 +1008,6 @@ ${formFields}
     if (res.ok) {
       alert(result.status === "pending" ? "Awaiting approval!" : "Comment posted!");
       e.target.reset();
-      ${settings.use_captcha ? "loadCaptcha();" : ""}
     } else {
       alert(result.error || "Failed to post");
     }
@@ -1669,13 +1641,6 @@ document.getElementById("contact-form-${form.id}").addEventListener("submit", as
                   checked={sectionSettings.allow_anonymous}
                   onChange={(e) => setSectionSettings({ ...sectionSettings, allow_anonymous: e.target.checked })}
                 /> Allow Anonymous Comments
-              </label>
-              <label className="checkbox-label">
-                <input
-                  type="checkbox"
-                  checked={sectionSettings.use_captcha}
-                  onChange={(e) => setSectionSettings({ ...sectionSettings, use_captcha: e.target.checked })}
-                /> Use Math Captcha
               </label>
               <label className="checkbox-label">
                 <input
