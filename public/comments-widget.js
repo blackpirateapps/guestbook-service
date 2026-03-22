@@ -72,18 +72,20 @@
     html += '<h3>' + (parentId ? 'Reply to Comment' : 'Leave a Comment') + '</h3>';
     
     if (settings.allow_anonymous) {
-      html += '<label class="cw-checkbox-label"><input type="checkbox" name="is_anonymous"> Comment as Anonymous</label>';
+      html += '<label class="cw-checkbox-label"><input type="checkbox" name="is_anonymous" class="cw-anon-check"> Comment as Anonymous</label>';
     }
 
+    html += '<div class="cw-personal-fields">';
     if (fields.name.show) {
-      html += '<div class="cw-form-group"><label>Name' + (fields.name.required ? ' *' : '') + '</label><input type="text" name="sender_name" ' + (fields.name.required ? 'required' : '') + '></div>';
+      html += '<div class="cw-form-group"><label>Name' + (fields.name.required ? ' *' : '') + '</label><input type="text" name="sender_name" ' + (fields.name.required ? 'required' : '') + ' data-was-required="' + fields.name.required + '"></div>';
     }
     if (fields.email.show) {
-      html += '<div class="cw-form-group"><label>Email' + (fields.email.required ? ' *' : '') + '</label><input type="email" name="sender_email" ' + (fields.email.required ? 'required' : '') + '></div>';
+      html += '<div class="cw-form-group"><label>Email' + (fields.email.required ? ' *' : '') + '</label><input type="email" name="sender_email" ' + (fields.email.required ? 'required' : '') + ' data-was-required="' + fields.email.required + '"></div>';
     }
     if (fields.url.show) {
-      html += '<div class="cw-form-group"><label>Website' + (fields.url.required ? ' *' : '') + '</label><input type="url" name="sender_url" ' + (fields.url.required ? 'required' : '') + '></div>';
+      html += '<div class="cw-form-group"><label>Website' + (fields.url.required ? ' *' : '') + '</label><input type="url" name="sender_url" ' + (fields.url.required ? 'required' : '') + ' data-was-required="' + fields.url.required + '"></div>';
     }
+    html += '</div>';
 
     html += '<div class="cw-form-group"><label>Comment *</label><textarea name="comment_text" required></textarea></div>';
 
@@ -199,6 +201,17 @@
 
         // Attach events
         container.querySelectorAll('form').forEach(form => {
+          var anonCheck = form.querySelector('.cw-anon-check');
+          if (anonCheck) {
+            anonCheck.onchange = (e) => {
+              var personalFields = form.querySelector('.cw-personal-fields');
+              if (personalFields) personalFields.style.display = e.target.checked ? 'none' : 'block';
+              form.querySelectorAll('.cw-personal-fields input').forEach(input => {
+                input.required = e.target.checked ? false : (input.dataset.wasRequired === 'true');
+              });
+            };
+          }
+
           form.onsubmit = async (e) => {
             e.preventDefault();
             var fd = new FormData(form);

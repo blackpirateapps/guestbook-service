@@ -922,6 +922,120 @@ DELETE ${origin}/api/entries (Owner only)
 </script>`;
   }
 
+  function generateCommentHtmlSnippet(section) {
+    if (!section) return "";
+    const settings = section.settings;
+    const fields = settings.fields;
+
+    let formFields = "";
+    if (settings.allow_anonymous) {
+      formFields += `  <div class="form-group">
+    <label>
+      <input type="checkbox" name="is_anonymous" id="anon-check">
+      Comment as Anonymous
+    </label>
+  </div>\n`;
+    }
+
+    const fieldList = [
+      { id: "name", label: "Name", type: "text" },
+      { id: "email", label: "Email", type: "email" },
+      { id: "url", label: "Website", type: "url" },
+    ];
+
+    fieldList.forEach((f) => {
+      if (fields[f.id].show) {
+        const required = fields[f.id].required ? " required" : "";
+        const reqLabel = fields[f.id].required ? " *" : "";
+        formFields += `  <div class="form-group field-${f.id}">
+    <label for="${f.id}">${f.label}${reqLabel}</label>
+    <input type="${f.type}" id="${f.id}" name="sender_${f.id}"${required}>
+  </div>\n`;
+      }
+    });
+
+    formFields += `  <div class="form-group">
+    <label for="comment">Comment *</label>
+    <textarea id="comment" name="comment_text" required></textarea>
+  </div>`;
+
+    if (settings.use_captcha) {
+      formFields += `\n  <div class="form-group">
+    <label id="captcha-label">Loading captcha...</label>
+    <input type="number" name="captcha_answer" required>
+    <input type="hidden" name="captcha_key" id="captcha-key">
+  </div>`;
+    }
+
+    return `<form id="comment-form-${section.id}">
+${formFields}
+  <button type="submit">Post Comment</button>
+</form>
+
+<script>
+(function() {
+  const form = document.getElementById("comment-form-${section.id}");
+  const baseUrl = "${origin}";
+  const sectionId = "${section.id}";
+
+  // Fetch captcha
+  async function loadCaptcha() {
+    const res = await fetch(baseUrl + "/api/comments?section=" + sectionId);
+    const data = await res.json();
+    if (data.captcha) {
+      const label = document.getElementById("captcha-label");
+      if (label) label.innerText = "Prove you are human: " + data.captcha.question + " = ?";
+      const keyInput = document.getElementById("captcha-key");
+      if (keyInput) keyInput.value = data.captcha.key;
+    }
+  }
+  loadCaptcha();
+
+  // Handle anonymous toggle
+  const anonCheck = document.getElementById("anon-check");
+  if (anonCheck) {
+    anonCheck.addEventListener("change", (e) => {
+      const isAnon = e.target.checked;
+      ["name", "email", "url"].forEach(f => {
+        const el = form.querySelector(".field-" + f);
+        if (el) el.style.display = isAnon ? "none" : "block";
+        const input = form.querySelector("#" + f);
+        if (input) input.required = isAnon ? false : (input.dataset.wasRequired === "true");
+      });
+    });
+    // Store original requirement
+    ["name", "email", "url"].forEach(f => {
+      const input = form.querySelector("#" + f);
+      if (input) input.dataset.wasRequired = input.required;
+    });
+  }
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const data = Object.fromEntries(fd.entries());
+    data.section_id = sectionId;
+    data.is_anonymous = anonCheck ? anonCheck.checked : false;
+    
+    const res = await fetch(baseUrl + "/api/comments", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data)
+    });
+    
+    const result = await res.json();
+    if (res.ok) {
+      alert(result.status === "pending" ? "Awaiting approval!" : "Comment posted!");
+      e.target.reset();
+      loadCaptcha();
+    } else {
+      alert(result.error || "Failed to post");
+    }
+  });
+})();
+</script>`;
+  }
+
   async function exportFormSubmissions() {
     if (!selectedFormId) return;
     const res = await fetch(`/api/submissions?form=${selectedFormId}&export=1`, {
@@ -1622,10 +1736,25 @@ document.getElementById("contact-form-${form.id}").addEventListener("submit", as
                       rows={8}
                       readOnly
                       value={generateCommentSnippet(commentSections.find(s => s.id === selectedSectionId))}
+                      style={{ marginBottom: "1rem" }}
                     />
-                    <div className="actions-row">
+                    <div className="actions-row" style={{ marginBottom: "1.5rem" }}>
                       <button className="secondary" onClick={() => copyText(generateCommentSnippet(commentSections.find(s => s.id === selectedSectionId)))}>
                         <IconCopy /> Copy Snippet
+                      </button>
+                    </div>
+
+                    <label>Headless API (Custom Form)</label>
+                    <textarea
+                      className="code-textarea"
+                      rows={15}
+                      readOnly
+                      value={generateCommentHtmlSnippet(commentSections.find(s => s.id === selectedSectionId))}
+                      style={{ marginBottom: "1rem" }}
+                    />
+                    <div className="actions-row">
+                      <button className="secondary" onClick={() => copyText(generateCommentHtmlSnippet(commentSections.find(s => s.id === selectedSectionId)))}>
+                        <IconCopy /> Copy HTML Snippet
                       </button>
                     </div>
                   </>

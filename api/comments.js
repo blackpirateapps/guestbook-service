@@ -138,14 +138,16 @@ export default async function handler(req, res) {
       }
 
       // Validate Required Fields
-      if (settings.fields?.name?.required && !sender_name && !is_anonymous) {
-        return res.status(400).json({ error: 'Name is required' });
-      }
-      if (settings.fields?.email?.required && !sender_email) {
-        return res.status(400).json({ error: 'Email is required' });
-      }
-      if (settings.fields?.url?.required && !sender_url) {
-        return res.status(400).json({ error: 'URL is required' });
+      if (!is_anonymous) {
+        if (settings.fields?.name?.required && !sender_name) {
+          return res.status(400).json({ error: 'Name is required' });
+        }
+        if (settings.fields?.email?.required && !sender_email) {
+          return res.status(400).json({ error: 'Email is required' });
+        }
+        if (settings.fields?.url?.required && !sender_url) {
+          return res.status(400).json({ error: 'URL is required' });
+        }
       }
     }
 

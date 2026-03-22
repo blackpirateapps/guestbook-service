@@ -199,7 +199,9 @@ The Comments System allows users to embed threaded discussions on any page.
 - `allow_likes`: Boolean.
 - `require_approval`: Boolean.
 
-**Integration:** The Sections tab provides a `CommentsWidget.mount()` snippet for embedding.
+**Integration:** The Sections tab provides both a `CommentsWidget.mount()` snippet for quick embedding and a **Headless API (Custom Form)** HTML/JS snippet for fully custom integrations.
+
+**Anonymous Mode:** When `is_anonymous` is checked/true, name, email, and URL fields are hidden and their requirements are bypassed on the server.
 
 ## Development & Testing Workflow
 
