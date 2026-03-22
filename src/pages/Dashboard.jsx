@@ -969,7 +969,8 @@ ${formFields}
   const form = document.getElementById("comment-form-${section.id}");
   const baseUrl = "${origin}";
   const sectionId = "${section.id}";
-  const pageUrl = window.location.origin + window.location.pathname;
+  let pageUrl = window.location.origin + window.location.pathname;
+  if (!pageUrl.endsWith("/")) pageUrl += "/";
 
   // Handle anonymous toggle
   const anonCheck = document.getElementById("anon-check");

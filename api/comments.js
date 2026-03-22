@@ -28,7 +28,8 @@ export default async function handler(req, res) {
   } catch (e) {}
 
   const { method } = req;
-  const { section: sectionId, auth, page_url: queryPageUrl } = req.query;
+  let { section: sectionId, auth, page_url: queryPageUrl } = req.query;
+  if (queryPageUrl && !queryPageUrl.endsWith('/')) queryPageUrl += '/';
 
   // 1. GET: Fetch comments (Public or Auth)
   if (method === 'GET') {
@@ -89,8 +90,9 @@ export default async function handler(req, res) {
       sender_url, 
       comment_text, 
       is_anonymous,
-      page_url
     } = body;
+    let { page_url } = body;
+    if (page_url && !page_url.endsWith('/')) page_url += '/';
 
     if (!section_id || !comment_text) {
       return res.status(400).json({ error: 'Section ID and comment text are required' });
