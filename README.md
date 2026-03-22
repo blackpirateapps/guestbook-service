@@ -36,6 +36,19 @@ Notes:
 - `is_private: true` creates a private message visible only in the dashboard.
 - `bot_field` is a honeypot (if non-empty, the request is treated as spam and ignored).
 
+Reply example:
+
+```json
+{
+  "owner_username": "OWNER",
+  "sender_name": "Jane",
+  "message": "Thanks for sharing!",
+  "parent_id": 123,
+  "is_private": false,
+  "bot_field": ""
+}
+```
+
 ### Like an entry (public)
 
 `PUT /api/entries`
@@ -44,6 +57,12 @@ Body (JSON):
 
 ```json
 { "action": "like", "id": 123 }
+```
+
+Returns:
+
+```json
+{ "success": true }
 ```
 
 ### Approve an entry (owner only)
@@ -96,6 +115,26 @@ There’s a tiny helper script at `/guestbook-widget.js` you can use to populate
     sender_website: "https://example.com",
     message: "Hello!",
     is_private: false
+  });
+</script>
+```
+
+### Reply and like with widget helpers
+
+```html
+<script src="https://YOUR-APP/guestbook-widget.js"></script>
+<script>
+  await GuestbookWidget.submitReply({
+    baseUrl: "https://YOUR-APP",
+    owner_username: "OWNER",
+    parent_id: 123,
+    sender_name: "Jane",
+    message: "Great post!"
+  });
+
+  await GuestbookWidget.likeEntry({
+    baseUrl: "https://YOUR-APP",
+    id: 123
   });
 </script>
 ```

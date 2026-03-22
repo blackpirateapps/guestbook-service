@@ -15,6 +15,15 @@ export default function Dashboard() {
   const [importWebsite, setImportWebsite] = useState('');
   const [importDate, setImportDate] = useState('');
   const [importMessage, setImportMessage] = useState('');
+  const [testerBaseUrl, setTesterBaseUrl] = useState('');
+  const [testerName, setTesterName] = useState('');
+  const [testerWebsite, setTesterWebsite] = useState('');
+  const [testerMessage, setTesterMessage] = useState('');
+  const [testerIsPrivate, setTesterIsPrivate] = useState(false);
+  const [testerReplyParentId, setTesterReplyParentId] = useState('');
+  const [testerLikeId, setTesterLikeId] = useState('');
+  const [testerResult, setTesterResult] = useState('');
+  const [testerBusy, setTesterBusy] = useState(false);
 
   const navigate = useNavigate();
   const token = localStorage.getItem('token');
@@ -22,6 +31,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     setOrigin(window.location.origin);
+    setTesterBaseUrl(window.location.origin);
     if (!token) { navigate('/'); return; }
     fetchData();
   }, [token]);
@@ -204,6 +214,73 @@ export default function Dashboard() {
   });
 </script>` : '';
 
+  const headlessReplySnippet = origin && username ? `<script>
+  const baseUrl = "${origin}";
+  const owner = "${username}";
+
+  async function postReply(parentId, name, message, website = "") {
+    const payload = {
+      owner_username: owner,
+      sender_name: name,
+      sender_website: website,
+      message,
+      parent_id: parentId,
+      is_private: false,
+      bot_field: ""
+    };
+
+    const res = await fetch(baseUrl + "/api/entries", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    if (!res.ok) throw new Error("Failed to post reply");
+    return await res.json(); // includes status: "approved" | "pending"
+  }
+</script>` : '';
+
+  const headlessLikeSnippet = origin ? `<script>
+  const baseUrl = "${origin}";
+
+  async function likeEntry(entryId) {
+    const res = await fetch(baseUrl + "/api/entries", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "like", id: entryId })
+    });
+    if (!res.ok) throw new Error("Failed to like entry");
+    return await res.json();
+  }
+</script>` : '';
+
+  const headlessApiDocs = origin && username ? `GET ${origin}/api/entries?user=${username}
+- Public: returns approved, non-private entries (threads + replies).
+
+POST ${origin}/api/entries
+- Public: create a new thread OR reply.
+- Use parent_id: null for a top-level entry.
+- Use parent_id: <entry id> to create a reply.
+- Body fields:
+  owner_username (string, required)
+  sender_name (string, required)
+  message (string, required)
+  sender_website (string, optional)
+  parent_id (number|null, optional)
+  is_private (boolean, optional)
+  bot_field (string, optional honeypot)
+
+PUT ${origin}/api/entries
+- Public likes:
+  { "action": "like", "id": <entry id> }
+
+PUT ${origin}/api/entries (Owner only)
+- Approve pending entries (requires Authorization: Bearer <JWT>):
+  { "action": "approve", "id": <entry id> }
+
+DELETE ${origin}/api/entries (Owner only)
+- Delete an entry (requires Authorization: Bearer <JWT>):
+  { "id": <entry id> }` : '';
+
   const headlessWidgetSnippet = widgetSrc && username ? `<div id="guestbook-entries"></div>
 <script src="${widgetSrc}"></script>
 <script>
@@ -261,6 +338,119 @@ export default function Dashboard() {
     } catch {
       alert('Could not copy automatically. Select the text and copy it manually.');
     }
+  }
+
+  function resolveTesterEndpoint() {
+    const base = (testerBaseUrl || origin || window.location.origin).trim().replace(/\/+$/, '');
+    return `${base}/api/entries`;
+  }
+
+  async function runTesterRequest({ method, payload, actionLabel }) {
+    const endpoint = resolveTesterEndpoint();
+    setTesterBusy(true);
+    setTesterResult(`Running ${actionLabel}...`);
+
+    try {
+      const res = await fetch(endpoint, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      const rawText = await res.text();
+      let parsedBody = rawText;
+      try {
+        parsedBody = rawText ? JSON.parse(rawText) : {};
+      } catch {
+        // Keep plain text body if response is not JSON.
+      }
+
+      const output = {
+        request: {
+          method,
+          url: endpoint,
+          body: payload
+        },
+        response: {
+          status: res.status,
+          ok: res.ok,
+          body: parsedBody
+        }
+      };
+
+      setTesterResult(JSON.stringify(output, null, 2));
+
+      if (res.ok) {
+        fetchData();
+      }
+    } catch (error) {
+      setTesterResult(JSON.stringify({
+        request: {
+          method,
+          url: endpoint,
+          body: payload
+        },
+        error: error?.message || 'Request failed'
+      }, null, 2));
+    } finally {
+      setTesterBusy(false);
+    }
+  }
+
+  async function testCreateEntry(e) {
+    e.preventDefault();
+    if (!testerName.trim() || !testerMessage.trim()) return;
+
+    await runTesterRequest({
+      method: 'POST',
+      actionLabel: 'entry test',
+      payload: {
+        owner_username: username,
+        sender_name: testerName.trim(),
+        sender_website: testerWebsite.trim(),
+        message: testerMessage.trim(),
+        parent_id: null,
+        is_private: testerIsPrivate,
+        bot_field: ''
+      }
+    });
+  }
+
+  async function testCreateReply(e) {
+    e.preventDefault();
+    const parsedParentId = Number(testerReplyParentId);
+    if (!testerName.trim() || !testerMessage.trim() || !Number.isInteger(parsedParentId) || parsedParentId <= 0) {
+      return;
+    }
+
+    await runTesterRequest({
+      method: 'POST',
+      actionLabel: 'reply test',
+      payload: {
+        owner_username: username,
+        sender_name: testerName.trim(),
+        sender_website: testerWebsite.trim(),
+        message: testerMessage.trim(),
+        parent_id: parsedParentId,
+        is_private: false,
+        bot_field: ''
+      }
+    });
+  }
+
+  async function testLikeEntry(e) {
+    e.preventDefault();
+    const parsedLikeId = Number(testerLikeId);
+    if (!Number.isInteger(parsedLikeId) || parsedLikeId <= 0) return;
+
+    await runTesterRequest({
+      method: 'PUT',
+      actionLabel: 'like test',
+      payload: {
+        action: 'like',
+        id: parsedLikeId
+      }
+    });
   }
 
   return (
@@ -357,7 +547,29 @@ export default function Dashboard() {
 
         <hr style={{ margin: '1rem 0' }} />
 
-        <h4 style={{ margin: '0 0 0.5rem 0' }}>2) Render entries with JS</h4>
+        <h4 style={{ margin: '0 0 0.5rem 0' }}>2) Reply to an entry</h4>
+        <textarea className="code-textarea" rows={14} readOnly value={headlessReplySnippet || 'Loading...'} />
+        <div className="actions-row">
+          <button className="secondary icon-button" onClick={() => copyText(headlessReplySnippet)} disabled={!headlessReplySnippet}>
+            <IconCopy />
+            <span>Copy snippet</span>
+          </button>
+        </div>
+
+        <hr style={{ margin: '1rem 0' }} />
+
+        <h4 style={{ margin: '0 0 0.5rem 0' }}>3) Like an entry</h4>
+        <textarea className="code-textarea" rows={11} readOnly value={headlessLikeSnippet || 'Loading...'} />
+        <div className="actions-row">
+          <button className="secondary icon-button" onClick={() => copyText(headlessLikeSnippet)} disabled={!headlessLikeSnippet}>
+            <IconCopy />
+            <span>Copy snippet</span>
+          </button>
+        </div>
+
+        <hr style={{ margin: '1rem 0' }} />
+
+        <h4 style={{ margin: '0 0 0.5rem 0' }}>4) Render entries with JS</h4>
         <textarea className="code-textarea" rows={7} readOnly value={headlessWidgetSnippet || 'Loading...'} />
         <div className="actions-row">
           <button className="secondary icon-button" onClick={() => copyText(headlessWidgetSnippet)} disabled={!headlessWidgetSnippet}>
@@ -368,7 +580,7 @@ export default function Dashboard() {
 
         <hr style={{ margin: '1rem 0' }} />
 
-        <h4 style={{ margin: '0 0 0.5rem 0' }}>3) Example CSS</h4>
+        <h4 style={{ margin: '0 0 0.5rem 0' }}>5) Example CSS</h4>
         <p style={{ color: 'var(--text-muted)', marginBottom: '0.75rem' }}>
           If you use the default widget renderer, style these classes (or override rendering with your own JS).
         </p>
@@ -379,6 +591,110 @@ export default function Dashboard() {
             <span>Copy CSS</span>
           </button>
         </div>
+
+        <hr style={{ margin: '1rem 0' }} />
+
+        <h4 style={{ margin: '0 0 0.5rem 0' }}>API reference</h4>
+        <textarea className="code-textarea" rows={24} readOnly value={headlessApiDocs || 'Loading...'} />
+        <div className="actions-row">
+          <button className="secondary icon-button" onClick={() => copyText(headlessApiDocs)} disabled={!headlessApiDocs}>
+            <IconCopy />
+            <span>Copy API docs</span>
+          </button>
+        </div>
+      </section>
+
+      <section className="card" style={{ marginBottom: '1.5rem' }}>
+        <h3 style={{ marginTop: 0 }}>API Tester</h3>
+        <p style={{ color: 'var(--text-muted)', marginBottom: '0.75rem' }}>
+          Test entry, reply, and like calls against your endpoint and inspect the exact request + response payload.
+        </p>
+
+        <div className="form-group" style={{ marginBottom: '1rem' }}>
+          <label>Base URL</label>
+          <input
+            type="url"
+            placeholder="https://your-app.vercel.app"
+            value={testerBaseUrl}
+            onChange={e => setTesterBaseUrl(e.target.value)}
+          />
+        </div>
+
+        <div className="dashboard-grid" style={{ marginBottom: '1rem' }}>
+          <section className="card" style={{ marginBottom: 0 }}>
+            <h4 style={{ marginTop: 0 }}>Test Entry (POST)</h4>
+            <form onSubmit={testCreateEntry} style={{ marginBottom: 0 }}>
+              <div className="form-group">
+                <label>Name *</label>
+                <input type="text" value={testerName} onChange={e => setTesterName(e.target.value)} required />
+              </div>
+              <div className="form-group">
+                <label>Website (optional)</label>
+                <input type="url" value={testerWebsite} onChange={e => setTesterWebsite(e.target.value)} placeholder="https://example.com" />
+              </div>
+              <div className="form-group">
+                <label>Message *</label>
+                <textarea rows={3} value={testerMessage} onChange={e => setTesterMessage(e.target.value)} required />
+              </div>
+              <label className="checkbox-label" style={{ marginBottom: '0.8rem' }}>
+                <input type="checkbox" checked={testerIsPrivate} onChange={e => setTesterIsPrivate(e.target.checked)} />
+                Private message
+              </label>
+              <button type="submit" disabled={testerBusy}>Run entry test</button>
+            </form>
+          </section>
+
+          <section className="card" style={{ marginBottom: 0 }}>
+            <h4 style={{ marginTop: 0 }}>Test Reply (POST)</h4>
+            <form onSubmit={testCreateReply} style={{ marginBottom: 0 }}>
+              <div className="form-group">
+                <label>Parent Entry ID *</label>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={testerReplyParentId}
+                  onChange={e => setTesterReplyParentId(e.target.value)}
+                  placeholder="123"
+                  required
+                />
+              </div>
+              <p style={{ color: 'var(--text-muted)', marginBottom: '0.8rem' }}>
+                Uses the same name/website/message fields from the entry test to simulate a reply payload.
+              </p>
+              <button type="submit" disabled={testerBusy}>Run reply test</button>
+            </form>
+          </section>
+        </div>
+
+        <section className="card" style={{ marginBottom: '1rem' }}>
+          <h4 style={{ marginTop: 0 }}>Test Like (PUT)</h4>
+          <form onSubmit={testLikeEntry} style={{ marginBottom: 0 }}>
+            <div className="dashboard-grid" style={{ marginBottom: 0 }}>
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label>Entry ID *</label>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={testerLikeId}
+                  onChange={e => setTesterLikeId(e.target.value)}
+                  placeholder="123"
+                  required
+                />
+              </div>
+              <div style={{ display: 'flex', alignItems: 'end' }}>
+                <button type="submit" disabled={testerBusy}>Run like test</button>
+              </div>
+            </div>
+          </form>
+        </section>
+
+        <h4 style={{ margin: '0 0 0.5rem 0' }}>Tester output</h4>
+        <textarea
+          className="code-textarea"
+          rows={16}
+          readOnly
+          value={testerResult || 'Run a test to inspect request and response output.'}
+        />
       </section>
 
       <div className="dashboard-grid">

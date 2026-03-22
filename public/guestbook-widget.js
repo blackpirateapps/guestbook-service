@@ -54,6 +54,42 @@
     return await res.json();
   }
 
+  async function submitReply(opts) {
+    if (!opts || !opts.owner_username) throw new Error('owner_username is required');
+    if (!opts.parent_id) throw new Error('parent_id is required');
+    if (!opts.sender_name) throw new Error('sender_name is required');
+    if (!opts.message) throw new Error('message is required');
+
+    return await submitEntry({
+      baseUrl: opts.baseUrl,
+      owner_username: opts.owner_username,
+      sender_name: opts.sender_name,
+      sender_website: opts.sender_website || '',
+      message: opts.message,
+      parent_id: opts.parent_id,
+      is_private: false,
+      bot_field: opts.bot_field || ''
+    });
+  }
+
+  async function likeEntry(opts) {
+    if (!opts || !opts.id) throw new Error('id is required');
+    var baseUrl = opts.baseUrl || defaultBaseUrl();
+    var url = joinUrl(baseUrl, '/api/entries');
+
+    var res = await fetch(url, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'like', id: opts.id })
+    });
+    if (!res.ok) {
+      var data = {};
+      try { data = await res.json(); } catch (_) {}
+      throw new Error(data.error || 'Failed to like entry');
+    }
+    return await res.json();
+  }
+
   function escapeHtml(text) {
     return String(text)
       .replace(/&/g, '&amp;')
@@ -100,7 +136,8 @@
   window.GuestbookWidget = {
     fetchEntries: fetchEntries,
     submitEntry: submitEntry,
+    submitReply: submitReply,
+    likeEntry: likeEntry,
     mount: mount
   };
 })();
-
