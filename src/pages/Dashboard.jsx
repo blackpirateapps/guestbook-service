@@ -9,14 +9,17 @@ import {
   IconTrash,
 } from "../components/Icons";
 
-const TABS = [
+const GUESTBOOK_TABS = [
   { id: "overview", label: "Overview" },
-  { id: "forms", label: "Forms" },
-  { id: "submissions", label: "Submissions" },
   { id: "embed", label: "Embed" },
   { id: "settings", label: "Settings" },
   { id: "data", label: "Data" },
   { id: "tester", label: "API Tester" },
+];
+
+const CONTACT_FORM_TABS = [
+  { id: "forms", label: "Forms" },
+  { id: "submissions", label: "Submissions" },
 ];
 
 const FIELD_TYPES = [
@@ -1864,19 +1867,42 @@ document.getElementById("contact-form-${form.id}").addEventListener("submit", as
         </button>
       </div>
 
-      <div className="tabs" role="tablist">
-        {TABS.map((tab) => (
-          <button
-            key={tab.id}
-            type="button"
-            role="tab"
-            aria-selected={activeTab === tab.id}
-            className={`tab-button${activeTab === tab.id ? " active" : ""}`}
-            onClick={() => handleTabChange(tab.id)}
-          >
-            {tab.label}
-          </button>
-        ))}
+      <div className="dashboard-tab-groups">
+        <div className="dashboard-tab-group">
+          <div className="tab-group-title">Guestbook</div>
+          <div className="tabs" role="tablist" aria-label="Guestbook tabs">
+            {GUESTBOOK_TABS.map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                role="tab"
+                aria-selected={activeTab === tab.id}
+                className={`tab-button${activeTab === tab.id ? " active" : ""}`}
+                onClick={() => handleTabChange(tab.id)}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="dashboard-tab-group">
+          <div className="tab-group-title">Contact Forms</div>
+          <div className="tabs" role="tablist" aria-label="Contact form tabs">
+            {CONTACT_FORM_TABS.map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                role="tab"
+                aria-selected={activeTab === tab.id}
+                className={`tab-button${activeTab === tab.id ? " active" : ""}`}
+                onClick={() => handleTabChange(tab.id)}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
 
       <div className="tab-content">{renderTabContent()}</div>

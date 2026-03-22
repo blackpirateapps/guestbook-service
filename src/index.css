@@ -358,6 +358,40 @@ button.icon-button svg {
   min-height: 200px;
 }
 
+.dashboard-tab-groups {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.dashboard-tab-group {
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 0.625rem 0.625rem 0;
+  background: var(--card-bg);
+}
+
+.tab-group-title {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin: 0 0 0.375rem 0.25rem;
+}
+
+.dashboard-tab-group .tabs {
+  margin-bottom: 0;
+}
+
+@media (min-width: 900px) {
+  .dashboard-tab-groups {
+    grid-template-columns: 2fr 1fr;
+    align-items: start;
+  }
+}
+
 /* Auth Page */
 .auth-wrapper {
   max-width: 480px;
