@@ -64,4 +64,14 @@ export async function initCommentsTables() {
       FOREIGN KEY (section_id) REFERENCES comment_sections(id) ON DELETE CASCADE
     )
   `);
+
+  try {
+    await db.execute("ALTER TABLE comments ADD COLUMN is_anonymous INTEGER DEFAULT 0");
+  } catch (e) {}
+  try {
+    await db.execute("ALTER TABLE comments ADD COLUMN is_owner INTEGER DEFAULT 0");
+  } catch (e) {}
+  try {
+    await db.execute("ALTER TABLE comments ADD COLUMN page_url TEXT");
+  } catch (e) {}
 }
