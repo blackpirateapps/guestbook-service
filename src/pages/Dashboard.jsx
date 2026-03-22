@@ -31,6 +31,21 @@ const FIELD_TYPES = [
   { value: "radio", label: "Radio Buttons" },
 ];
 
+function makeField(field = {}) {
+  return {
+    _id:
+      field._id ||
+      (typeof crypto !== "undefined" && crypto.randomUUID
+        ? crypto.randomUUID()
+        : `${Date.now()}-${Math.random().toString(36).slice(2)}`),
+    name: field.name || "",
+    label: field.label || "",
+    type: field.type || "text",
+    required: field.required === true,
+    options: Array.isArray(field.options) ? field.options : undefined,
+  };
+}
+
 export default function Dashboard() {
   const [entries, setEntries] = useState([]);
   const [customCss, setCustomCss] = useState("");
@@ -61,7 +76,6 @@ export default function Dashboard() {
   const [editingForm, setEditingForm] = useState(null);
   const [formName, setFormName] = useState("");
   const [formFields, setFormFields] = useState([]);
-  const [formRequireApproval, setFormRequireApproval] = useState(false);
   const [selectedFormId, setSelectedFormId] = useState("");
   const [submissions, setSubmissions] = useState([]);
   const [submissionsBusy, setSubmissionsBusy] = useState(false);
@@ -84,6 +98,12 @@ export default function Dashboard() {
     }
     fetchData();
   }, [token]);
+
+  useEffect(() => {
+    if (activeTab === "submissions" && selectedFormId) {
+      fetchSubmissions(selectedFormId);
+    }
+  }, [activeTab, selectedFormId]);
 
   const handleTabChange = (tabId) => {
     setSearchParams({ tab: tabId });
@@ -618,45 +638,40 @@ DELETE ${origin}/api/entries (Owner only)
     setEditingForm("new");
     setFormName("");
     setFormFields([
-      { name: "name", label: "Name", type: "text", required: true },
-      { name: "email", label: "Email", type: "email", required: true },
-      { name: "message", label: "Message", type: "textarea", required: true },
+      makeField({ name: "name", label: "Name", type: "text", required: true }),
+      makeField({ name: "email", label: "Email", type: "email", required: true }),
+      makeField({
+        name: "message",
+        label: "Message",
+        type: "textarea",
+        required: true,
+      }),
     ]);
-    setFormRequireApproval(false);
   }
 
   function startEditForm(form) {
     setEditingForm(form.id);
     setFormName(form.name);
-    setFormFields([...form.fields]);
-    setFormRequireApproval(form.require_approval === 1);
+    setFormFields(form.fields.map((field) => makeField(field)));
   }
 
   function cancelFormEdit() {
     setEditingForm(null);
     setFormName("");
     setFormFields([]);
-    setFormRequireApproval(false);
   }
 
   function addField() {
     const newFieldName = `field_${formFields.length + 1}`;
     setFormFields([
       ...formFields,
-      { name: newFieldName, label: "New Field", type: "text", required: false },
+      makeField({ name: newFieldName, label: "New Field", type: "text", required: false }),
     ]);
   }
 
   function updateField(index, updates) {
     const updated = [...formFields];
     updated[index] = { ...updated[index], ...updates };
-    // Auto-generate name from label if label changed
-    if (updates.label !== undefined) {
-      updated[index].name = updates.label
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, "_")
-        .replace(/^_|_$/g, "");
-    }
     setFormFields(updated);
   }
 
@@ -685,8 +700,7 @@ DELETE ${origin}/api/entries (Owner only)
     setFormsBusy(true);
     const payload = {
       name: formName,
-      fields: formFields,
-      require_approval: formRequireApproval,
+      fields: formFields.map(({ _id, ...field }) => field),
     };
 
     if (editingForm !== "new") {
@@ -729,15 +743,6 @@ DELETE ${origin}/api/entries (Owner only)
       const data = await res.json().catch(() => ({}));
       alert(data.error || "Failed to delete form");
     }
-  }
-
-  async function approveSubmission(id) {
-    const res = await fetch("/api/submissions", {
-      method: "PUT",
-      headers: { Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ id, action: "approve" }),
-    });
-    if (res.ok) fetchSubmissions(selectedFormId);
   }
 
   async function deleteSubmission(id) {
@@ -996,8 +1001,9 @@ document.getElementById("contact-form-${form.id}").addEventListener("submit", as
     </>
   );
 
-  const FormsTab = () => (
-    <>
+  function renderFormsTab() {
+    return (
+      <>
       {editingForm ? (
         <div className="panel-card">
           <h3>{editingForm === "new" ? "Create New Form" : "Edit Form"}</h3>
@@ -1021,16 +1027,23 @@ document.getElementById("contact-form-${form.id}").addEventListener("submit", as
               </button>
             </div>
 
-            {formFields.map((field, index) => (
-              <div key={index} className="field-editor">
-                <div className="field-editor-row">
-                  <input
-                    type="text"
-                    value={field.label}
-                    onChange={(e) => updateField(index, { label: e.target.value })}
-                    placeholder="Field Label"
-                    style={{ flex: 2 }}
-                  />
+                {formFields.map((field, index) => (
+                  <div key={field._id} className="field-editor">
+                    <div className="field-editor-row">
+                      <input
+                        type="text"
+                        value={field.label}
+                        onChange={(e) => updateField(index, { label: e.target.value })}
+                        placeholder="Field Label"
+                        style={{ flex: 2 }}
+                      />
+                      <input
+                        type="text"
+                        value={field.name}
+                        onChange={(e) => updateField(index, { name: e.target.value })}
+                        placeholder="Field Name (api_key)"
+                        style={{ flex: 1 }}
+                      />
                   <select
                     value={field.type}
                     onChange={(e) => updateField(index, { type: e.target.value })}
@@ -1097,15 +1110,6 @@ document.getElementById("contact-form-${form.id}").addEventListener("submit", as
               </div>
             ))}
           </div>
-
-          <label className="checkbox-label" style={{ marginBottom: "1rem" }}>
-            <input
-              type="checkbox"
-              checked={formRequireApproval}
-              onChange={(e) => setFormRequireApproval(e.target.checked)}
-            />
-            Require approval for submissions
-          </label>
 
           {/* Form Preview */}
           <div style={{ marginBottom: "1rem" }}>
@@ -1187,7 +1191,6 @@ document.getElementById("contact-form-${form.id}").addEventListener("submit", as
                       <div className="form-item-name">{form.name}</div>
                       <div className="form-item-meta">
                         {form.fields.length} fields | {form.submission_count || 0} submissions
-                        {form.require_approval === 1 && <span className="badge" style={{ marginLeft: "0.5rem" }}>Moderated</span>}
                       </div>
                     </div>
                     <div className="form-item-actions">
@@ -1272,21 +1275,15 @@ document.getElementById("contact-form-${form.id}").addEventListener("submit", as
         </>
       )}
     </>
-  );
+    );
+  }
 
-  const SubmissionsTab = () => {
-    // Fetch submissions when form changes
-    useEffect(() => {
-      if (selectedFormId) {
-        fetchSubmissions(selectedFormId);
-      }
-    }, [selectedFormId]);
-
+  function renderSubmissionsTab() {
     return (
       <>
         <div className="panel-card">
           <h3>Form Submissions</h3>
-          <p>View and manage submissions from your contact forms.</p>
+          <p>View and manage private submissions from your contact forms. Only you can access this data.</p>
 
           <div className="form-group">
             <label>Select Form</label>
@@ -1346,7 +1343,6 @@ document.getElementById("contact-form-${form.id}").addEventListener("submit", as
                           {Object.values(sub.data).slice(0, 2).join(" - ").substring(0, 60)}
                           {Object.values(sub.data).slice(0, 2).join(" - ").length > 60 && "..."}
                         </span>
-                        {sub.status === "pending" && <span className="badge pending">Pending</span>}
                       </div>
                       <div className="submission-date">
                         {new Date(sub.created_at).toLocaleString()}
@@ -1372,11 +1368,6 @@ document.getElementById("contact-form-${form.id}").addEventListener("submit", as
                           </tbody>
                         </table>
                         <div className="submission-actions">
-                          {sub.status === "pending" && (
-                            <button onClick={() => approveSubmission(sub.id)}>
-                              <IconCheck /> Approve
-                            </button>
-                          )}
                           <button className="danger" onClick={() => deleteSubmission(sub.id)}>
                             <IconTrash /> Delete
                           </button>
@@ -1391,7 +1382,7 @@ document.getElementById("contact-form-${form.id}").addEventListener("submit", as
         </div>
       </>
     );
-  };
+  }
 
   const EmbedTab = () => (
     <>
@@ -1829,9 +1820,9 @@ document.getElementById("contact-form-${form.id}").addEventListener("submit", as
       case "overview":
         return <OverviewTab />;
       case "forms":
-        return <FormsTab />;
+        return renderFormsTab();
       case "submissions":
-        return <SubmissionsTab />;
+        return renderSubmissionsTab();
       case "embed":
         return <EmbedTab />;
       case "settings":
