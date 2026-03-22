@@ -9,7 +9,7 @@ export default function Auth() {
 
   async function handleSubmit(e) {
     e.preventDefault();
-    const endpoint = isLogin ? "/api/login" : "/api/signup";
+    const endpoint = isLogin ? "/api/user?action=login" : "/api/user?action=signup";
 
     const res = await fetch(endpoint, {
       method: "POST",

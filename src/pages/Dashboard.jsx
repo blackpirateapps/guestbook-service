@@ -148,7 +148,7 @@ export default function Dashboard() {
     });
     if (entryRes.ok) setEntries(await entryRes.json());
 
-    const profileRes = await fetch(`/api/profile?username=${username}`);
+    const profileRes = await fetch(`/api/user?username=${username}`);
     if (profileRes.ok) {
       const data = await profileRes.json();
       setCustomCss(data.custom_css || "");
@@ -214,7 +214,7 @@ export default function Dashboard() {
   }
 
   async function saveSettings() {
-    const res = await fetch("/api/profile", {
+    const res = await fetch("/api/user", {
       method: "PUT",
       headers: { Authorization: `Bearer ${token}` },
       body: JSON.stringify({
@@ -2405,97 +2405,94 @@ document.getElementById("contact-form-${form.id}").addEventListener("submit", as
   };
 
   return (
-    <div>
-      <div className="dashboard-header">
-        <div>
-          <h1>Dashboard</h1>
-          <div className="dashboard-subheader">
-            <span>Public link:</span>
+    <div className="dashboard-container">
+      <aside className="dashboard-sidebar">
+        <div className="sidebar-header">
+          <a href="/" className="sidebar-brand">
+            Guestbook<span>Service</span>
+          </a>
+          <div className="dashboard-subheader" style={{ paddingLeft: "0.75rem", fontSize: "0.75rem" }}>
             <a
               className="dashboard-link"
               href={`/u/${username}`}
               target="_blank"
               rel="noreferrer"
             >
-              /u/{username} <IconExternalLink />
+              /u/{username} <IconExternalLink style={{ width: "12px" }} />
             </a>
           </div>
         </div>
-        <button
-          className="secondary"
-          onClick={() => {
-            localStorage.clear();
-            navigate("/");
-          }}
-        >
-          Logout
-        </button>
-      </div>
 
-      <div className="dashboard-nav-surface">
-        <div className="dashboard-nav-header">
-          <h2>Workspace</h2>
-          <p>Choose an area, then switch between tools.</p>
-        </div>
-
-        <div className="dashboard-tab-clusters">
-          <div className="dashboard-tab-cluster">
-            <div className="dashboard-tab-cluster-label">Guestbook</div>
-            <div className="dashboard-tab-row" role="tablist" aria-label="Guestbook tabs">
-            {GUESTBOOK_TABS.map((tab) => (
-              <button
-                key={tab.id}
-                type="button"
-                role="tab"
-                aria-selected={activeTab === tab.id}
-                className={`dashboard-tab-pill${activeTab === tab.id ? " active" : ""}`}
-                onClick={() => handleTabChange(tab.id)}
-              >
-                {tab.label}
-              </button>
-            ))}
+        <nav className="sidebar-nav">
+          <div className="sidebar-group">
+            <div className="sidebar-group-label">Guestbook</div>
+            <div className="sidebar-links">
+              {GUESTBOOK_TABS.map((tab) => (
+                <button
+                  key={tab.id}
+                  className={`sidebar-link${activeTab === tab.id ? " active" : ""}`}
+                  onClick={() => handleTabChange(tab.id)}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
 
-          <div className="dashboard-tab-cluster">
-            <div className="dashboard-tab-cluster-label">Contact Forms</div>
-            <div className="dashboard-tab-row" role="tablist" aria-label="Contact form tabs">
-            {CONTACT_FORM_TABS.map((tab) => (
-              <button
-                key={tab.id}
-                type="button"
-                role="tab"
-                aria-selected={activeTab === tab.id}
-                className={`dashboard-tab-pill${activeTab === tab.id ? " active" : ""}`}
-                onClick={() => handleTabChange(tab.id)}
-              >
-                {tab.label}
-              </button>
-            ))}
+          <div className="sidebar-group">
+            <div className="sidebar-group-label">Contact Forms</div>
+            <div className="sidebar-links">
+              {CONTACT_FORM_TABS.map((tab) => (
+                <button
+                  key={tab.id}
+                  className={`sidebar-link${activeTab === tab.id ? " active" : ""}`}
+                  onClick={() => handleTabChange(tab.id)}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
 
-          <div className="dashboard-tab-cluster">
-            <div className="dashboard-tab-cluster-label">Comments</div>
-            <div className="dashboard-tab-row" role="tablist" aria-label="Comment tabs">
-            {COMMENT_TABS.map((tab) => (
-              <button
-                key={tab.id}
-                type="button"
-                role="tab"
-                aria-selected={activeTab === tab.id}
-                className={`dashboard-tab-pill${activeTab === tab.id ? " active" : ""}`}
-                onClick={() => handleTabChange(tab.id)}
-              >
-                {tab.label}
-              </button>
-            ))}
+          <div className="sidebar-group">
+            <div className="sidebar-group-label">Comments</div>
+            <div className="sidebar-links">
+              {COMMENT_TABS.map((tab) => (
+                <button
+                  key={tab.id}
+                  className={`sidebar-link${activeTab === tab.id ? " active" : ""}`}
+                  onClick={() => handleTabChange(tab.id)}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
-      </div>
-      </div>
+        </nav>
 
-      <div className="tab-content">{renderTabContent()}</div>
+        <div className="sidebar-footer">
+          <button
+            className="sidebar-link danger"
+            onClick={() => {
+              localStorage.clear();
+              navigate("/");
+            }}
+            style={{ color: "#dc2626" }}
+          >
+            Logout
+          </button>
+        </div>
+      </aside>
+
+      <main className="dashboard-main">
+        <header className="dashboard-header" style={{ marginBottom: "2rem" }}>
+          <h1 style={{ margin: 0, textTransform: "capitalize" }}>
+            {activeTab.replace("-", " ")}
+          </h1>
+        </header>
+
+        <div className="tab-content">{renderTabContent()}</div>
+      </main>
     </div>
   );
 }

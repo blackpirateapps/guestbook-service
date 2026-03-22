@@ -25,9 +25,7 @@ The Guestbook Service is a lightweight, customizable web application that allows
 /home/dog/git/guestbook-service/
 ├── api/             # Vercel Serverless Functions
 │   ├── db.js        # LibSQL database connection utility + table init
-│   ├── login.js     # User authentication endpoint
-│   ├── signup.js    # User registration endpoint
-│   ├── profile.js   # Getting/updating user settings (design)
+│   ├── user.js      # Consolidated Login, Signup, and Profile management
 │   ├── entries.js   # CRUD operations for guestbook messages & replies
 │   ├── forms.js     # Contact form CRUD
 │   ├── submit.js    # Public endpoint for form submissions
@@ -43,6 +41,7 @@ The Guestbook Service is a lightweight, customizable web application that allows
 ├── public/          # Static Assets
 │   ├── guestbook-widget.js # Embeddable guestbook widget
 │   └── comments-widget.js  # Embeddable comments widget
+```
 
 ## Design System (`src/index.css`)
 
@@ -63,7 +62,7 @@ The CSS uses a token-based approach with CSS custom properties:
 **Component Classes:**
 
 - `.card`, `.panel-card` - Card containers
-- `.tabs`, `.tab-button` - Tab navigation
+- `.sidebar-link` - Sidebar navigation items
 - `.entry-card`, `.reply-card` - Guestbook entry styling
 - `.auth-card`, `.auth-tabs` - Authentication form styling
 - `.stat-card` - Dashboard statistics cards
@@ -78,43 +77,26 @@ The application uses `react-router-dom` for navigation (`/`, `/dashboard`, `/u/:
 
 ### 2. Dashboard (`Dashboard.jsx`)
 
-The dashboard uses **URL-based tabbed navigation** grouped into two sections:
+The dashboard uses a **Sidebar Navigation** layout. Tools are grouped into logical clusters:
 
-**Guestbook tabs:**
+- **Guestbook Area:** Overview, Embed, Settings, Data, API Tester.
+- **Contact Forms Area:** Forms, Submissions.
+- **Comments Area:** Sections, Moderation.
 
-| Tab        | URL             | Content                                                  |
-| ---------- | --------------- | -------------------------------------------------------- |
-| Overview   | `?tab=overview` | Stats cards, recent entries list with moderation actions |
-| Embed      | `?tab=embed`    | Embed snippet, CSS URL config, Headless API docs         |
-| Settings   | `?tab=settings` | Moderation toggle, Custom CSS/HTML appearance            |
-| Data       | `?tab=data`     | Export/Import JSON backup, Add past entries              |
-| API Tester | `?tab=tester`   | Live API testing for entries, replies, likes             |
+Navigation state is managed via `useSearchParams` (`?tab=...`).
 
-**Contact form tabs:**
+**Layout Model:** A responsive sidebar container (`.dashboard-container`). On desktop, it's a two-column grid with a sticky sidebar. On mobile, it stacks vertically.
 
-| Tab         | URL                | Content                                          |
-| ----------- | ------------------ | ------------------------------------------------ |
-| Forms       | `?tab=forms`       | Contact form builder, create/edit forms, snippets|
-| Submissions | \`?tab=submissions\` | Private submission inbox for form entries        |
+### 3. Authentication & User Profile (`Auth.jsx`, `api/user.js`)
 
-**Comments tabs:**
+Authentication and profile management (custom CSS/HTML) are consolidated into `api/user.js`:
 
-| Tab        | URL                      | Content                                           |
-| ---------- | ------------------------ | ------------------------------------------------- |
-| Sections   | \`?tab=comment-sections\`  | Comment section builder, settings, embed snippets |
-| Moderation | \`?tab=comment-moderation\`| View, approve, delete, and reply to comments      |
+- `POST /api/user?action=signup` - Create account
+- `POST /api/user?action=login` - Sign in
+- `GET /api/user?username=...` - Fetch profile settings (CSS, HTML, moderation)
+- `PUT /api/user` - Update profile settings (Auth required)
 
-Tab state is managed via \`useSearchParams\` from react-router-dom.
-
-**Navigation UI model:** The tab navigation is rendered as a modern segmented surface (`.dashboard-nav-surface`) with two pill-style clusters (`Guestbook`, `Contact Forms`) using horizontally scrollable rows on small screens and a two-column cluster layout on desktop.
-
-### 3. Authentication (`Auth.jsx`)
-
-The homepage displays a centered single-column layout with:
-
-- Hero section with product description
-- Feature list card
-- Login/Signup form with tab-style toggle between modes
+No email is required for the account flow.
 
 ### 4. Serverless API Layer (`/api`)
 
@@ -220,4 +202,4 @@ Pre-configured for **Vercel** deployment:
 
 See `README.md` for headless API examples including widget mounting, reply/like functions, and JSON export/import schemas.
 
-> **Note for AI Agents:** When modifying files, always use absolute paths. Do not change the routing model without explicit instruction as it affects Vercel compatibility. The dashboard tab structure uses URL search params - maintain this pattern for any new tabs.
+> **Note for AI Agents:** When modifying files, always use absolute paths. Do not change the routing model without explicit instruction as it affects Vercel compatibility. The dashboard navigation uses URL search params (?tab=...) - maintain this pattern for any new items.

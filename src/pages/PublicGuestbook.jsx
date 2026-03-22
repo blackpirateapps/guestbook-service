@@ -101,7 +101,7 @@ export default function PublicGuestbook({ overrideUsername }) {
 
   async function fetchProfile() {
     try {
-      const res = await fetch(`/api/profile?username=${username}`);
+      const res = await fetch(`/api/user?username=${username}`);
       if (res.ok) {
         const data = await res.json();
         setCustomCss(data.custom_css || "");
