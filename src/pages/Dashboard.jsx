@@ -959,18 +959,121 @@ DELETE ${origin}/api/entries (Owner only)
     <textarea id="comment" name="comment_text" required></textarea>
   </div>`;
 
-    return `<form id="comment-form-${section.id}">
+    return `<div id="comments-section-${section.id}">
+  <!-- Comments List Container -->
+  <div id="comments-list-${section.id}" style="margin-bottom: 2rem;">
+    Loading comments...
+  </div>
+
+  <!-- Post Comment Form -->
+  <form id="comment-form-${section.id}">
+    <h3>Post a Comment</h3>
 ${formFields}
-  <button type="submit">Post Comment</button>
-</form>
+    <input type="hidden" name="parent_id" id="parent-id-${section.id}">
+    <div id="replying-to-info-${section.id}" style="display:none; margin-bottom: 1rem; color: #666;">
+      Replying to a comment... <button type="button" id="cancel-reply-${section.id}" style="background:none; border:none; color: #007aff; cursor:pointer; padding:0; text-decoration:underline;">Cancel</button>
+    </div>
+    <button type="submit">Post Comment</button>
+  </form>
+</div>
+
+<style>
+  #comments-section-${section.id} .comment { border-left: 2px solid #eee; padding-left: 1rem; margin-bottom: 1.5rem; }
+  #comments-section-${section.id} .comment-header { font-size: 0.9rem; margin-bottom: 0.3rem; }
+  #comments-section-${section.id} .comment-author { font-weight: 600; color: #007aff; }
+  #comments-section-${section.id} .comment-date { color: #888; font-size: 0.8rem; margin-left: 0.5rem; }
+  #comments-section-${section.id} .comment-body { line-height: 1.5; white-space: pre-wrap; margin-bottom: 0.5rem; }
+  #comments-section-${section.id} .comment-footer { display: flex; gap: 1rem; }
+  #comments-section-${section.id} .comment-footer button { background:none; border:none; color: #007aff; cursor:pointer; padding:0; font-size: 0.85rem; }
+  #comments-section-${section.id} .replies { margin-top: 1rem; padding-left: 1rem; border-left: 1px solid #eee; }
+  #comments-section-${section.id} .form-group { margin-bottom: 1rem; }
+  #comments-section-${section.id} .form-group label { display: block; margin-bottom: 0.3rem; font-weight: 500; }
+  #comments-section-${section.id} .form-group input:not([type="checkbox"]), #comments-section-${section.id} .form-group textarea { width: 100%; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; }
+</style>
 
 <script>
 (function() {
   const form = document.getElementById("comment-form-${section.id}");
+  const list = document.getElementById("comments-list-${section.id}");
+  const parentInput = document.getElementById("parent-id-${section.id}");
+  const replyInfo = document.getElementById("replying-to-info-${section.id}");
+  const cancelReplyBtn = document.getElementById("cancel-reply-${section.id}");
   const baseUrl = "${origin}";
   const sectionId = "${section.id}";
   let pageUrl = window.location.origin + window.location.pathname;
   if (!pageUrl.endsWith("/")) pageUrl += "/";
+
+  async function fetchComments() {
+    try {
+      const res = await fetch(baseUrl + "/api/comments?section=" + sectionId + "&page_url=" + encodeURIComponent(pageUrl));
+      const data = await res.json();
+      renderComments(data.comments);
+    } catch (err) {
+      list.innerHTML = "Error loading comments.";
+    }
+  }
+
+  function renderComments(comments) {
+    if (!comments || comments.length === 0) {
+      list.innerHTML = "<p>No comments yet.</p>";
+      return;
+    }
+
+    const roots = comments.filter(c => !c.parent_id);
+    list.innerHTML = roots.map(c => renderComment(c, comments)).join("");
+  }
+
+  function renderComment(comment, all) {
+    const replies = all.filter(c => c.parent_id === comment.id);
+    const date = new Date(comment.created_at).toLocaleString();
+    
+    return \`
+      <div class="comment" id="comment-\${comment.id}">
+        <div class="comment-header">
+          <span class="comment-author">\${escapeHtml(comment.sender_name || "Anonymous")}</span>
+          \${comment.is_owner ? '<span style="background:#eee; padding:2px 5px; border-radius:3px; font-size:0.7rem;">Owner</span>' : ''}
+          <span class="comment-date">\${date}</span>
+        </div>
+        <div class="comment-body">\${escapeHtml(comment.comment_text)}</div>
+        <div class="comment-footer">
+          ${settings.allow_likes ? `\n          <button type="button" onclick="window.__cw_like(\${comment.id})">❤ \${comment.likes || 0}</button>` : ""}
+          <button type="button" onclick="window.__cw_reply(\${comment.id})">Reply</button>
+        </div>
+        \${replies.length > 0 ? \`
+          <div class="replies">
+            \${replies.map(r => renderComment(r, all)).join("")}
+          </div>
+        \` : ""}
+      </div>
+    \`;
+  }
+
+  function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  }
+
+  window.__cw_like = async (id) => {
+    await fetch(baseUrl + "/api/comments", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "like", id })
+    });
+    fetchComments();
+  };
+
+  window.__cw_reply = (id) => {
+    parentInput.value = id;
+    replyInfo.style.display = "block";
+    form.scrollIntoView({ behavior: 'smooth' });
+    form.querySelector("textarea").focus();
+  };
+
+  cancelReplyBtn.onclick = () => {
+    parentInput.value = "";
+    replyInfo.style.display = "none";
+  };
 
   // Handle anonymous toggle
   const anonCheck = document.getElementById("anon-check");
@@ -980,14 +1083,14 @@ ${formFields}
       ["name", "email", "url"].forEach(f => {
         const el = form.querySelector(".field-" + f);
         if (el) el.style.display = isAnon ? "none" : "block";
-        const input = form.querySelector("#" + f);
+        const input = form.querySelector("[name='sender_" + f + "']");
         if (input) input.required = isAnon ? false : (input.dataset.wasRequired === "true");
       });
     });
     // Store original requirement
     ["name", "email", "url"].forEach(f => {
-      const input = form.querySelector("#" + f);
-      if (input) input.dataset.wasRequired = input.required;
+      const input = form.querySelector("[name='sender_" + f + "']");
+      if (input) input.dataset.wasRequired = input.required ? "true" : "false";
     });
   }
 
@@ -1009,10 +1112,15 @@ ${formFields}
     if (res.ok) {
       alert(result.status === "pending" ? "Awaiting approval!" : "Comment posted!");
       e.target.reset();
+      parentInput.value = "";
+      replyInfo.style.display = "none";
+      fetchComments();
     } else {
       alert(result.error || "Failed to post");
     }
   });
+
+  fetchComments();
 })();
 </script>`;
   }
