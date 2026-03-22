@@ -186,7 +186,6 @@ export default async function handler(req, res) {
     }
 
     const status = (isOwnerPosting || !settings.require_approval) ? 'approved' : 'pending';
-    const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
 
     try {
       await db.execute({
