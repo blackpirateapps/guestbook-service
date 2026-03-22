@@ -6,7 +6,9 @@ Welcome, Agent. This document provides a high-level overview of the Guestbook Se
 
 The Guestbook Service is a lightweight, customizable web application that allows users to create their own digital guestbook. It supports private messages, moderation (approval flows), and custom appearance settings (CSS & HTML injection) per user.
 
-**Additionally**, the service includes a **Contact Form Builder** feature that allows users to create custom forms with configurable fields and receive submissions from external websites via a public API endpoint.
+**Additionally**, the service includes:
+- A **Contact Form Builder** feature that allows users to create custom forms with configurable fields and receive submissions from external websites.
+- A **Comments System** that allows users to create embeddable, threaded, and moderated comment sections for their websites.
 
 ## Technology Stack
 
@@ -27,23 +29,20 @@ The Guestbook Service is a lightweight, customizable web application that allows
 │   ├── signup.js    # User registration endpoint
 │   ├── profile.js   # Getting/updating user settings (design)
 │   ├── entries.js   # CRUD operations for guestbook messages & replies
-│   ├── forms.js     # Contact form CRUD (create, update, delete forms)
+│   ├── forms.js     # Contact form CRUD
 │   ├── submit.js    # Public endpoint for form submissions
-│   └── submissions.js # View and manage form submissions
+│   ├── submissions.js # View and manage form submissions
+│   ├── comment-sections.js # CRUD for comment sections
+│   └── comments.js    # Fetch and post comments
 ├── src/             # React Frontend Code
 │   ├── App.jsx      # Main application router and shell with navbar
-│   ├── index.css    # Global design system (colors, typography, components)
+│   ├── index.css    # Global design system
 │   ├── main.jsx     # Vite React entry point
 │   ├── components/  # Reusable UI components
-│   │   ├── Icons.jsx    # SVG icon components
-│   │   └── Tabs.jsx     # Reusable tabs component
 │   └── pages/       # Page-level components
-│       ├── Auth.jsx           # Login/Signup with tab-style toggle
-│       ├── Dashboard.jsx      # Admin panel with tabbed navigation
-│       └── PublicGuestbook.jsx# Public-facing guestbook page
-├── package.json     # Node dependencies and scripts
-└── vercel.json      # Vercel deployment configuration
-```
+├── public/          # Static Assets
+│   ├── guestbook-widget.js # Embeddable guestbook widget
+│   └── comments-widget.js  # Embeddable comments widget
 
 ## Design System (`src/index.css`)
 
@@ -96,9 +95,16 @@ The dashboard uses **URL-based tabbed navigation** grouped into two sections:
 | Tab         | URL                | Content                                          |
 | ----------- | ------------------ | ------------------------------------------------ |
 | Forms       | `?tab=forms`       | Contact form builder, create/edit forms, snippets|
-| Submissions | `?tab=submissions` | Private submission inbox for form entries        |
+| Submissions | \`?tab=submissions\` | Private submission inbox for form entries        |
 
-Tab state is managed via `useSearchParams` from react-router-dom.
+**Comments tabs:**
+
+| Tab        | URL                      | Content                                           |
+| ---------- | ------------------------ | ------------------------------------------------- |
+| Sections   | \`?tab=comment-sections\`  | Comment section builder, settings, embed snippets |
+| Moderation | \`?tab=comment-moderation\`| View, approve, delete, and reply to comments      |
+
+Tab state is managed via \`useSearchParams\` from react-router-dom.
 
 **Navigation UI model:** The tab navigation is rendered as a modern segmented surface (`.dashboard-nav-surface`) with two pill-style clusters (`Guestbook`, `Contact Forms`) using horizontally scrollable rows on small screens and a two-column cluster layout on desktop.
 
@@ -132,10 +138,22 @@ APIs extract JWT from `Authorization` header for authenticated actions. Public a
 - `GET /api/submissions?form=:formId` - List submissions (auth required)
 - `DELETE /api/submissions` - Delete submission (auth required)
 
+**Comments Endpoints:**
+
+- `GET /api/comment-sections` - List user's sections (auth)
+- `POST /api/comment-sections` - Create new section (auth)
+- `PUT /api/comment-sections` - Update section settings (auth)
+- `DELETE /api/comment-sections` - Delete section (auth)
+- `GET /api/comments?section=:id` - Fetch public comments + captcha (public)
+- `POST /api/comments` - Post a new comment (public)
+- `PUT /api/comments` - Like or approve a comment
+- `DELETE /api/comments` - Delete a comment (auth)
+
 ### 5. Security & Moderation
 
-- **XSS Prevention:** DOMPurify sanitizes custom HTML in `PublicGuestbook.jsx`
+- **XSS Prevention:** DOMPurify sanitizes custom HTML in `PublicGuestbook.jsx`. Widget uses basic HTML escaping.
 - **Honeypot:** Hidden `website_url_check` field catches spam bots (guestbook), `_honeypot` field for contact forms
+- **Captcha:** Simple math-based captcha for comments (`a + b = ?`). Verified via bcrypt-hashed answers.
 - **Moderation:** Optional approval flow holds entries with `status: 'pending'`
 
 ### 6. Contact Form Builder
@@ -165,6 +183,23 @@ The Contact Form Builder allows users to create custom forms for external websit
 **Visibility model:** Form submissions are private and owner-only (not publicly displayed).
 
 **Integration:** The Forms tab provides ready-to-use HTML/JS snippets for embedding forms on external sites.
+
+### 7. Comments System
+
+The Comments System allows users to embed threaded discussions on any page.
+
+**Database Tables:**
+- `comment_sections` - Stores section configuration (id, owner_username, name, settings JSON)
+- `comments` - Stores comments (id, section_id, parent_id, sender_name, sender_email, sender_url, comment_text, status, likes, etc.)
+
+**Settings (JSON):**
+- `fields`: Toggle visibility and requirement for `name`, `email`, and `url`.
+- `allow_anonymous`: Boolean.
+- `use_captcha`: Boolean (Math captcha).
+- `allow_likes`: Boolean.
+- `require_approval`: Boolean.
+
+**Integration:** The Sections tab provides a `CommentsWidget.mount()` snippet for embedding.
 
 ## Development & Testing Workflow
 

@@ -22,6 +22,11 @@ const CONTACT_FORM_TABS = [
   { id: "submissions", label: "Submissions" },
 ];
 
+const COMMENT_TABS = [
+  { id: "comment-sections", label: "Sections" },
+  { id: "comment-moderation", label: "Moderation" },
+];
+
 const FIELD_TYPES = [
   { value: "text", label: "Text" },
   { value: "email", label: "Email" },
@@ -84,6 +89,28 @@ export default function Dashboard() {
   const [submissionsBusy, setSubmissionsBusy] = useState(false);
   const [expandedSubmission, setExpandedSubmission] = useState(null);
 
+  // Comments feature state
+  const [commentSections, setCommentSections] = useState([]);
+  const [commentsBusy, setCommentsBusy] = useState(false);
+  const [editingSection, setEditingSection] = useState(null);
+  const [sectionName, setSectionName] = useState("");
+  const [sectionSettings, setSectionSettings] = useState({
+    fields: {
+      name: { show: true, required: true },
+      email: { show: true, required: true },
+      url: { show: true, required: false },
+    },
+    allow_anonymous: true,
+    use_captcha: true,
+    allow_likes: true,
+    require_approval: false,
+  });
+  const [selectedSectionId, setSelectedSectionId] = useState("");
+  const [allComments, setAllComments] = useState([]);
+  const [allCommentsBusy, setAllCommentsBusy] = useState(false);
+  const [replyingToComment, setReplyingToComment] = useState(null);
+  const [commentReplyMsg, setCommentReplyMsg] = useState("");
+
   const importFileRef = useRef(null);
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTab = searchParams.get("tab") || "overview";
@@ -106,7 +133,10 @@ export default function Dashboard() {
     if (activeTab === "submissions" && selectedFormId) {
       fetchSubmissions(selectedFormId);
     }
-  }, [activeTab, selectedFormId]);
+    if (activeTab === "comment-moderation" && selectedSectionId) {
+      fetchComments(selectedSectionId);
+    }
+  }, [activeTab, selectedFormId, selectedSectionId]);
 
   const handleTabChange = (tabId) => {
     setSearchParams({ tab: tabId });
@@ -129,6 +159,8 @@ export default function Dashboard() {
 
     // Fetch forms
     fetchForms();
+    // Fetch comment sections
+    fetchCommentSections();
   }
 
   async function fetchForms() {
@@ -154,6 +186,31 @@ export default function Dashboard() {
       setSubmissions(await res.json());
     }
     setSubmissionsBusy(false);
+  }
+
+  async function fetchCommentSections() {
+    const res = await fetch("/api/comment-sections", {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (res.ok) {
+      setCommentSections(await res.json());
+    }
+  }
+
+  async function fetchComments(sectionId) {
+    if (!sectionId) {
+      setAllComments([]);
+      return;
+    }
+    setAllCommentsBusy(true);
+    const res = await fetch(`/api/comments?section=${sectionId}&auth=1`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (res.ok) {
+      const data = await res.json();
+      setAllComments(data.comments || []);
+    }
+    setAllCommentsBusy(false);
   }
 
   async function saveSettings() {
@@ -758,6 +815,113 @@ DELETE ${origin}/api/entries (Owner only)
     if (res.ok) fetchSubmissions(selectedFormId);
   }
 
+  // Comment management functions
+  function startNewSection() {
+    setEditingSection("new");
+    setSectionName("");
+    setSectionSettings({
+      fields: {
+        name: { show: true, required: true },
+        email: { show: true, required: true },
+        url: { show: true, required: false },
+      },
+      allow_anonymous: true,
+      use_captcha: true,
+      allow_likes: true,
+      require_approval: false,
+    });
+  }
+
+  function startEditSection(section) {
+    setEditingSection(section.id);
+    setSectionName(section.name);
+    setSectionSettings(section.settings);
+  }
+
+  async function saveSection() {
+    if (!sectionName.trim()) return alert("Name is required");
+    setCommentsBusy(true);
+    const payload = { name: sectionName, settings: sectionSettings };
+    if (editingSection !== "new") payload.id = editingSection;
+
+    const res = await fetch("/api/comment-sections", {
+      method: editingSection === "new" ? "POST" : "PUT",
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify(payload),
+    });
+
+    if (res.ok) {
+      setEditingSection(null);
+      fetchCommentSections();
+    } else {
+      alert("Failed to save section");
+    }
+    setCommentsBusy(false);
+  }
+
+  async function deleteSection(id) {
+    if (!confirm("Delete this section and all comments?")) return;
+    await fetch("/api/comment-sections", {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ id }),
+    });
+    fetchCommentSections();
+    if (selectedSectionId === id) {
+      setSelectedSectionId("");
+      setAllComments([]);
+    }
+  }
+
+  async function approveComment(id) {
+    await fetch("/api/comments", {
+      method: "PUT",
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ action: "approve", id }),
+    });
+    fetchComments(selectedSectionId);
+  }
+
+  async function deleteComment(id) {
+    if (!confirm("Delete this comment?")) return;
+    await fetch("/api/comments", {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ id }),
+    });
+    fetchComments(selectedSectionId);
+  }
+
+  async function sendCommentReply(parentId) {
+    if (!commentReplyMsg.trim()) return;
+    await fetch("/api/comments", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify({
+        section_id: selectedSectionId,
+        comment_text: commentReplyMsg,
+        parent_id: parentId,
+      }),
+    });
+    setCommentReplyMsg("");
+    setReplyingToComment(null);
+    fetchComments(selectedSectionId);
+  }
+
+  function generateCommentSnippet(section) {
+    if (!section) return "";
+    return `<!-- Add this to your HTML -->
+<div id="comments-container"></div>
+<script src="${origin}/comments-widget.js"></script>
+<script>
+  CommentsWidget.mount({
+    baseUrl: "${origin}",
+    sectionId: "${section.id}",
+    container: "#comments-container"
+  });
+</script>`;
+  }
+
   async function exportFormSubmissions() {
     if (!selectedFormId) return;
     const res = await fetch(`/api/submissions?form=${selectedFormId}&export=1`, {
@@ -1278,6 +1442,274 @@ document.getElementById("contact-form-${form.id}").addEventListener("submit", as
         </>
       )}
     </>
+    );
+  }
+
+  function renderCommentSectionsTab() {
+    return (
+      <>
+        {editingSection ? (
+          <div className="panel-card">
+            <h3>{editingSection === "new" ? "New Comment Section" : "Edit Section"}</h3>
+            <div className="form-group">
+              <label>Section Name</label>
+              <input
+                type="text"
+                value={sectionName}
+                onChange={(e) => setSectionName(e.target.value)}
+                placeholder="Blog Post Comments"
+              />
+            </div>
+
+            <h4 style={{ marginTop: "1.5rem" }}>Field Configuration</h4>
+            <div className="dashboard-grid">
+              <div className="card" style={{ padding: "1rem" }}>
+                <div style={{ fontWeight: 600, marginBottom: "0.5rem" }}>Name Field</div>
+                <label className="checkbox-label">
+                  <input
+                    type="checkbox"
+                    checked={sectionSettings.fields.name.show}
+                    onChange={(e) => setSectionSettings({
+                      ...sectionSettings,
+                      fields: { ...sectionSettings.fields, name: { ...sectionSettings.fields.name, show: e.target.checked } }
+                    })}
+                  /> Show
+                </label>
+                <label className="checkbox-label">
+                  <input
+                    type="checkbox"
+                    checked={sectionSettings.fields.name.required}
+                    onChange={(e) => setSectionSettings({
+                      ...sectionSettings,
+                      fields: { ...sectionSettings.fields, name: { ...sectionSettings.fields.name, required: e.target.checked } }
+                    })}
+                    disabled={!sectionSettings.fields.name.show}
+                  /> Required
+                </label>
+              </div>
+
+              <div className="card" style={{ padding: "1rem" }}>
+                <div style={{ fontWeight: 600, marginBottom: "0.5rem" }}>Email Field</div>
+                <label className="checkbox-label">
+                  <input
+                    type="checkbox"
+                    checked={sectionSettings.fields.email.show}
+                    onChange={(e) => setSectionSettings({
+                      ...sectionSettings,
+                      fields: { ...sectionSettings.fields, email: { ...sectionSettings.fields.email, show: e.target.checked } }
+                    })}
+                  /> Show
+                </label>
+                <label className="checkbox-label">
+                  <input
+                    type="checkbox"
+                    checked={sectionSettings.fields.email.required}
+                    onChange={(e) => setSectionSettings({
+                      ...sectionSettings,
+                      fields: { ...sectionSettings.fields, email: { ...sectionSettings.fields.email, required: e.target.checked } }
+                    })}
+                    disabled={!sectionSettings.fields.email.show}
+                  /> Required
+                </label>
+              </div>
+
+              <div className="card" style={{ padding: "1rem" }}>
+                <div style={{ fontWeight: 600, marginBottom: "0.5rem" }}>URL Field</div>
+                <label className="checkbox-label">
+                  <input
+                    type="checkbox"
+                    checked={sectionSettings.fields.url.show}
+                    onChange={(e) => setSectionSettings({
+                      ...sectionSettings,
+                      fields: { ...sectionSettings.fields, url: { ...sectionSettings.fields.url, show: e.target.checked } }
+                    })}
+                  /> Show
+                </label>
+                <label className="checkbox-label">
+                  <input
+                    type="checkbox"
+                    checked={sectionSettings.fields.url.required}
+                    onChange={(e) => setSectionSettings({
+                      ...sectionSettings,
+                      fields: { ...sectionSettings.fields, url: { ...sectionSettings.fields.url, required: e.target.checked } }
+                    })}
+                    disabled={!sectionSettings.fields.url.show}
+                  /> Required
+                </label>
+              </div>
+            </div>
+
+            <h4 style={{ marginTop: "1.5rem" }}>Behavior Settings</h4>
+            <div className="dashboard-grid">
+              <label className="checkbox-label">
+                <input
+                  type="checkbox"
+                  checked={sectionSettings.allow_anonymous}
+                  onChange={(e) => setSectionSettings({ ...sectionSettings, allow_anonymous: e.target.checked })}
+                /> Allow Anonymous Comments
+              </label>
+              <label className="checkbox-label">
+                <input
+                  type="checkbox"
+                  checked={sectionSettings.use_captcha}
+                  onChange={(e) => setSectionSettings({ ...sectionSettings, use_captcha: e.target.checked })}
+                /> Use Math Captcha
+              </label>
+              <label className="checkbox-label">
+                <input
+                  type="checkbox"
+                  checked={sectionSettings.allow_likes}
+                  onChange={(e) => setSectionSettings({ ...sectionSettings, allow_likes: e.target.checked })}
+                /> Enable Likes
+              </label>
+              <label className="checkbox-label">
+                <input
+                  type="checkbox"
+                  checked={sectionSettings.require_approval}
+                  onChange={(e) => setSectionSettings({ ...sectionSettings, require_approval: e.target.checked })}
+                /> Require Approval
+              </label>
+            </div>
+
+            <div className="actions-row" style={{ marginTop: "2rem" }}>
+              <button onClick={saveSection} disabled={commentsBusy}>Save Section</button>
+              <button className="secondary" onClick={() => setEditingSection(null)}>Cancel</button>
+            </div>
+          </div>
+        ) : (
+          <>
+            <div className="panel-card">
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
+                <h3 style={{ margin: 0 }}>Comment Sections</h3>
+                <button onClick={startNewSection}>+ New Section</button>
+              </div>
+
+              {commentSections.length === 0 ? (
+                <p style={{ color: "var(--text-muted)" }}>No comment sections yet.</p>
+              ) : (
+                <div className="forms-list">
+                  {commentSections.map(s => (
+                    <div key={s.id} className="form-item">
+                      <div className="form-item-info">
+                        <div className="form-item-name">{s.name}</div>
+                        <div className="form-item-meta">{s.comment_count || 0} comments</div>
+                      </div>
+                      <div className="form-item-actions">
+                        <button className="secondary" onClick={() => startEditSection(s)}>Edit</button>
+                        <button className="danger" onClick={() => deleteSection(s.id)}><IconTrash /></button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {commentSections.length > 0 && (
+              <div className="panel-card">
+                <h3>Integration</h3>
+                <div className="form-group">
+                  <label>Select Section</label>
+                  <select value={selectedSectionId} onChange={(e) => setSelectedSectionId(e.target.value)}>
+                    <option value="">Choose a section...</option>
+                    {commentSections.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                  </select>
+                </div>
+                {selectedSectionId && (
+                  <>
+                    <label>Embed Snippet</label>
+                    <textarea
+                      className="code-textarea"
+                      rows={8}
+                      readOnly
+                      value={generateCommentSnippet(commentSections.find(s => s.id === selectedSectionId))}
+                    />
+                    <div className="actions-row">
+                      <button className="secondary" onClick={() => copyText(generateCommentSnippet(commentSections.find(s => s.id === selectedSectionId)))}>
+                        <IconCopy /> Copy Snippet
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+          </>
+        )}
+      </>
+    );
+  }
+
+  function renderCommentModerationTab() {
+    return (
+      <div className="panel-card">
+        <h3>Comment Moderation</h3>
+        <div className="form-group">
+          <label>Select Section</label>
+          <select value={selectedSectionId} onChange={(e) => setSelectedSectionId(e.target.value)}>
+            <option value="">Choose a section...</option>
+            {commentSections.map(s => <option key={s.id} value={s.id}>{s.name} ({s.comment_count || 0})</option>)}
+          </select>
+        </div>
+
+        {selectedSectionId && (
+          <>
+            <div className="actions-row" style={{ marginTop: 0, marginBottom: "1rem" }}>
+              <button className="secondary" onClick={() => fetchComments(selectedSectionId)} disabled={allCommentsBusy}>Refresh</button>
+            </div>
+
+            {allCommentsBusy ? (
+              <p>Loading comments...</p>
+            ) : allComments.length === 0 ? (
+              <p style={{ color: "var(--text-muted)" }}>No comments in this section.</p>
+            ) : (
+              <div className="entries-list">
+                {allComments.map(comment => (
+                  <div key={comment.id} className="entry-card" style={{ marginLeft: comment.parent_id ? "2rem" : "0" }}>
+                    <header className="entry-card-header">
+                      <div className="entry-title-row">
+                        <div className="entry-name">
+                          {comment.sender_name || "Anonymous"}
+                          <span className="badge-group">
+                            {comment.status === "pending" && <span className="badge pending">Pending</span>}
+                            {comment.is_owner === 1 && <span className="badge owner">Owner</span>}
+                          </span>
+                        </div>
+                        <div className="entry-date">{new Date(comment.created_at).toLocaleString()}</div>
+                      </div>
+                      <div className="entry-metrics">
+                        <IconHeart /> <span>{comment.likes || 0}</span>
+                      </div>
+                    </header>
+                    <div className="entry-content">{comment.comment_text}</div>
+                    <div className="entry-actions">
+                      {comment.status === "pending" && (
+                        <button onClick={() => approveComment(comment.id)}><IconCheck /> Approve</button>
+                      )}
+                      <button className="secondary" onClick={() => setReplyingToComment(comment.id)}><IconReply /> Reply</button>
+                      <button className="danger" onClick={() => deleteComment(comment.id)}><IconTrash /> Delete</button>
+                    </div>
+
+                    {replyingToComment === comment.id && (
+                      <div style={{ marginTop: "1rem" }}>
+                        <textarea
+                          rows="2"
+                          value={commentReplyMsg}
+                          onChange={(e) => setCommentReplyMsg(e.target.value)}
+                          placeholder="Write a reply..."
+                          style={{ marginBottom: "0.5rem" }}
+                        />
+                        <div style={{ display: "flex", gap: "0.5rem" }}>
+                          <button onClick={() => sendCommentReply(comment.id)}>Send</button>
+                          <button className="secondary" onClick={() => setReplyingToComment(null)}>Cancel</button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
+        )}
+      </div>
     );
   }
 
@@ -1826,6 +2258,10 @@ document.getElementById("contact-form-${form.id}").addEventListener("submit", as
         return renderFormsTab();
       case "submissions":
         return renderSubmissionsTab();
+      case "comment-sections":
+        return renderCommentSectionsTab();
+      case "comment-moderation":
+        return renderCommentModerationTab();
       case "embed":
         return <EmbedTab />;
       case "settings":
@@ -1896,6 +2332,24 @@ document.getElementById("contact-form-${form.id}").addEventListener("submit", as
             <div className="dashboard-tab-cluster-label">Contact Forms</div>
             <div className="dashboard-tab-row" role="tablist" aria-label="Contact form tabs">
             {CONTACT_FORM_TABS.map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                role="tab"
+                aria-selected={activeTab === tab.id}
+                className={`dashboard-tab-pill${activeTab === tab.id ? " active" : ""}`}
+                onClick={() => handleTabChange(tab.id)}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+          <div className="dashboard-tab-cluster">
+            <div className="dashboard-tab-cluster-label">Comments</div>
+            <div className="dashboard-tab-row" role="tablist" aria-label="Comment tabs">
+            {COMMENT_TABS.map((tab) => (
               <button
                 key={tab.id}
                 type="button"
