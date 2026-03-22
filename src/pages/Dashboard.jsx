@@ -2408,17 +2408,18 @@ document.getElementById("contact-form-${form.id}").addEventListener("submit", as
     <div className="dashboard-container">
       <aside className="dashboard-sidebar">
         <div className="sidebar-header">
-          <a href="/" className="sidebar-brand">
-            Guestbook<span>Service</span>
-          </a>
-          <div className="dashboard-subheader" style={{ paddingLeft: "0.75rem", fontSize: "0.75rem" }}>
+          <Link to="/" className="sidebar-brand">
+            Guest<span>book</span>
+          </Link>
+          <div className="sidebar-group-label" style={{ paddingLeft: "0.75rem", fontSize: "0.65rem", marginTop: "-1rem", marginBottom: "1.5rem" }}>
             <a
               className="dashboard-link"
               href={`/u/${username}`}
               target="_blank"
               rel="noreferrer"
+              style={{ color: "var(--text-muted)", display: "flex", alignItems: "center", gap: "0.25rem" }}
             >
-              /u/{username} <IconExternalLink style={{ width: "12px" }} />
+              /u/{username} <IconExternalLink style={{ width: "10px" }} />
             </a>
           </div>
         </div>

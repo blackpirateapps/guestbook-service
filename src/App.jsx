@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Routes, Route, Link } from "react-router-dom";
+import { Routes, Route, Link, useLocation } from "react-router-dom";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import PublicGuestbook from "./pages/PublicGuestbook";
@@ -7,8 +7,10 @@ import "./index.css";
 
 function App() {
   const [loading, setLoading] = useState(true);
+  const location = useLocation();
   const isEmbedRequest =
     new URLSearchParams(window.location.search).get("embed") === "1";
+  const isDashboard = location.pathname.startsWith("/dashboard");
 
   useEffect(() => {
     setLoading(false);
@@ -43,6 +45,14 @@ function App() {
     );
   }
 
+  if (isDashboard) {
+    return (
+      <Routes>
+        <Route path="/dashboard" element={<Dashboard />} />
+      </Routes>
+    );
+  }
+
   return (
     <div className="container">
       <nav className="navbar">
@@ -57,7 +67,6 @@ function App() {
 
       <Routes>
         <Route path="/" element={<Auth />} />
-        <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/u/:username" element={<PublicGuestbook />} />
       </Routes>
     </div>
