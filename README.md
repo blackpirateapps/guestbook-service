@@ -85,6 +85,85 @@ Body (JSON):
 { "id": 123 }
 ```
 
+### Export all data as JSON (owner only)
+
+`GET /api/entries?export=1` with `Authorization: Bearer <JWT>`
+
+- Returns profile settings and all entries (including private/pending/replies) for the authenticated owner.
+
+Response shape:
+
+```json
+{
+  "version": 1,
+  "exported_at": "2026-03-22T12:34:56.000Z",
+  "owner_username": "OWNER",
+  "profile": {
+    "custom_css": "",
+    "custom_html": "",
+    "require_approval": 0,
+    "embed_css_url": ""
+  },
+  "entries": [
+    {
+      "id": 123,
+      "owner_username": "OWNER",
+      "sender_name": "Jane",
+      "message": "Hello!",
+      "sender_website": "https://example.com",
+      "parent_id": null,
+      "is_private": 0,
+      "is_owner": 0,
+      "status": "approved",
+      "created_at": "2026-03-20T10:11:12.000Z",
+      "likes": 2
+    }
+  ]
+}
+```
+
+### Import all data from JSON (owner only)
+
+`POST /api/entries` with `Authorization: Bearer <JWT>`
+
+Body (JSON):
+
+```json
+{
+  "action": "import_all",
+  "owner_username": "OWNER",
+  "data": {
+    "version": 1,
+    "owner_username": "OWNER",
+    "profile": {
+      "custom_css": "",
+      "custom_html": "",
+      "require_approval": 0,
+      "embed_css_url": ""
+    },
+    "entries": [
+      {
+        "id": 123,
+        "sender_name": "Jane",
+        "message": "Hello!",
+        "sender_website": "https://example.com",
+        "parent_id": null,
+        "is_private": 0,
+        "is_owner": 0,
+        "status": "approved",
+        "created_at": "2026-03-20T10:11:12.000Z",
+        "likes": 2
+      }
+    ]
+  }
+}
+```
+
+Notes:
+- Import replaces existing entries for the owner.
+- Import also updates profile fields: `custom_css`, `custom_html`, `require_approval`, `embed_css_url`.
+- `owner_username` in the payload must match the authenticated user.
+
 ## Widget (optional)
 
 There’s a tiny helper script at `/guestbook-widget.js` you can use to populate entries on your own page.

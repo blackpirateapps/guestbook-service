@@ -42,8 +42,9 @@ The Guestbook Service is a lightweight, customizable web application that allows
 2. **Serverless API Layer (`/api`)**
    APIs extract the JWT from the `Authorization` header to authenticate admin actions (deleting messages, updating settings). Public actions (viewing the guestbook, adding an unapproved entry) are unauthenticated but require the `owner_username`.
     *Manual Imports:* The dashboard can create “past” guestbook entries via an authenticated `POST /api/entries` with `action: 'import'`, allowing the owner to set the display name, website, message, and date.
-    *Headless Integration:* `api/entries.js` includes permissive CORS headers so external sites can `GET /api/entries?user=:username` and `POST /api/entries` directly. A small optional JS helper is provided at `/guestbook-widget.js` for populating entries.
-    *Replies & Likes:* Public headless flows support replies via `POST /api/entries` with `parent_id` and likes via `PUT /api/entries` with `action: 'like'`.
+     *Headless Integration:* `api/entries.js` includes permissive CORS headers so external sites can `GET /api/entries?user=:username` and `POST /api/entries` directly. A small optional JS helper is provided at `/guestbook-widget.js` for populating entries.
+     *Replies & Likes:* Public headless flows support replies via `POST /api/entries` with `parent_id` and likes via `PUT /api/entries` with `action: 'like'`.
+     *Backup/Restore:* Authenticated owners can export all their data via `GET /api/entries?export=1` and restore via `POST /api/entries` with `action: 'import_all'`.
 
 3. **Styling and Theming**
    The application uses a minimalistic, semantic HTML theme styled in `src/index.css`. It prioritizes readability and fast loading by staying close to browser defaults while providing a cohesive layout through CSS variables. It includes a basic responsive grid system and dark mode support via `prefers-color-scheme`.
@@ -58,6 +59,10 @@ The Guestbook Service is a lightweight, customizable web application that allows
 5. **Dashboard Headless Tooling**
    The dashboard includes a **Headless API** section with copyable snippets for posting entries, replies, and likes, plus widget mounting examples.
    It also includes an **API Tester** panel that lets owners run live entry/reply/like requests against a configurable base URL and inspect the raw request/response payloads.
+   A **Data Backup (JSON)** panel provides one-click export and import for profile settings plus all entries.
+
+6. **Homepage Positioning (`Auth.jsx`)**
+   The homepage feature list explicitly highlights that the product is privacy-friendly (no-email sign-up), supports replies/likes and headless usage, and links to the open-source repository at `https://github.com/blackpirateapps/guestbook-service`.
 
 ## Development & Testing Workflow
 - **Local Dev Server:** Run `npm run dev` in the terminal to launch the Vite dev server. The server runs on `localhost:5173` but requires the local setup of a LibSQL database to test the API correctly.
@@ -69,6 +74,6 @@ This repository is pre-configured to be deployed natively on **Vercel**.
 - Environment variables (e.g., `TURSO_DB_URL`, `TURSO_DB_AUTH_TOKEN`, `JWT_SECRET`) must be provided in the Vercel dashboard.
 
 ## API Documentation
-See `README.md` for headless API + widget usage examples, including `GuestbookWidget.submitReply(...)` and `GuestbookWidget.likeEntry(...)`.
+See `README.md` for headless API + widget usage examples, including `GuestbookWidget.submitReply(...)`, `GuestbookWidget.likeEntry(...)`, and JSON export/import schema examples.
 
 > **Note for AI Agents:** When modifying files, always ensure that absolute paths are specifically referenced. Do not change the overall routing model unless specifically instructed, as it dictates the Vercel edge compatibility.

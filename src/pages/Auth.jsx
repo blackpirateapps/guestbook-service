@@ -50,9 +50,18 @@ export default function Auth() {
           <h3 style={{ marginTop: 0 }}>What you get</h3>
           <ul className="home-bullets">
             <li>Public guestbook at <code>/u/yourname</code></li>
+            <li>Privacy-friendly, no-email account flow</li>
             <li>Optional approval flow (anti-spam)</li>
             <li>Private messages to the owner</li>
+            <li>Replies and likes built in</li>
             <li>Embeddable iframe snippet</li>
+            <li>Headless API with JSON import/export</li>
+            <li>
+              Open source on{' '}
+              <a href="https://github.com/blackpirateapps/guestbook-service" target="_blank" rel="noreferrer">
+                GitHub
+              </a>
+            </li>
             <li>Custom CSS + HTML header</li>
           </ul>
         </div>

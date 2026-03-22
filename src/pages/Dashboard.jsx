@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { IconCheck, IconCopy, IconExternalLink, IconHeart, IconReply, IconTrash } from '../components/Icons';
 
@@ -24,6 +24,9 @@ export default function Dashboard() {
   const [testerLikeId, setTesterLikeId] = useState('');
   const [testerResult, setTesterResult] = useState('');
   const [testerBusy, setTesterBusy] = useState(false);
+  const [dataTransferBusy, setDataTransferBusy] = useState(false);
+
+  const importFileRef = useRef(null);
 
   const navigate = useNavigate();
   const token = localStorage.getItem('token');
@@ -453,6 +456,78 @@ DELETE ${origin}/api/entries (Owner only)
     });
   }
 
+  async function exportAllData() {
+    setDataTransferBusy(true);
+    try {
+      const res = await fetch('/api/entries?export=1', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || 'Failed to export data');
+      }
+
+      const data = await res.json();
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${username}-guestbook-export-${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      alert(error?.message || 'Failed to export data.');
+    } finally {
+      setDataTransferBusy(false);
+    }
+  }
+
+  async function importAllDataFromFile(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setDataTransferBusy(true);
+    try {
+      const raw = await file.text();
+      const parsed = JSON.parse(raw);
+
+      if (parsed?.owner_username && parsed.owner_username !== username) {
+        throw new Error('This export belongs to a different username.');
+      }
+
+      if (!Array.isArray(parsed?.entries) || !parsed?.profile) {
+        throw new Error('Invalid export file format.');
+      }
+
+      const confirmed = confirm('Import will replace all your current guestbook entries and profile customization. Continue?');
+      if (!confirmed) return;
+
+      const res = await fetch('/api/entries', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({
+          action: 'import_all',
+          owner_username: username,
+          data: parsed
+        })
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || 'Import failed');
+      }
+
+      alert('Data imported successfully.');
+      fetchData();
+    } catch (error) {
+      alert(error?.message || 'Failed to import data.');
+    } finally {
+      e.target.value = '';
+      setDataTransferBusy(false);
+    }
+  }
+
   return (
     <div>
       <div className="dashboard-header">
@@ -695,6 +770,36 @@ DELETE ${origin}/api/entries (Owner only)
           readOnly
           value={testerResult || 'Run a test to inspect request and response output.'}
         />
+      </section>
+
+      <section className="card" style={{ marginBottom: '1.5rem' }}>
+        <h3 style={{ marginTop: 0 }}>Data Backup (JSON)</h3>
+        <p style={{ color: 'var(--text-muted)', marginBottom: '0.75rem' }}>
+          Export all your guestbook data (profile settings + entries) as JSON, or import a previous export.
+        </p>
+        <div className="actions-row" style={{ marginTop: 0 }}>
+          <button className="secondary" onClick={exportAllData} disabled={dataTransferBusy}>
+            Export all data
+          </button>
+          <button
+            className="secondary"
+            type="button"
+            onClick={() => importFileRef.current?.click()}
+            disabled={dataTransferBusy}
+          >
+            Import JSON
+          </button>
+          <input
+            ref={importFileRef}
+            type="file"
+            accept="application/json,.json"
+            style={{ display: 'none' }}
+            onChange={importAllDataFromFile}
+          />
+        </div>
+        <p style={{ color: 'var(--text-muted)', marginTop: '0.75rem', marginBottom: 0 }}>
+          Import replaces your current entries and appearance/moderation settings.
+        </p>
       </section>
 
       <div className="dashboard-grid">
