@@ -1,8 +1,9 @@
 import { db, initCommentsTables } from './db.js';
 import jwt from 'jsonwebtoken';
-import bcrypt from 'bcryptjs';
+import crypto from 'crypto';
 
 const SECRET = process.env.JWT_SECRET || 'secret';
+const CAPTCHA_SALT = process.env.CAPTCHA_SALT || SECRET;
 
 function setCors(res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -76,8 +77,8 @@ export default async function handler(req, res) {
         const a = Math.floor(Math.random() * 10) + 1;
         const b = Math.floor(Math.random() * 10) + 1;
         const answer = (a + b).toString();
-        // Simpler hash for captcha to avoid potential bcrypt overhead in serverless
-        const hash = await bcrypt.hash(answer, 4); 
+        // Use crypto for fast, synchronous hashing in serverless
+        const hash = crypto.createHash('sha256').update(answer + CAPTCHA_SALT).digest('hex');
         captcha = {
           question: `${a} + ${b}`,
           key: hash
@@ -140,8 +141,8 @@ export default async function handler(req, res) {
         if (!captcha_answer || !captcha_key) {
           return res.status(400).json({ error: 'Captcha is required' });
         }
-        const isValid = await bcrypt.compare(captcha_answer.toString(), captcha_key);
-        if (!isValid) return res.status(400).json({ error: 'Invalid captcha answer' });
+        const expectedHash = crypto.createHash('sha256').update(captcha_answer.toString() + CAPTCHA_SALT).digest('hex');
+        if (expectedHash !== captcha_key) return res.status(400).json({ error: 'Invalid captcha answer' });
       }
 
       // Validate Required Fields
