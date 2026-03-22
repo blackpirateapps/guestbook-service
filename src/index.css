@@ -1264,6 +1264,9 @@ select:disabled {
   background: var(--bg-secondary);
   border-bottom: 1px solid var(--border-color);
   padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
 }
 
 .dashboard-main {
@@ -1288,6 +1291,7 @@ select:disabled {
     padding: 2rem 1.25rem;
     display: flex;
     flex-direction: column;
+    align-items: flex-start;
     scrollbar-width: thin;
     scrollbar-color: var(--border-color) transparent;
   }

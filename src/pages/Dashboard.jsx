@@ -2497,7 +2497,7 @@ document.getElementById("contact-form-${form.id}").addEventListener("submit", as
       <aside className="dashboard-sidebar">
         <div className="sidebar-header">
           <Link to="/" className="sidebar-brand">
-            Guest<span>book</span>
+            <span>Website</span>Tools
           </Link>
           <div className="sidebar-group-label" style={{ paddingLeft: "0.75rem", fontSize: "0.65rem", marginTop: "-1rem", marginBottom: "1.5rem" }}>
             <a
@@ -2514,7 +2514,7 @@ document.getElementById("contact-form-${form.id}").addEventListener("submit", as
 
         <nav className="sidebar-nav">
           <div className="sidebar-group">
-            <div className="sidebar-group-label">Guestbook</div>
+            <div className="sidebar-group-label">Guestbook Service</div>
             <div className="sidebar-links">
               {GUESTBOOK_TABS.map((tab) => (
                 <button

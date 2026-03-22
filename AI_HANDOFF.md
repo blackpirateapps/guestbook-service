@@ -19,7 +19,7 @@ Website Tools is a lightweight, customizable web application suite that provides
 
 ```
 /home/dog/git/guestbook-service/
-├── api/             # Vercel Serverless Functions
+├── api/             # Vercel Serverless Functions (Website Tools API)
 │   ├── db.js        # LibSQL database connection utility + table init
 │   ├── user.js      # Consolidated Login, Signup, and Profile management
 │   ├── entries.js   # CRUD operations for guestbook messages & replies
