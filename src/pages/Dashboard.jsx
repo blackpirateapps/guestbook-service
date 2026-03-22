@@ -977,10 +977,11 @@ ${formFields}
   const form = document.getElementById("comment-form-${section.id}");
   const baseUrl = "${origin}";
   const sectionId = "${section.id}";
+  const pageUrl = window.location.origin + window.location.pathname;
 
   // Fetch captcha
   async function loadCaptcha() {
-    const res = await fetch(baseUrl + "/api/comments?section=" + sectionId);
+    const res = await fetch(baseUrl + "/api/comments?section=" + sectionId + "&page_url=" + encodeURIComponent(pageUrl));
     const data = await res.json();
     if (data.captcha) {
       const label = document.getElementById("captcha-label");
@@ -1015,6 +1016,7 @@ ${formFields}
     const fd = new FormData(e.target);
     const data = Object.fromEntries(fd.entries());
     data.section_id = sectionId;
+    data.page_url = pageUrl;
     data.is_anonymous = anonCheck ? anonCheck.checked : false;
     
     const res = await fetch(baseUrl + "/api/comments", {
@@ -1808,6 +1810,11 @@ document.getElementById("contact-form-${form.id}").addEventListener("submit", as
                         <IconHeart /> <span>{comment.likes || 0}</span>
                       </div>
                     </header>
+                    {comment.page_url && (
+                      <div style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginBottom: "0.5rem" }}>
+                        From: <a href={comment.page_url} target="_blank" rel="noreferrer" style={{ color: "inherit" }}>{comment.page_url}</a>
+                      </div>
+                    )}
                     <div className="entry-content">{comment.comment_text}</div>
                     <div className="entry-actions">
                       {comment.status === "pending" && (

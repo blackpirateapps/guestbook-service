@@ -59,6 +59,7 @@ export async function initCommentsTables() {
       status TEXT DEFAULT 'approved',
       likes INTEGER DEFAULT 0,
       ip_address TEXT,
+      page_url TEXT,
       created_at TEXT DEFAULT (datetime('now')),
       FOREIGN KEY (section_id) REFERENCES comment_sections(id) ON DELETE CASCADE
     )

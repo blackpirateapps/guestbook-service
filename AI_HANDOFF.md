@@ -172,7 +172,9 @@ The Comments System allows users to embed threaded discussions on any page.
 
 **Database Tables:**
 - `comment_sections` - Stores section configuration (id, owner_username, name, settings JSON)
-- `comments` - Stores comments (id, section_id, parent_id, sender_name, sender_email, sender_url, comment_text, status, likes, etc.)
+- `comments` - Stores comments (id, section_id, parent_id, sender_name, sender_email, sender_url, comment_text, status, likes, page_url, etc.)
+
+**URL Isolation:** Comments are associated with the `page_url` from which they were submitted. The public API and widgets automatically filter comments to only show those belonging to the current page's URL (`window.location.origin + window.location.pathname`).
 
 **Settings (JSON):**
 - `fields`: Toggle visibility and requirement for `name`, `email`, and `url`.

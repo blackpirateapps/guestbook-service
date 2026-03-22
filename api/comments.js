@@ -28,7 +28,7 @@ export default async function handler(req, res) {
   } catch (e) {}
 
   const { method } = req;
-  const { section: sectionId, auth } = req.query;
+  const { section: sectionId, auth, page_url: queryPageUrl } = req.query;
 
   // 1. GET: Fetch comments (Public or Auth)
   if (method === 'GET') {
@@ -59,9 +59,14 @@ export default async function handler(req, res) {
 
       if (!isOwner) {
         sql += " AND status = 'approved'";
+        // Only filter by URL for public users (not in dashboard moderation mode)
+        if (queryPageUrl) {
+          sql += " AND page_url = ?";
+          args.push(queryPageUrl);
+        }
       }
 
-      sql += ' ORDER BY created_at ASC'; // Ascending for threaded view usually works better
+      sql += ' ORDER BY created_at ASC';
 
       const result = await db.execute({ sql, args });
       
@@ -99,7 +104,8 @@ export default async function handler(req, res) {
       comment_text, 
       is_anonymous,
       captcha_answer,
-      captcha_key
+      captcha_key,
+      page_url
     } = body;
 
     if (!section_id || !comment_text) {
@@ -157,8 +163,8 @@ export default async function handler(req, res) {
     try {
       await db.execute({
         sql: `INSERT INTO comments 
-              (section_id, parent_id, sender_name, sender_email, sender_url, comment_text, is_anonymous, is_owner, status, ip_address) 
-              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+              (section_id, parent_id, sender_name, sender_email, sender_url, comment_text, is_anonymous, is_owner, status, ip_address, page_url) 
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         args: [
           section_id,
           parent_id || null,
@@ -169,7 +175,8 @@ export default async function handler(req, res) {
           is_anonymous ? 1 : 0,
           isOwnerPosting ? 1 : 0,
           status,
-          ip
+          ip,
+          page_url || ''
         ]
       });
       return res.status(201).json({ success: true, status });

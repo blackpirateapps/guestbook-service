@@ -33,13 +33,17 @@
   }
 
   async function fetchComments(baseUrl, sectionId) {
-    var url = joinUrl(baseUrl, '/api/comments?section=' + encodeURIComponent(sectionId));
+    var pageUrl = window.location.origin + window.location.pathname;
+    var url = joinUrl(baseUrl, '/api/comments?section=' + encodeURIComponent(sectionId) + '&page_url=' + encodeURIComponent(pageUrl));
     var res = await fetch(url);
     if (!res.ok) throw new Error('Failed to fetch comments');
     return await res.json();
   }
 
   async function postComment(baseUrl, payload) {
+    if (!payload.page_url) {
+      payload.page_url = window.location.origin + window.location.pathname;
+    }
     var url = joinUrl(baseUrl, '/api/comments');
     var res = await fetch(url, {
       method: 'POST',
