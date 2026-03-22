@@ -60,6 +60,7 @@ The Guestbook Service is a lightweight, customizable web application that allows
    The dashboard includes a **Headless API** section with copyable snippets for posting entries, replies, and likes, plus widget mounting examples.
    It also includes an **API Tester** panel that lets owners run live entry/reply/like requests against a configurable base URL and inspect the raw request/response payloads.
    A **Data Backup (JSON)** panel provides one-click export and import for profile settings plus all entries.
+   The dashboard layout uses responsive multi-column grids (`dashboard-primary-grid` / `dashboard-secondary-grid`) that collapse to a single column on mobile.
 
 6. **Homepage Positioning (`Auth.jsx`)**
    The homepage feature list explicitly highlights that the product is privacy-friendly (no-email sign-up), supports replies/likes and headless usage, and links to the open-source repository at `https://github.com/blackpirateapps/guestbook-service`.

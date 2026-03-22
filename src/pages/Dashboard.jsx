@@ -543,7 +543,8 @@ DELETE ${origin}/api/entries (Owner only)
         <button className="secondary" onClick={() => { localStorage.clear(); navigate('/'); }}>Logout</button>
       </div>
 
-      <section className="card" style={{ marginBottom: '1.5rem' }}>
+      <div className="dashboard-primary-grid">
+      <section className="card dashboard-panel dashboard-panel--wide" style={{ marginBottom: '1.5rem' }}>
         <h3 style={{ marginTop: 0 }}>Embed on your site</h3>
         <p style={{ marginBottom: '0.75rem' }}>Paste this snippet into any HTML page to embed your guestbook.</p>
         <textarea
@@ -580,9 +581,7 @@ DELETE ${origin}/api/entries (Owner only)
         </div>
       </section>
 
-      <hr />
-
-      <section className="dashboard-stats">
+      <section className="dashboard-stats dashboard-panel dashboard-panel--wide">
         <div className="stat-card">
           <div className="stat-label">Threads</div>
           <div className="stat-value">{rootEntryCount}</div>
@@ -605,7 +604,7 @@ DELETE ${origin}/api/entries (Owner only)
         </div>
       </section>
 
-      <section className="card" style={{ marginBottom: '1.5rem' }}>
+      <section className="card dashboard-panel dashboard-panel--wide" style={{ marginBottom: '1.5rem' }}>
         <h3 style={{ marginTop: 0 }}>Headless API (build your own UI)</h3>
         <p style={{ color: 'var(--text-muted)', marginBottom: '0.75rem' }}>
           Use your own form and layout. The API supports cross-origin requests, and you can optionally use the widget to populate entries.
@@ -679,7 +678,7 @@ DELETE ${origin}/api/entries (Owner only)
         </div>
       </section>
 
-      <section className="card" style={{ marginBottom: '1.5rem' }}>
+      <section className="card dashboard-panel" style={{ marginBottom: '1.5rem' }}>
         <h3 style={{ marginTop: 0 }}>API Tester</h3>
         <p style={{ color: 'var(--text-muted)', marginBottom: '0.75rem' }}>
           Test entry, reply, and like calls against your endpoint and inspect the exact request + response payload.
@@ -772,7 +771,7 @@ DELETE ${origin}/api/entries (Owner only)
         />
       </section>
 
-      <section className="card" style={{ marginBottom: '1.5rem' }}>
+      <section className="card dashboard-panel" style={{ marginBottom: '1.5rem' }}>
         <h3 style={{ marginTop: 0 }}>Data Backup (JSON)</h3>
         <p style={{ color: 'var(--text-muted)', marginBottom: '0.75rem' }}>
           Export all your guestbook data (profile settings + entries) as JSON, or import a previous export.
@@ -802,8 +801,7 @@ DELETE ${origin}/api/entries (Owner only)
         </p>
       </section>
 
-      <div className="dashboard-grid">
-        <section className="card">
+      <section className="card dashboard-panel">
           <h3 style={{ marginTop: 0 }}>Moderation</h3>
           <p style={{ marginBottom: '0.75rem' }}>Control how new messages appear on your guestbook.</p>
           <label className="checkbox-label" style={{ marginBottom: '1rem' }}>
@@ -815,12 +813,9 @@ DELETE ${origin}/api/entries (Owner only)
             Require approval for new messages
           </label>
           <button className="secondary" onClick={saveSettings}>Update Moderation</button>
-        </section>
-      </div>
+      </section>
 
-      <hr />
-
-      <section className="card" style={{ marginBottom: '1.5rem' }}>
+      <section className="card dashboard-panel" style={{ marginBottom: '1.5rem' }}>
         <h3 style={{ marginTop: 0 }}>Customize Appearance</h3>
         <p style={{ marginBottom: '0.75rem' }}>Inject custom CSS and HTML into your public page.</p>
         <div className="dashboard-grid">
@@ -848,10 +843,10 @@ DELETE ${origin}/api/entries (Owner only)
         <button className="secondary" onClick={saveSettings}>Save Appearance</button>
       </section>
 
-      <hr />
+      </div>
 
-      <section>
-        <details className="card collapsible" style={{ marginBottom: '1.5rem' }}>
+      <section className="dashboard-secondary-grid">
+        <details className="card collapsible" style={{ marginBottom: 0 }}>
           <summary className="collapsible-summary">
             <span>Add past entry</span>
             <span style={{ color: 'var(--text-muted)', fontWeight: 500, fontSize: '0.9rem' }}>Import older guestbook posts</span>
@@ -915,7 +910,7 @@ DELETE ${origin}/api/entries (Owner only)
           </div>
         </details>
 
-        <details className="card collapsible">
+        <details className="card collapsible" style={{ marginBottom: 0 }}>
           <summary className="collapsible-summary">
             <span>Recent Entries</span>
             <span className="entries-count">{entries.length}</span>
