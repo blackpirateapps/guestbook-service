@@ -332,7 +332,7 @@ export default function Dashboard() {
 })();
 </script>
 <div style="margin-top:8px;font-size:12px;opacity:.75;font-family:ui-serif,Georgia,Cambria,'Times New Roman',Times,serif">
-  Powered by <a href="https://guestbook.blackpiratex.com" target="_blank" rel="noreferrer">Guestbook Service</a>
+  Powered by <a href="/" target="_blank" rel="noreferrer">Website Tools</a>
 </div>`
     : "";
 

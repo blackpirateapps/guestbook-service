@@ -1,6 +1,6 @@
-# Guestbook Service
+# Website Tools
 
-A lightweight guestbook you can host for yourself (no email required to sign up). Create a public guestbook at `/u/:username`, embed it in an iframe, or go “headless” and use the API + your own UI.
+A lightweight suite of essential tools for personal websites. Includes a Guestbook Service, Contact Form Builder, and Comments System.
 
 ## API (Headless)
 

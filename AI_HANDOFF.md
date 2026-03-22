@@ -1,14 +1,10 @@
-# Guestbook Service AI Handoff
+# Website Tools AI Handoff
 
-Welcome, Agent. This document provides a high-level overview of the Guestbook Service web application to help you quickly understand the codebase, its architecture, and how to operate within it.
+Welcome, Agent. This document provides a high-level overview of the Website Tools web application to help you quickly understand the codebase, its architecture, and how to operate within it.
 
 ## Overview
 
-The Guestbook Service is a lightweight, customizable web application that allows users to create their own digital guestbook. It supports private messages, moderation (approval flows), and custom appearance settings (CSS & HTML injection) per user.
-
-**Additionally**, the service includes:
-- A **Contact Form Builder** feature that allows users to create custom forms with configurable fields and receive submissions from external websites.
-- A **Comments System** that allows users to create embeddable, threaded, and moderated comment sections for their websites.
+Website Tools is a lightweight, customizable web application suite that provides essential tools for personal websites. It includes a Guestbook Service, a Contact Form Builder, and a Comments System.
 
 ## Technology Stack
 

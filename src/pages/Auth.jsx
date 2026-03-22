@@ -34,43 +34,53 @@ export default function Auth() {
   return (
     <div className="auth-wrapper">
       <header className="auth-hero">
-        <h1>A simple guestbook for your site</h1>
+        <h1>Website Tools</h1>
         <p className="subtitle">
-          Collect notes from readers, friends, and customers — with moderation,
-          private messages, and embeds.
+          Essential, lightweight, and embeddable tools for your personal website. 
+          Guestbooks, Contact Forms, and Threaded Comments — all in one place.
         </p>
         <p className="meta">
-          Built by one guy at{" "}
-          <a href="https://blackpiratex.com" target="_blank" rel="noreferrer">
-            blackpiratex.com
+          Built with simplicity in mind. No email required. Open source at{" "}
+          <a href="https://github.com/blackpirateapps/guestbook-service" target="_blank" rel="noreferrer">
+            GitHub
           </a>
-          . No email required.
+          .
         </p>
       </header>
 
       <div className="auth-features card">
-        <h3>What you get</h3>
-        <ul>
-          <li>
-            Public guestbook at <code>/u/yourname</code>
-          </li>
-          <li>Privacy-friendly, no-email account flow</li>
-          <li>Optional approval flow (anti-spam)</li>
-          <li>Private messages to the owner</li>
-          <li>Replies and likes built in</li>
-          <li>Embeddable iframe snippet</li>
-          <li>Headless API with JSON import/export</li>
-          <li>
-            Open source on{" "}
-            <a
-              href="https://github.com/blackpirateapps/guestbook-service"
-              target="_blank"
-              rel="noreferrer"
-            >
-              GitHub
-            </a>
-          </li>
-          <li>Custom CSS + HTML header</li>
+        <h3>What's Included</h3>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.5rem', marginBottom: '1rem' }}>
+          <div>
+            <h4 style={{ color: 'var(--accent-primary)', marginBottom: '0.5rem' }}>Guestbooks</h4>
+            <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>
+              A public wall for readers to leave notes. Supports private messages, moderation, and threading.
+            </p>
+          </div>
+          <div>
+            <h4 style={{ color: 'var(--accent-primary)', marginBottom: '0.5rem' }}>Contact Forms</h4>
+            <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>
+              Customizable forms for your site. Gather submissions without writing any backend code.
+            </p>
+          </div>
+          <div>
+            <h4 style={{ color: 'var(--accent-primary)', marginBottom: '0.5rem' }}>Comments</h4>
+            <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>
+              Threaded comment sections for any page. Includes likes, replies, and robust bot protection.
+            </p>
+          </div>
+        </div>
+        
+        <h4 style={{ marginTop: '1rem', marginBottom: '0.5rem' }}>Core Features</h4>
+        <ul style={{ columnCount: 2, columnGap: '2rem' }}>
+          <li>No-email account flow</li>
+          <li>Embeddable iframe snippets</li>
+          <li>Headless API support</li>
+          <li>Custom CSS & HTML injection</li>
+          <li>JSON data export/import</li>
+          <li>Privacy-first & lightweight</li>
+          <li>Moderation & Approval flows</li>
+          <li>Anti-spam Honeypots</li>
         </ul>
       </div>
 

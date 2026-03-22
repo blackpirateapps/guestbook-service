@@ -422,11 +422,11 @@ export default function PublicGuestbook({ overrideUsername }) {
       <footer>
         Powered by{" "}
         <a
-          href="https://guestbook.blackpiratex.com"
+          href="/"
           target="_blank"
           rel="noreferrer"
         >
-          Guestbook Service
+          Website Tools
         </a>
       </footer>
     </div>

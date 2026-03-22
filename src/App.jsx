@@ -57,7 +57,7 @@ function App() {
     <div className="container">
       <nav className="navbar">
         <Link to="/" className="navbar-brand">
-          <span>Guest</span>book
+          <span>Website</span>Tools
         </Link>
         <div className="nav-links">
           <Link to="/">Home</Link>
