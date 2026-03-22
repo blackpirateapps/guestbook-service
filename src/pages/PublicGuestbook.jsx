@@ -1,35 +1,55 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { useParams } from 'react-router-dom';
-import DOMPurify from 'dompurify';
-import { IconExternalLink, IconHeart, IconReply } from '../components/Icons';
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useParams } from "react-router-dom";
+import DOMPurify from "dompurify";
+import { IconHeart, IconReply } from "../components/Icons";
 
 const SAFE_CONFIG = {
-  ALLOWED_TAGS: ['h1', 'h2', 'h3', 'p', 'span', 'div', 'br', 'hr', 'b', 'i', 'strong', 'em', 'ul', 'li', 'img', 'a'],
-  ALLOWED_ATTR: ['href', 'src', 'alt', 'class', 'id', 'target', 'style', 'rel'],
+  ALLOWED_TAGS: [
+    "h1",
+    "h2",
+    "h3",
+    "p",
+    "span",
+    "div",
+    "br",
+    "hr",
+    "b",
+    "i",
+    "strong",
+    "em",
+    "ul",
+    "li",
+    "img",
+    "a",
+  ],
+  ALLOWED_ATTR: ["href", "src", "alt", "class", "id", "target", "style", "rel"],
 };
 
-DOMPurify.addHook('afterSanitizeAttributes', function (node) {
-  if ('target' in node && node.getAttribute('target') === '_blank') {
-    node.setAttribute('rel', 'noopener noreferrer');
+DOMPurify.addHook("afterSanitizeAttributes", function (node) {
+  if ("target" in node && node.getAttribute("target") === "_blank") {
+    node.setAttribute("rel", "noopener noreferrer");
   }
 });
 
 export default function PublicGuestbook({ overrideUsername }) {
   const { username: paramUsername } = useParams();
   const username = overrideUsername || paramUsername;
-  const isEmbed = useMemo(() => new URLSearchParams(window.location.search).get('embed') === '1', []);
+  const isEmbed = useMemo(
+    () => new URLSearchParams(window.location.search).get("embed") === "1",
+    [],
+  );
   const rootRef = useRef(null);
 
   const [entries, setEntries] = useState([]);
-  const [customCss, setCustomCss] = useState('');
-  const [customHtml, setCustomHtml] = useState('');
-  const [embedCssUrl, setEmbedCssUrl] = useState('');
+  const [customCss, setCustomCss] = useState("");
+  const [customHtml, setCustomHtml] = useState("");
+  const [embedCssUrl, setEmbedCssUrl] = useState("");
 
-  const [senderName, setSenderName] = useState('');
-  const [senderWebsite, setSenderWebsite] = useState('');
-  const [message, setMessage] = useState('');
+  const [senderName, setSenderName] = useState("");
+  const [senderWebsite, setSenderWebsite] = useState("");
+  const [message, setMessage] = useState("");
   const [isPrivate, setIsPrivate] = useState(false);
-  const [botField, setBotField] = useState('');
+  const [botField, setBotField] = useState("");
 
   const [replyingTo, setReplyingTo] = useState(null);
   const [likingIds, setLikingIds] = useState(() => new Set());
@@ -50,23 +70,23 @@ export default function PublicGuestbook({ overrideUsername }) {
       if (rafId) cancelAnimationFrame(rafId);
       rafId = requestAnimationFrame(() => {
         const height = Math.max(root.scrollHeight, root.offsetHeight);
-        window.parent?.postMessage({ type: 'guestbook:resize', height }, '*');
+        window.parent?.postMessage({ type: "guestbook:resize", height }, "*");
       });
     };
 
     sendHeight();
 
     let resizeObserver;
-    if ('ResizeObserver' in window) {
+    if ("ResizeObserver" in window) {
       resizeObserver = new ResizeObserver(() => sendHeight());
       resizeObserver.observe(root);
     }
 
-    window.addEventListener('load', sendHeight);
+    window.addEventListener("load", sendHeight);
     return () => {
       if (rafId) cancelAnimationFrame(rafId);
       resizeObserver?.disconnect();
-      window.removeEventListener('load', sendHeight);
+      window.removeEventListener("load", sendHeight);
     };
   }, [isEmbed]);
 
@@ -74,7 +94,9 @@ export default function PublicGuestbook({ overrideUsername }) {
     try {
       const res = await fetch(`/api/entries?user=${username}`);
       if (res.ok) setEntries(await res.json());
-    } catch (e) { console.error(e); }
+    } catch (e) {
+      console.error(e);
+    }
   }
 
   async function fetchProfile() {
@@ -82,25 +104,29 @@ export default function PublicGuestbook({ overrideUsername }) {
       const res = await fetch(`/api/profile?username=${username}`);
       if (res.ok) {
         const data = await res.json();
-        setCustomCss(data.custom_css || '');
-        setCustomHtml(data.custom_html || '');
-        setEmbedCssUrl(data.embed_css_url || '');
+        setCustomCss(data.custom_css || "");
+        setCustomHtml(data.custom_html || "");
+        setEmbedCssUrl(data.embed_css_url || "");
       }
-    } catch (e) { console.error(e); }
+    } catch (e) {
+      console.error(e);
+    }
   }
 
   async function handleLike(id) {
-    setLikingIds(prev => new Set(prev).add(id));
-    setEntries(prev => prev.map(e => e.id === id ? { ...e, likes: (e.likes || 0) + 1 } : e));
+    setLikingIds((prev) => new Set(prev).add(id));
+    setEntries((prev) =>
+      prev.map((e) => (e.id === id ? { ...e, likes: (e.likes || 0) + 1 } : e)),
+    );
 
     try {
-      await fetch('/api/entries', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'like', id })
+      await fetch("/api/entries", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "like", id }),
       });
     } finally {
-      setLikingIds(prev => {
+      setLikingIds((prev) => {
         const next = new Set(prev);
         next.delete(id);
         return next;
@@ -112,9 +138,9 @@ export default function PublicGuestbook({ overrideUsername }) {
     e.preventDefault();
     if (!senderName.trim() || !message.trim()) return;
 
-    const res = await fetch('/api/entries', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+    const res = await fetch("/api/entries", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         owner_username: username,
         sender_name: senderName,
@@ -122,20 +148,20 @@ export default function PublicGuestbook({ overrideUsername }) {
         message: message,
         parent_id: replyingTo,
         is_private: isPrivate,
-        bot_field: botField
-      })
+        bot_field: botField,
+      }),
     });
 
     if (res.ok) {
       const data = await res.json();
-      setSenderName('');
-      setSenderWebsite('');
-      setMessage('');
+      setSenderName("");
+      setSenderWebsite("");
+      setMessage("");
       setIsPrivate(false);
       setReplyingTo(null);
 
-      if (data.status === 'pending') {
-        alert("Message sent! waiting for moderator approval.");
+      if (data.status === "pending") {
+        alert("Message sent! Waiting for moderator approval.");
       } else if (isPrivate) {
         alert("Private message sent to the owner!");
       } else {
@@ -146,77 +172,80 @@ export default function PublicGuestbook({ overrideUsername }) {
     }
   }
 
-  const rootEntries = entries.filter(e => !e.parent_id);
-  const getReplies = (parentId) => entries.filter(e => e.parent_id === parentId);
+  const rootEntries = entries.filter((e) => !e.parent_id);
+  const getReplies = (parentId) =>
+    entries.filter((e) => e.parent_id === parentId);
 
   const EntryForm = ({ isReply = false, onCancel }) => (
     <form onSubmit={handleSubmit} className="entry-form-wrapper">
-      <h3 style={{ marginTop: 0 }}>
-        {isReply ? 'Reply to message' : 'Sign the Guestbook'}
-      </h3>
+      <h3>{isReply ? "Reply to message" : "Sign the Guestbook"}</h3>
       <input
         type="text"
         name="website_url_check"
         value={botField}
-        onChange={e => setBotField(e.target.value)}
+        onChange={(e) => setBotField(e.target.value)}
         className="honeypot"
         tabIndex="-1"
         autoComplete="off"
       />
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: '1rem' }}>
+      <div className="form-row">
         <div className="form-group">
-          <label htmlFor={`sender-name-${isReply ? 'reply' : 'main'}`}>Name *</label>
+          <label htmlFor={`sender-name-${isReply ? "reply" : "main"}`}>
+            Name *
+          </label>
           <input
-            id={`sender-name-${isReply ? 'reply' : 'main'}`}
+            id={`sender-name-${isReply ? "reply" : "main"}`}
             type="text"
             placeholder="Your name"
             value={senderName}
-            onChange={e => setSenderName(e.target.value)}
+            onChange={(e) => setSenderName(e.target.value)}
             required
           />
         </div>
 
         <div className="form-group">
-          <label htmlFor={`sender-website-${isReply ? 'reply' : 'main'}`}>Website (Optional)</label>
+          <label htmlFor={`sender-website-${isReply ? "reply" : "main"}`}>
+            Website
+          </label>
           <input
-            id={`sender-website-${isReply ? 'reply' : 'main'}`}
+            id={`sender-website-${isReply ? "reply" : "main"}`}
             type="url"
             placeholder="https://example.com"
             value={senderWebsite}
-            onChange={e => setSenderWebsite(e.target.value)}
+            onChange={(e) => setSenderWebsite(e.target.value)}
           />
         </div>
       </div>
 
       <div className="form-group">
-        <label htmlFor={`message-${isReply ? 'reply' : 'main'}`}>
-          {isReply ? 'Reply Message *' : 'Your Message *'}
+        <label htmlFor={`message-${isReply ? "reply" : "main"}`}>
+          {isReply ? "Reply *" : "Message *"}
         </label>
         <textarea
-          id={`message-${isReply ? 'reply' : 'main'}`}
+          id={`message-${isReply ? "reply" : "main"}`}
           rows={isReply ? 3 : 4}
-          placeholder={isReply ? 'Write a reply...' : 'Leave a note...'}
+          placeholder={isReply ? "Write a reply..." : "Leave a note..."}
           value={message}
-          onChange={e => setMessage(e.target.value)}
+          onChange={(e) => setMessage(e.target.value)}
           required
         />
       </div>
 
       {!isReply && (
-        <label className="checkbox-label" style={{ marginTop: '0.25rem' }}>
+        <label className="checkbox-label">
           <input
             type="checkbox"
             checked={isPrivate}
-            onChange={e => setIsPrivate(e.target.checked)}
+            onChange={(e) => setIsPrivate(e.target.checked)}
           />
           Private message (Owner only)
         </label>
       )}
 
-      <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem' }}>
+      <div style={{ display: "flex", gap: "0.5rem", marginTop: "1rem" }}>
         <button type="submit">
-          {isReply ? 'Post Reply' : 'Sign Guestbook'}
+          {isReply ? "Post Reply" : "Sign Guestbook"}
         </button>
 
         {isReply && (
@@ -234,28 +263,31 @@ export default function PublicGuestbook({ overrideUsername }) {
       html, body { background: var(--bg-color); color: var(--text-main); }
       footer { display: none; }
     `.trim()
-    : '';
+    : "";
 
   return (
     <div
       ref={rootRef}
       style={{
-        maxWidth: isEmbed ? '100%' : (overrideUsername ? '800px' : '100%'),
-        margin: isEmbed ? 0 : '0 auto',
-        padding: isEmbed ? '1rem' : 0,
+        maxWidth: isEmbed ? "100%" : overrideUsername ? "800px" : "100%",
+        margin: isEmbed ? 0 : "0 auto",
+        padding: isEmbed ? "1rem" : 0,
       }}
     >
-      {isEmbed && embedCssUrl && (
-        <link rel="stylesheet" href={embedCssUrl} />
-      )}
+      {isEmbed && embedCssUrl && <link rel="stylesheet" href={embedCssUrl} />}
       <style>{`${embedBaseCss}\n${customCss}`}</style>
 
-      <header style={{ marginBottom: '2rem' }}>
-        <div className="user-custom-header" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(customHtml, SAFE_CONFIG) }} />
+      <header style={{ marginBottom: "2rem" }}>
+        <div
+          className="user-custom-header"
+          dangerouslySetInnerHTML={{
+            __html: DOMPurify.sanitize(customHtml, SAFE_CONFIG),
+          }}
+        />
         {!customHtml && (
           <>
-            <h1 style={{ marginBottom: 0 }}>{username}'s Guestbook</h1>
-            <p style={{ color: 'var(--text-muted)' }}>
+            <h1 style={{ marginBottom: "0.25rem" }}>{username}'s Guestbook</h1>
+            <p style={{ color: "var(--text-muted)", margin: 0 }}>
               Leave a note below to say hi.
             </p>
           </>
@@ -263,23 +295,25 @@ export default function PublicGuestbook({ overrideUsername }) {
       </header>
 
       {!replyingTo && (
-        <section style={{ marginBottom: '2rem' }}>
+        <section style={{ marginBottom: "2rem" }}>
           <EntryForm />
         </section>
       )}
 
       <hr />
 
-      <section className="entries-list public-entries">
+      <section className="entries-list">
         <div className="entries-header">
-          <h3 style={{ margin: 0 }}>Guestbook Entries</h3>
-          <div className="entries-count">{rootEntries.length}</div>
+          <h3 style={{ margin: 0 }}>Entries</h3>
+          <span className="entries-count">{rootEntries.length}</span>
         </div>
 
         {rootEntries.length === 0 ? (
-          <p style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>Be the first to sign this guestbook!</p>
+          <p style={{ color: "var(--text-muted)" }}>
+            Be the first to sign this guestbook!
+          </p>
         ) : (
-          rootEntries.map(entry => (
+          rootEntries.map((entry) => (
             <article key={entry.id} className="entry-thread">
               <div className="entry-card">
                 <header className="entry-card-header">
@@ -295,18 +329,30 @@ export default function PublicGuestbook({ overrideUsername }) {
                           {entry.sender_name}
                         </a>
                       ) : (
-                        <span className="entry-author">{entry.sender_name}</span>
+                        <span className="entry-author">
+                          {entry.sender_name}
+                        </span>
                       )}
-                      <span className="entry-date-inline"> - {new Date(entry.created_at).toLocaleString()}</span>
-                      {entry.is_owner === 1 && <span className="badge owner">Owner</span>}
+                      <span className="entry-date-inline">
+                        {new Date(entry.created_at).toLocaleDateString(
+                          undefined,
+                          {
+                            year: "numeric",
+                            month: "short",
+                            day: "numeric",
+                          },
+                        )}
+                      </span>
+                      {entry.is_owner === 1 && (
+                        <span className="badge owner">Owner</span>
+                      )}
                     </div>
 
                     <div className="entry-title-right">
                       <button
-                        className="secondary icon-button entry-action-button"
+                        className="secondary entry-action-button"
                         onClick={() => handleLike(entry.id)}
                         disabled={likingIds.has(entry.id)}
-                        aria-label="Like entry"
                         title="Like"
                       >
                         <IconHeart />
@@ -314,9 +360,12 @@ export default function PublicGuestbook({ overrideUsername }) {
                       </button>
 
                       <button
-                        className="secondary icon-button entry-action-button"
-                        onClick={() => { setReplyingTo(entry.id); setMessage(''); setIsPrivate(false); }}
-                        aria-label="Reply to entry"
+                        className="secondary entry-action-button"
+                        onClick={() => {
+                          setReplyingTo(entry.id);
+                          setMessage("");
+                          setIsPrivate(false);
+                        }}
                         title="Reply"
                       >
                         <IconReply />
@@ -331,21 +380,33 @@ export default function PublicGuestbook({ overrideUsername }) {
 
               {replyingTo === entry.id && (
                 <div className="reply-form-wrapper">
-                  <EntryForm isReply={true} onCancel={() => setReplyingTo(null)} />
+                  <EntryForm
+                    isReply={true}
+                    onCancel={() => setReplyingTo(null)}
+                  />
                 </div>
               )}
 
               {getReplies(entry.id).length > 0 && (
                 <div className="replies">
-                  {getReplies(entry.id).map(reply => (
+                  {getReplies(entry.id).map((reply) => (
                     <div key={reply.id} className="reply-card">
                       <div className="reply-header">
                         <div className="reply-name">
                           {reply.sender_name}
-                          {reply.is_owner === 1 && <span className="badge owner">Owner</span>}
+                          {reply.is_owner === 1 && (
+                            <span className="badge owner">Owner</span>
+                          )}
                         </div>
                         <div className="reply-date">
-                          {new Date(reply.created_at).toLocaleString()}
+                          {new Date(reply.created_at).toLocaleDateString(
+                            undefined,
+                            {
+                              year: "numeric",
+                              month: "short",
+                              day: "numeric",
+                            },
+                          )}
                         </div>
                       </div>
                       <div className="reply-content">{reply.message}</div>
@@ -359,7 +420,14 @@ export default function PublicGuestbook({ overrideUsername }) {
       </section>
 
       <footer>
-        Powered by <a href="https://guestbook.blackpiratex.com" target="_blank" rel="noreferrer">Guestbook Service</a>
+        Powered by{" "}
+        <a
+          href="https://guestbook.blackpiratex.com"
+          target="_blank"
+          rel="noreferrer"
+        >
+          Guestbook Service
+        </a>
       </footer>
     </div>
   );
