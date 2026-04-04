@@ -27,6 +27,8 @@ const COMMENT_TABS = [
   { id: "comment-moderation", label: "Moderation" },
 ];
 
+const LIKES_TABS = [{ id: "likes", label: "Likes" }];
+
 const FIELD_TYPES = [
   { value: "text", label: "Text" },
   { value: "email", label: "Email" },
@@ -111,6 +113,17 @@ export default function Dashboard() {
   const [replyingToComment, setReplyingToComment] = useState(null);
   const [commentReplyMsg, setCommentReplyMsg] = useState("");
 
+  // Likes feature state
+  const [likesSummary, setLikesSummary] = useState({
+    total_likes: 0,
+    post_count: 0,
+    top_posts: [],
+  });
+  const [likesBusy, setLikesBusy] = useState(false);
+  const [likesPostUrl, setLikesPostUrl] = useState("");
+  const [likesAction, setLikesAction] = useState("get");
+  const [likesResult, setLikesResult] = useState("");
+
   const importFileRef = useRef(null);
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTab = searchParams.get("tab") || "overview";
@@ -135,6 +148,9 @@ export default function Dashboard() {
     }
     if (activeTab === "comment-moderation" && selectedSectionId) {
       fetchComments(selectedSectionId);
+    }
+    if (activeTab === "likes") {
+      fetchLikesSummary();
     }
   }, [activeTab, selectedFormId, selectedSectionId]);
 
@@ -211,6 +227,30 @@ export default function Dashboard() {
       setAllComments(data.comments || []);
     }
     setAllCommentsBusy(false);
+  }
+
+  async function fetchLikesSummary() {
+    if (!username) return;
+    setLikesBusy(true);
+    try {
+      const res = await fetch("/api/likes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "summary", owner_username: username }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setLikesSummary({
+          total_likes: data.total_likes || 0,
+          post_count: data.post_count || 0,
+          top_posts: Array.isArray(data.top_posts) ? data.top_posts : [],
+        });
+      }
+    } catch {
+      // ignore
+    } finally {
+      setLikesBusy(false);
+    }
   }
 
   async function saveSettings() {
@@ -468,7 +508,26 @@ DELETE ${origin}/api/entries (Owner only)
     container: "#guestbook-entries"
   });
 </script>`
-      : "";
+    : "";
+
+  const likesApiBase = origin ? `${origin}/api/likes` : "";
+  const likesApiDocs = likesApiBase
+    ? `POST ${likesApiBase}
+- Single endpoint for likes.
+- Body fields:
+  action ("like" | "get" | "summary")
+  owner_username (string, required)
+  post_url (string, required for like/get)
+
+Like a post:
+{ "action": "like", "owner_username": "${username}", "post_url": "https://example.com/blog/my-post" }
+
+Get likes for a post:
+{ "action": "get", "owner_username": "${username}", "post_url": "https://example.com/blog/my-post" }
+
+Summary for dashboard:
+{ "action": "summary", "owner_username": "${username}" }`
+    : "";
 
   const headlessCssExample = `/* Example styling for the default GuestbookWidget markup */
 #guestbook-entries {
@@ -1238,6 +1297,62 @@ document.getElementById("contact-form-${form.id}").addEventListener("submit", as
 </script>`;
   }
 
+  async function runLikesRequest(e) {
+    e.preventDefault();
+    if (!username) return;
+    if (!likesApiBase) return;
+    if ((likesAction === "like" || likesAction === "get") && !likesPostUrl.trim()) return;
+
+    setLikesBusy(true);
+    setLikesResult("Running request...");
+
+    const payload = {
+      action: likesAction,
+      owner_username: username,
+    };
+
+    if (likesAction === "like" || likesAction === "get") {
+      payload.post_url = likesPostUrl.trim();
+    }
+
+    try {
+      const res = await fetch("/api/likes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      const rawText = await res.text();
+      let parsedBody = rawText;
+      try {
+        parsedBody = rawText ? JSON.parse(rawText) : {};
+      } catch {
+        // keep plain text
+      }
+
+      const output = {
+        request: { method: "POST", url: "/api/likes", body: payload },
+        response: { status: res.status, ok: res.ok, body: parsedBody },
+      };
+
+      setLikesResult(JSON.stringify(output, null, 2));
+      if (res.ok) fetchLikesSummary();
+    } catch (error) {
+      setLikesResult(
+        JSON.stringify(
+          {
+            request: { method: "POST", url: "/api/likes", body: payload },
+            error: error?.message || "Request failed",
+          },
+          null,
+          2,
+        ),
+      );
+    } finally {
+      setLikesBusy(false);
+    }
+  }
+
   // Tab content components
   const OverviewTab = () => (
     <>
@@ -1368,6 +1483,117 @@ document.getElementById("contact-form-${form.id}").addEventListener("submit", as
             ))}
           </div>
         )}
+      </div>
+    </>
+  );
+
+  const LikesTab = () => (
+    <>
+      <div className="dashboard-stats">
+        <div className="stat-card">
+          <div className="stat-label">Total Likes</div>
+          <div className="stat-value">
+            {likesBusy ? "..." : likesSummary.total_likes}
+          </div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-label">Liked Posts</div>
+          <div className="stat-value">
+            {likesBusy ? "..." : likesSummary.post_count}
+          </div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-label">Top Post Likes</div>
+          <div className="stat-value">
+            {likesBusy
+              ? "..."
+              : likesSummary.top_posts[0]?.likes || 0}
+          </div>
+        </div>
+      </div>
+
+      <div className="panel-card" style={{ marginBottom: "1.5rem" }}>
+        <div className="entries-header">
+          <h3 style={{ margin: 0 }}>Top Posts</h3>
+        </div>
+        {likesSummary.top_posts.length === 0 ? (
+          <p style={{ color: "var(--text-muted)", marginBottom: 0 }}>
+            No likes recorded yet.
+          </p>
+        ) : (
+          <div style={{ display: "grid", gap: "0.75rem", marginTop: "1rem" }}>
+            {likesSummary.top_posts.map((post) => (
+              <div
+                key={post.post_url}
+                className="entry-card"
+                style={{ marginBottom: 0 }}
+              >
+                <div className="entry-title-row" style={{ marginBottom: "0.5rem" }}>
+                  <div className="entry-name" style={{ fontSize: "0.95rem" }}>
+                    {post.post_url}
+                  </div>
+                </div>
+                <div className="entry-metrics">
+                  <IconHeart />
+                  <span>{post.likes || 0}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="panel-card" style={{ marginBottom: "1.5rem" }}>
+        <h3>Likes API</h3>
+        <p style={{ color: "var(--text-muted)" }}>
+          Single endpoint to add likes or fetch counts by post URL.
+        </p>
+        <textarea
+          className="code-textarea"
+          rows={12}
+          readOnly
+          value={likesApiDocs}
+        />
+      </div>
+
+      <div className="panel-card">
+        <h3>API Tester</h3>
+        <form onSubmit={runLikesRequest}>
+          <div className="form-group">
+            <label>Action</label>
+            <select
+              value={likesAction}
+              onChange={(e) => setLikesAction(e.target.value)}
+            >
+              <option value="get">Get Likes</option>
+              <option value="like">Add Like</option>
+              <option value="summary">Summary</option>
+            </select>
+          </div>
+          {(likesAction === "get" || likesAction === "like") && (
+            <div className="form-group">
+              <label>Post URL</label>
+              <input
+                type="url"
+                value={likesPostUrl}
+                onChange={(e) => setLikesPostUrl(e.target.value)}
+                placeholder="https://example.com/blog/my-post"
+                required
+              />
+            </div>
+          )}
+          <button type="submit" disabled={likesBusy}>
+            {likesBusy ? "Running..." : "Run"}
+          </button>
+        </form>
+
+        <textarea
+          className="code-textarea"
+          rows={12}
+          readOnly
+          value={likesResult || "Run a test to see output."}
+          style={{ marginTop: "1rem" }}
+        />
       </div>
     </>
   );
@@ -2487,6 +2713,8 @@ document.getElementById("contact-form-${form.id}").addEventListener("submit", as
         return <DataTab />;
       case "tester":
         return <TesterTab />;
+      case "likes":
+        return <LikesTab />;
       default:
         return <OverviewTab />;
     }
@@ -2547,6 +2775,21 @@ document.getElementById("contact-form-${form.id}").addEventListener("submit", as
             <div className="sidebar-group-label">Comments</div>
             <div className="sidebar-links">
               {COMMENT_TABS.map((tab) => (
+                <button
+                  key={tab.id}
+                  className={`sidebar-link${activeTab === tab.id ? " active" : ""}`}
+                  onClick={() => handleTabChange(tab.id)}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="sidebar-group">
+            <div className="sidebar-group-label">Likes</div>
+            <div className="sidebar-links">
+              {LIKES_TABS.map((tab) => (
                 <button
                   key={tab.id}
                   className={`sidebar-link${activeTab === tab.id ? " active" : ""}`}

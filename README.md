@@ -218,6 +218,26 @@ There’s a tiny helper script at `/guestbook-widget.js` you can use to populate
 </script>
 ```
 
+## Likes API (Blog Posts)
+
+Use a single endpoint to add or fetch likes for a post URL.
+
+```bash
+POST /api/likes
+```
+
+```json
+{ "action": "like", "owner_username": "OWNER", "post_url": "https://example.com/blog/my-post" }
+```
+
+```json
+{ "action": "get", "owner_username": "OWNER", "post_url": "https://example.com/blog/my-post" }
+```
+
+```json
+{ "action": "summary", "owner_username": "OWNER" }
+```
+
 ## Auth (no email)
 
 - `POST /api/signup` with `{ "username": "...", "password": "..." }`

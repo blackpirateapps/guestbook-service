@@ -44,6 +44,20 @@ export async function initRateLimitTable() {
   `);
 }
 
+// Initialize post_likes table
+export async function initLikesTables() {
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS post_likes (
+      owner_username TEXT NOT NULL,
+      post_url TEXT NOT NULL,
+      likes INTEGER DEFAULT 0,
+      created_at TEXT DEFAULT (datetime('now')),
+      updated_at TEXT DEFAULT (datetime('now')),
+      UNIQUE(owner_username, post_url)
+    )
+  `);
+}
+
 // Initialize comment_sections and comments tables
 export async function initCommentsTables() {
   await db.execute(`

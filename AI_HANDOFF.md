@@ -4,7 +4,7 @@ Welcome, Agent. This document provides a high-level overview of the Website Tool
 
 ## Overview
 
-Website Tools is a lightweight, customizable web application suite that provides essential tools for personal websites. It includes a Guestbook Service, a Contact Form Builder, and a Comments System.
+Website Tools is a lightweight, customizable web application suite that provides essential tools for personal websites. It includes a Guestbook Service, a Contact Form Builder, a Comments System, and a Likes API for blog posts.
 
 ## Technology Stack
 
@@ -78,6 +78,7 @@ The dashboard uses a **Sidebar Navigation** layout. Tools are grouped into logic
 - **Guestbook Area:** Overview, Embed, Settings, Data, API Tester.
 - **Contact Forms Area:** Forms, Submissions.
 - **Comments Area:** Sections, Moderation.
+- **Likes Area:** Likes.
 
 Navigation state is managed via `useSearchParams` (`?tab=...`).
 
@@ -126,6 +127,13 @@ APIs extract JWT from `Authorization` header for authenticated actions. Public a
 - `POST /api/comments` - Post a new comment (public)
 - `PUT /api/comments` - Like or approve a comment
 - `DELETE /api/comments` - Delete a comment (auth)
+
+**Likes Endpoints:**
+
+- `POST /api/likes` - Single endpoint for likes (public)
+  - `action: "like"` + `post_url` + `owner_username` → increment likes
+  - `action: "get"` + `post_url` + `owner_username` → fetch likes
+  - `action: "summary"` + `owner_username` → dashboard stats
 
 ### 5. Security & Moderation
 
