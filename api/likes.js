@@ -31,6 +31,15 @@ function normalizePostUrl(rawUrl) {
   return normalized;
 }
 
+function setCacheHeaders(res, action) {
+  if (action === 'get' || action === 'summary') {
+    res.setHeader('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=300');
+    return;
+  }
+
+  res.setHeader('Cache-Control', 'no-store');
+}
+
 async function applyRateLimit({ ip, ownerUsername, postUrl }) {
   const now = Date.now();
   const rateKey = `likes:${ip}:${ownerUsername}:${postUrl}`;
@@ -89,6 +98,8 @@ export default async function handler(req, res) {
 
   if (!action) return res.status(400).json({ error: 'Action required' });
   if (!ownerUsername) return res.status(400).json({ error: 'owner_username required' });
+
+  setCacheHeaders(res, action);
 
   if (action === 'summary') {
     try {
