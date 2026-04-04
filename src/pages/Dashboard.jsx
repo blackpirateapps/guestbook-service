@@ -529,6 +529,72 @@ Summary for dashboard:
 { "action": "summary", "owner_username": "${username}" }`
     : "";
 
+  const likesUsageFetch = likesApiBase
+    ? `// Like a post
+await fetch("${likesApiBase}", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    action: "like",
+    owner_username: "${username}",
+    post_url: "https://example.com/blog/my-post"
+  })
+});
+
+// Get likes for a post
+const res = await fetch("${likesApiBase}", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    action: "get",
+    owner_username: "${username}",
+    post_url: "https://example.com/blog/my-post"
+  })
+});
+const data = await res.json();
+
+// Summary for dashboard
+await fetch("${likesApiBase}", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    action: "summary",
+    owner_username: "${username}"
+  })
+});`
+    : "";
+
+  const likesUsageCurl = likesApiBase
+    ? `# Like a post
+curl -X POST "${likesApiBase}" \
+  -H "Content-Type: application/json" \
+  -d '{"action":"like","owner_username":"${username}","post_url":"https://example.com/blog/my-post"}'
+
+# Get likes for a post
+curl -X POST "${likesApiBase}" \
+  -H "Content-Type: application/json" \
+  -d '{"action":"get","owner_username":"${username}","post_url":"https://example.com/blog/my-post"}'
+
+# Summary for dashboard
+curl -X POST "${likesApiBase}" \
+  -H "Content-Type: application/json" \
+  -d '{"action":"summary","owner_username":"${username}"}'`
+    : "";
+
+  const likesResponseDocs = `Like / Get response:
+{ "success": true, "post_url": "https://example.com/blog/my-post/", "likes": 12 }
+
+Summary response:
+{
+  "success": true,
+  "owner_username": "${username}",
+  "total_likes": 120,
+  "post_count": 8,
+  "top_posts": [
+    { "post_url": "https://example.com/blog/my-post/", "likes": 42 }
+  ]
+}`;
+
   const headlessCssExample = `/* Example styling for the default GuestbookWidget markup */
 #guestbook-entries {
   max-width: 720px;
@@ -1554,6 +1620,76 @@ document.getElementById("contact-form-${form.id}").addEventListener("submit", as
           readOnly
           value={likesApiDocs}
         />
+        <div className="actions-row" style={{ marginTop: "0.75rem" }}>
+          <button
+            className="secondary"
+            onClick={() => copyText(likesApiDocs)}
+            disabled={!likesApiDocs}
+          >
+            <IconCopy /> Copy
+          </button>
+        </div>
+      </div>
+
+      <div className="panel-card" style={{ marginBottom: "1.5rem" }}>
+        <h3>How to Use</h3>
+        <p style={{ color: "var(--text-muted)" }}>
+          Use your post URL as the unique identifier. Summary and get are public.
+        </p>
+
+        <h4 style={{ marginTop: "1rem" }}>Fetch (Browser)</h4>
+        <textarea
+          className="code-textarea"
+          rows={14}
+          readOnly
+          value={likesUsageFetch}
+        />
+        <div className="actions-row">
+          <button
+            className="secondary"
+            onClick={() => copyText(likesUsageFetch)}
+            disabled={!likesUsageFetch}
+          >
+            <IconCopy /> Copy
+          </button>
+        </div>
+
+        <h4 style={{ marginTop: "1.5rem" }}>cURL</h4>
+        <textarea
+          className="code-textarea"
+          rows={12}
+          readOnly
+          value={likesUsageCurl}
+        />
+        <div className="actions-row">
+          <button
+            className="secondary"
+            onClick={() => copyText(likesUsageCurl)}
+            disabled={!likesUsageCurl}
+          >
+            <IconCopy /> Copy
+          </button>
+        </div>
+
+        <h4 style={{ marginTop: "1.5rem" }}>Response Format</h4>
+        <textarea
+          className="code-textarea"
+          rows={10}
+          readOnly
+          value={likesResponseDocs}
+        />
+        <div className="actions-row">
+          <button
+            className="secondary"
+            onClick={() => copyText(likesResponseDocs)}
+          >
+            <IconCopy /> Copy
+          </button>
+        </div>
+
+        <p style={{ color: "var(--text-muted)", marginTop: "1rem" }}>
+          Rate limit: 5 seconds between likes and 50 likes per hour per IP per post.
+        </p>
       </div>
 
       <div className="panel-card">
