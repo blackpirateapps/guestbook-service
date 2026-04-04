@@ -1,13 +1,5 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import {
-  IconCheck,
-  IconCopy,
-  IconExternalLink,
-  IconHeart,
-  IconReply,
-  IconTrash,
-} from "../components/Icons";
 
 const GUESTBOOK_TABS = [
   { id: "overview", label: "Overview" },
@@ -1475,7 +1467,7 @@ document.getElementById("contact-form-${form.id}").addEventListener("submit", as
                           rel="noreferrer"
                           title="Open sender website"
                         >
-                          <IconExternalLink />
+                          [↗]
                         </a>
                       )}
                       <span className="badge-group">
@@ -1486,7 +1478,7 @@ document.getElementById("contact-form-${form.id}").addEventListener("submit", as
                           <span className="badge private">Private</span>
                         )}
                         {entry.is_owner === 1 && (
-                          <span className="badge owner">Owner</span>
+                          <span className="badge owner">[OWNER]</span>
                         )}
                       </span>
                     </div>
@@ -1495,8 +1487,7 @@ document.getElementById("contact-form-${form.id}").addEventListener("submit", as
                     </div>
                   </div>
                   <div className="entry-metrics">
-                    <IconHeart />
-                    <span>{entry.likes || 0}</span>
+                    <span>&lt;3 {entry.likes || 0}</span>
                   </div>
                 </header>
 
@@ -1505,23 +1496,20 @@ document.getElementById("contact-form-${form.id}").addEventListener("submit", as
                 <div className="entry-actions">
                   {entry.status === "pending" && (
                     <button onClick={() => approveEntry(entry.id)}>
-                      <IconCheck />
-                      <span>Approve</span>
+                      <span>[ok] Approve</span>
                     </button>
                   )}
                   <button
                     className="secondary"
                     onClick={() => setReplyingTo(entry.id)}
                   >
-                    <IconReply />
-                    <span>Reply</span>
+                    <span>[&lt;-] Reply</span>
                   </button>
                   <button
                     className="danger"
                     onClick={() => deleteEntry(entry.id)}
                   >
-                    <IconTrash />
-                    <span>Delete</span>
+                    <span>[x] Delete</span>
                   </button>
                 </div>
 
@@ -1600,8 +1588,7 @@ document.getElementById("contact-form-${form.id}").addEventListener("submit", as
                   </div>
                 </div>
                 <div className="entry-metrics">
-                  <IconHeart />
-                  <span>{post.likes || 0}</span>
+                  <span>&lt;3 {post.likes || 0}</span>
                 </div>
               </div>
             ))}
@@ -1626,7 +1613,7 @@ document.getElementById("contact-form-${form.id}").addEventListener("submit", as
             onClick={() => copyText(likesApiDocs)}
             disabled={!likesApiDocs}
           >
-            <IconCopy /> Copy
+            [copy] Copy
           </button>
         </div>
       </div>
@@ -1650,7 +1637,7 @@ document.getElementById("contact-form-${form.id}").addEventListener("submit", as
             onClick={() => copyText(likesUsageFetch)}
             disabled={!likesUsageFetch}
           >
-            <IconCopy /> Copy
+            [copy] Copy
           </button>
         </div>
 
@@ -1667,7 +1654,7 @@ document.getElementById("contact-form-${form.id}").addEventListener("submit", as
             onClick={() => copyText(likesUsageCurl)}
             disabled={!likesUsageCurl}
           >
-            <IconCopy /> Copy
+            [copy] Copy
           </button>
         </div>
 
@@ -1683,7 +1670,7 @@ document.getElementById("contact-form-${form.id}").addEventListener("submit", as
             className="secondary"
             onClick={() => copyText(likesResponseDocs)}
           >
-            <IconCopy /> Copy
+            [copy] Copy
           </button>
         </div>
 
@@ -1815,14 +1802,14 @@ document.getElementById("contact-form-${form.id}").addEventListener("submit", as
                     >
                       ↓
                     </button>
-                    <button
-                      className="danger"
-                      onClick={() => removeField(index)}
-                      style={{ padding: "0.25rem 0.5rem" }}
-                      title="Remove field"
-                    >
-                      <IconTrash />
-                    </button>
+                      <button
+                        className="danger"
+                        onClick={() => removeField(index)}
+                        style={{ padding: "0.25rem 0.5rem" }}
+                        title="Remove field"
+                      >
+                        [x] Remove
+                      </button>
                   </div>
                 </div>
                 {(field.type === "select" || field.type === "radio") && (
@@ -1931,7 +1918,7 @@ document.getElementById("contact-form-${form.id}").addEventListener("submit", as
                         Edit
                       </button>
                       <button className="danger" onClick={() => deleteForm(form.id)} style={{ padding: "0.375rem 0.75rem", fontSize: "0.8125rem" }}>
-                        <IconTrash />
+                        [x] Delete
                       </button>
                     </div>
                   </div>
@@ -1976,7 +1963,7 @@ document.getElementById("contact-form-${form.id}").addEventListener("submit", as
                         onClick={() => copyText(getFormEndpoint(selectedFormId))}
                         style={{ whiteSpace: "nowrap" }}
                       >
-                        <IconCopy /> Copy
+                        [copy] Copy
                       </button>
                     </div>
                     <p style={{ color: "var(--text-muted)", fontSize: "0.8125rem", marginTop: "0.5rem", marginBottom: 0 }}>
@@ -1998,7 +1985,7 @@ document.getElementById("contact-form-${form.id}").addEventListener("submit", as
                         copyText(generateHtmlSnippet(forms.find((f) => f.id === selectedFormId)))
                       }
                     >
-                      <IconCopy /> Copy HTML
+                      [copy] Copy HTML
                     </button>
                   </div>
                 </>
@@ -2155,7 +2142,7 @@ document.getElementById("contact-form-${form.id}").addEventListener("submit", as
                       </div>
                       <div className="form-item-actions">
                         <button className="secondary" onClick={() => startEditSection(s)}>Edit</button>
-                        <button className="danger" onClick={() => deleteSection(s.id)}><IconTrash /></button>
+                        <button className="danger" onClick={() => deleteSection(s.id)}>[x]</button>
                       </div>
                     </div>
                   ))}
@@ -2185,7 +2172,7 @@ document.getElementById("contact-form-${form.id}").addEventListener("submit", as
                     />
                     <div className="actions-row" style={{ marginBottom: "1.5rem" }}>
                       <button className="secondary" onClick={() => copyText(generateCommentSnippet(commentSections.find(s => s.id === selectedSectionId)))}>
-                        <IconCopy /> Copy Snippet
+                        [copy] Copy Snippet
                       </button>
                     </div>
 
@@ -2199,7 +2186,7 @@ document.getElementById("contact-form-${form.id}").addEventListener("submit", as
                     />
                     <div className="actions-row">
                       <button className="secondary" onClick={() => copyText(generateCommentHtmlSnippet(commentSections.find(s => s.id === selectedSectionId)))}>
-                        <IconCopy /> Copy HTML Snippet
+                        [copy] Copy HTML Snippet
                       </button>
                     </div>
                   </>
@@ -2244,13 +2231,13 @@ document.getElementById("contact-form-${form.id}").addEventListener("submit", as
                           {comment.sender_name || "Anonymous"}
                           <span className="badge-group">
                             {comment.status === "pending" && <span className="badge pending">Pending</span>}
-                            {comment.is_owner === 1 && <span className="badge owner">Owner</span>}
+                            {comment.is_owner === 1 && <span className="badge owner">[OWNER]</span>}
                           </span>
                         </div>
                         <div className="entry-date">{new Date(comment.created_at).toLocaleString()}</div>
                       </div>
                       <div className="entry-metrics">
-                        <IconHeart /> <span>{comment.likes || 0}</span>
+                        <span>&lt;3 {comment.likes || 0}</span>
                       </div>
                     </header>
                     {comment.page_url && (
@@ -2261,10 +2248,10 @@ document.getElementById("contact-form-${form.id}").addEventListener("submit", as
                     <div className="entry-content">{comment.comment_text}</div>
                     <div className="entry-actions">
                       {comment.status === "pending" && (
-                        <button onClick={() => approveComment(comment.id)}><IconCheck /> Approve</button>
+                        <button onClick={() => approveComment(comment.id)}>[ok] Approve</button>
                       )}
-                      <button className="secondary" onClick={() => setReplyingToComment(comment.id)}><IconReply /> Reply</button>
-                      <button className="danger" onClick={() => deleteComment(comment.id)}><IconTrash /> Delete</button>
+                      <button className="secondary" onClick={() => setReplyingToComment(comment.id)}>[&lt;-] Reply</button>
+                      <button className="danger" onClick={() => deleteComment(comment.id)}>[x] Delete</button>
                     </div>
 
                     {replyingToComment === comment.id && (
@@ -2383,7 +2370,7 @@ document.getElementById("contact-form-${form.id}").addEventListener("submit", as
                         </table>
                         <div className="submission-actions">
                           <button className="danger" onClick={() => deleteSubmission(sub.id)}>
-                            <IconTrash /> Delete
+                            [x] Delete
                           </button>
                         </div>
                       </div>
@@ -2436,14 +2423,12 @@ document.getElementById("contact-form-${form.id}").addEventListener("submit", as
             onClick={() => copyText(embedSnippet)}
             disabled={!embedSnippet}
           >
-            <IconCopy />
-            <span>Copy embed code</span>
+            <span>[copy] Copy embed code</span>
           </button>
           {embedSrc && (
             <a href={embedSrc} target="_blank" rel="noreferrer">
               <button className="secondary" type="button">
-                <IconExternalLink />
-                <span>Preview embed</span>
+                <span>[↗] Preview embed</span>
               </button>
             </a>
           )}
@@ -2467,7 +2452,7 @@ document.getElementById("contact-form-${form.id}").addEventListener("submit", as
             className="secondary"
             onClick={() => copyText(headlessSubmitSnippet)}
           >
-            <IconCopy /> Copy
+            [copy] Copy
           </button>
         </div>
 
@@ -2483,7 +2468,7 @@ document.getElementById("contact-form-${form.id}").addEventListener("submit", as
             className="secondary"
             onClick={() => copyText(headlessReplySnippet)}
           >
-            <IconCopy /> Copy
+            [copy] Copy
           </button>
         </div>
 
@@ -2499,7 +2484,7 @@ document.getElementById("contact-form-${form.id}").addEventListener("submit", as
             className="secondary"
             onClick={() => copyText(headlessLikeSnippet)}
           >
-            <IconCopy /> Copy
+            [copy] Copy
           </button>
         </div>
 
@@ -2515,7 +2500,7 @@ document.getElementById("contact-form-${form.id}").addEventListener("submit", as
             className="secondary"
             onClick={() => copyText(headlessWidgetSnippet)}
           >
-            <IconCopy /> Copy
+            [copy] Copy
           </button>
         </div>
 
@@ -2531,7 +2516,7 @@ document.getElementById("contact-form-${form.id}").addEventListener("submit", as
             className="secondary"
             onClick={() => copyText(headlessCssExample)}
           >
-            <IconCopy /> Copy
+            [copy] Copy
           </button>
         </div>
 
@@ -2547,7 +2532,7 @@ document.getElementById("contact-form-${form.id}").addEventListener("submit", as
             className="secondary"
             onClick={() => copyText(headlessApiDocs)}
           >
-            <IconCopy /> Copy
+            [copy] Copy
           </button>
         </div>
       </div>
@@ -2871,7 +2856,7 @@ document.getElementById("contact-form-${form.id}").addEventListener("submit", as
               rel="noreferrer"
               style={{ color: "var(--text-muted)", display: "flex", alignItems: "center", gap: "0.25rem" }}
             >
-              /u/{username} <IconExternalLink style={{ width: "10px" }} />
+              /u/{username} [↗]
             </a>
           </div>
         </div>

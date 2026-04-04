@@ -41,7 +41,11 @@ Website Tools is a lightweight, customizable web application suite that provides
 
 ## Design System (`src/index.css`)
 
-The CSS uses a token-based approach with CSS custom properties:
+The CSS uses a token-based approach with CSS custom properties. The dashboard UI follows a strict Suckless/brutalist style:
+- System-default monospace typography only, headings are normal weight, line-height 1.4.
+- Pure black background with light gray text and pure white headings.
+- No border radius, no shadows, and no external icon/SVG usage (ASCII markers like `[↗]`, `<3`, `[<-]`, `[x]`).
+- Terminal-style hover inversion (light background, black text) and danger colors for destructive actions.
 
 **Color Tokens:**
 
@@ -52,8 +56,8 @@ The CSS uses a token-based approach with CSS custom properties:
 
 **Spacing/Shape Tokens:**
 
-- `--radius-sm` (4px), `--radius-md` (8px), `--radius-lg` (12px)
-- `--shadow-sm`, `--shadow-md`, `--shadow-lg` - Elevation shadows
+- `--radius-sm`, `--radius-md`, `--radius-lg` are set to `0` (sharp edges only)
+- `--shadow-sm`, `--shadow-md`, `--shadow-lg` are `none`
 
 **Component Classes:**
 
