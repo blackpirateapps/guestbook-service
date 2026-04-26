@@ -17,6 +17,8 @@ import {
   LogOut,
   ChevronRight,
   FormInput,
+  Menu,
+  X,
 } from "lucide-react";
 
 // ── Tab → Group mapping ────────────────────────────────────────
@@ -89,6 +91,9 @@ export default function Sidebar({ activeTab, onTabChange, username, onLogout }) 
 
   // Track which groups are open
   const [openGroups, setOpenGroups] = useState(() => new Set([activeGroup]));
+  
+  // Mobile menu toggle
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   // Sync: when activeTab changes externally (e.g., URL nav), ensure the group is visible
   useEffect(() => {
@@ -110,6 +115,9 @@ export default function Sidebar({ activeTab, onTabChange, username, onLogout }) 
       // Open and navigate to default sub-tab
       setOpenGroups((prev) => new Set([...prev, group.id]));
       onTabChange(group.defaultTab);
+      if (window.innerWidth <= 768 && !group.items) {
+        setIsMobileMenuOpen(false);
+      }
     } else {
       // Close (don't navigate)
       setOpenGroups((prev) => {
@@ -121,17 +129,26 @@ export default function Sidebar({ activeTab, onTabChange, username, onLogout }) 
   }
 
   return (
-    <aside className="dashboard-sidebar">
+    <aside className={`dashboard-sidebar${isMobileMenuOpen ? " mobile-open" : ""}`}>
       {/* Header */}
       <div className="sidebar-header">
-        <Link to="/" className="sidebar-brand">
-          Website<span style={{ color: "var(--color-accent)" }}>Tools</span>
-        </Link>
-        <div className="sidebar-username">
-          <a href={`/u/${username}`} target="_blank" rel="noreferrer">
-            /u/{username} ↗
-          </a>
+        <div className="sidebar-header-left">
+          <Link to="/" className="sidebar-brand">
+            Website<span style={{ color: "var(--color-accent)" }}>Tools</span>
+          </Link>
+          <div className="sidebar-username">
+            <a href={`/u/${username}`} target="_blank" rel="noreferrer">
+              /u/{username} ↗
+            </a>
+          </div>
         </div>
+        <button
+          className="sidebar-mobile-toggle"
+          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+          aria-label={isMobileMenuOpen ? "Close menu" : "Open menu"}
+        >
+          {isMobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
+        </button>
       </div>
 
       {/* Navigation */}
@@ -168,7 +185,12 @@ export default function Sidebar({ activeTab, onTabChange, username, onLogout }) 
                       <button
                         key={item.id}
                         className={`sidebar-link${activeTab === item.id ? " active" : ""}`}
-                        onClick={() => onTabChange(item.id)}
+                        onClick={() => {
+                          onTabChange(item.id);
+                          if (window.innerWidth <= 768) {
+                            setIsMobileMenuOpen(false);
+                          }
+                        }}
                         aria-current={activeTab === item.id ? "page" : undefined}
                       >
                         <ItemIcon size={13} style={{ flexShrink: 0 }} />

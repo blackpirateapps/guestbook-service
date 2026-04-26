@@ -471,6 +471,8 @@ input[type="checkbox"] {
   line-height: 1.6;
   color: var(--color-text);
   white-space: pre-wrap;
+  word-break: break-word;
+  overflow-wrap: break-word;
 }
 .entry-actions {
   display: flex;
@@ -696,7 +698,23 @@ input[type="checkbox"] {
   margin-top: 4px;
 }
 
-/* ── Responsive: Mobile sidebar ─────────────────────────────── */
+.sidebar-mobile-toggle {
+  display: none;
+  background: none;
+  border: none;
+  color: var(--color-text);
+  cursor: pointer;
+  padding: 6px;
+  border-radius: var(--radius-xs);
+}
+.sidebar-mobile-toggle:hover {
+  background: var(--color-bg-alt);
+}
+.sidebar-header-left {
+  display: flex;
+  flex-direction: column;
+}
+
 @media (max-width: 768px) {
   .dashboard-container { flex-direction: column; }
   .dashboard-sidebar {
@@ -706,12 +724,34 @@ input[type="checkbox"] {
     border-right: none;
     border-bottom: var(--border-whisper);
   }
-  .sidebar-nav { display: flex; flex-wrap: wrap; gap: var(--space-1); padding: var(--space-2); }
-  .sidebar-group { margin-bottom: var(--space-1); }
-  .sidebar-group-label { display: none; }
-  .sidebar-links { flex-direction: row; flex-wrap: wrap; }
-  .sidebar-link { padding: 6px 12px; font-size: 0.8125rem; }
-  .sidebar-link.active { border-left: none; border-bottom: 3px solid var(--color-accent); padding-left: 12px; }
+  .sidebar-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .sidebar-mobile-toggle {
+    display: block;
+  }
+  .sidebar-nav, .sidebar-footer {
+    display: none;
+  }
+  .dashboard-sidebar.mobile-open .sidebar-nav,
+  .dashboard-sidebar.mobile-open .sidebar-footer {
+    display: block;
+  }
+  .dashboard-sidebar.mobile-open .sidebar-link {
+    text-align: left;
+    flex-direction: row;
+    justify-content: flex-start;
+  }
+  .dashboard-sidebar.mobile-open .sidebar-sub-links {
+    margin-right: 0;
+    margin-left: 18px;
+    border-right: none;
+    border-left: 2px solid var(--border-color);
+    padding-right: 0;
+    padding-left: 12px;
+  }
 }
 
 /* ── Entries header ─────────────────────────────────────────── */
@@ -1103,10 +1143,7 @@ input[type="checkbox"] {
     border-bottom: var(--border-whisper);
   }
   .auth-right { width: 100%; padding: var(--space-6) var(--space-4); }
-  .auth-features-grid { grid-template-columns: 1fr 1fr; }
-}
-@media (max-width: 500px) {
-  .auth-left { display: none; }
+  .auth-features-grid { grid-template-columns: 1fr; }
 }
 
 /* ── Public Guestbook ───────────────────────────────────────── */
