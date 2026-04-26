@@ -107,8 +107,6 @@ export default function CommentsTab({
     );
   }
 
-  const selectedSection = commentSections.find((s) => s.id === selectedSectionId);
-
   return (
     <>
       {/* Section List */}
