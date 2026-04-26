@@ -1,7 +1,45 @@
 import { useState } from "react";
+import {
+  BarChart, Bar, XAxis, YAxis, Tooltip,
+  ResponsiveContainer, CartesianGrid,
+} from "recharts";
+
+function useDarkMode() {
+  return window.matchMedia("(prefers-color-scheme: dark)").matches;
+}
+
+function chartColors(dark) {
+  return {
+    bar:     dark ? "#4da3ff" : "#0075de",
+    barLike: dark ? "#f59242" : "#dd5b00",
+    grid:    dark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.06)",
+    text:    dark ? "#a09b96" : "#615d59",
+    tooltip: dark ? "#2a2826" : "#ffffff",
+  };
+}
+
+function groupByDay(entries, days = 14) {
+  const buckets = {};
+  const now = Date.now();
+  for (let i = days - 1; i >= 0; i--) {
+    const d = new Date(now - i * 86400000);
+    const key = d.toLocaleDateString("default", { month: "short", day: "numeric" });
+    buckets[key] = { date: key, entries: 0, likes: 0 };
+  }
+  entries.forEach((e) => {
+    const d = new Date(e.created_at);
+    if (now - d.getTime() > days * 86400000) return;
+    const key = d.toLocaleDateString("default", { month: "short", day: "numeric" });
+    if (buckets[key]) {
+      buckets[key].entries += 1;
+      buckets[key].likes   += e.likes || 0;
+    }
+  });
+  return Object.values(buckets);
+}
 
 /**
- * Identicon — colored circle with initials, purely CSS-rendered.
+ * Identicon — colored circle avatar from initials
  */
 function Identicon({ name = "?" }) {
   const letters = name.trim().split(/\s+/).map((w) => w[0]?.toUpperCase() || "").join("").slice(0, 2) || "?";
@@ -32,6 +70,10 @@ export default function OverviewTab({
   deleteEntry,
   sendReply,
 }) {
+  const dark    = useDarkMode();
+  const colors  = chartColors(dark);
+  const chartData = groupByDay(entries);
+
   return (
     <>
       {/* Stats */}
@@ -50,7 +92,41 @@ export default function OverviewTab({
         ))}
       </div>
 
-      {/* Entries Panel */}
+      {/* Activity chart */}
+      <div className="panel-card" style={{ marginBottom: "var(--space-4)" }}>
+        <h3 style={{ marginBottom: "1.25rem" }}>Activity — last 14 days</h3>
+        <ResponsiveContainer width="100%" height={180}>
+          <BarChart data={chartData} margin={{ top: 0, right: 8, bottom: 0, left: 0 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke={colors.grid} />
+            <XAxis
+              dataKey="date"
+              tick={{ fontSize: 10, fill: colors.text }}
+              axisLine={false}
+              tickLine={false}
+              interval={2}
+            />
+            <YAxis
+              tick={{ fontSize: 11, fill: colors.text }}
+              axisLine={false}
+              tickLine={false}
+              allowDecimals={false}
+            />
+            <Tooltip
+              contentStyle={{
+                background: colors.tooltip,
+                border: "1px solid var(--border-color)",
+                borderRadius: "8px",
+                fontSize: "0.8125rem",
+                fontFamily: "var(--font-sans)",
+              }}
+            />
+            <Bar dataKey="entries" name="Entries" fill={colors.bar}    radius={[3, 3, 0, 0]} maxBarSize={32} />
+            <Bar dataKey="likes"   name="Likes"   fill={colors.barLike} radius={[3, 3, 0, 0]} maxBarSize={32} />
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+
+      {/* Entries panel */}
       <div className="panel-card">
         <div className="entries-header">
           <h3>Recent Entries</h3>
@@ -133,9 +209,7 @@ function EntryCard({
 
       <div className="entry-actions">
         {entry.status === "pending" && (
-          <button onClick={() => approveEntry(entry.id)}>
-            ✓ Approve
-          </button>
+          <button onClick={() => approveEntry(entry.id)}>✓ Approve</button>
         )}
         <button className="secondary" onClick={() => setReplyingTo(entry.id)}>
           ↩ Reply
@@ -151,13 +225,11 @@ function EntryCard({
             rows={2}
             value={replyMsg}
             onChange={(e) => setReplyMsg(e.target.value)}
-            placeholder="Write a reply as the owner..."
+            placeholder="Write a reply as the owner…"
           />
           <div className="actions-row">
             <button onClick={() => sendReply(entry.id)}>Send</button>
-            <button className="secondary" onClick={() => setReplyingTo(null)}>
-              Cancel
-            </button>
+            <button className="secondary" onClick={() => setReplyingTo(null)}>Cancel</button>
           </div>
         </div>
       )}

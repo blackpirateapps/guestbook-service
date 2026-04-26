@@ -583,10 +583,54 @@ input[type="checkbox"] {
   gap: 2px;
 }
 
+/* Parent nav group button */
+.sidebar-group-btn {
+  width: 100%;
+  text-align: left;
+  padding: 8px var(--space-2);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--color-text);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-xs);
+  cursor: pointer;
+  transition: background 0.12s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.sidebar-group-btn:hover {
+  background: var(--color-bg-alt);
+  transform: none;
+}
+.sidebar-group-btn.active-group {
+  color: var(--color-accent);
+}
+.sidebar-group-btn-chevron {
+  margin-left: auto;
+  transition: transform 0.18s ease;
+  flex-shrink: 0;
+  opacity: 0.5;
+}
+.sidebar-group-btn-chevron.open { transform: rotate(90deg); }
+
+/* Sub-items — indented to the right */
+.sidebar-sub-links {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding-left: 12px;
+  margin-top: 2px;
+  border-left: 2px solid var(--border-color);
+  margin-left: 18px;
+  margin-bottom: 4px;
+}
+
 .sidebar-link {
   width: 100%;
   text-align: left;
-  padding: 7px var(--space-2);
+  padding: 6px 10px;
   font-size: 0.875rem;
   font-weight: 500;
   color: var(--color-text-secondary);
@@ -597,7 +641,7 @@ input[type="checkbox"] {
   transition: background 0.12s ease, color 0.12s ease;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 7px;
 }
 .sidebar-link:hover {
   background: var(--color-bg-alt);
@@ -608,9 +652,6 @@ input[type="checkbox"] {
   background: var(--color-badge-bg);
   color: var(--color-accent);
   font-weight: 600;
-  border-color: transparent;
-  border-left: 3px solid var(--color-accent);
-  padding-left: calc(var(--space-2) - 2px);
 }
 .sidebar-link.active:hover { background: var(--color-badge-bg); }
 
@@ -619,9 +660,7 @@ input[type="checkbox"] {
   border-top: var(--border-whisper);
 }
 
-.sidebar-link.danger {
-  color: var(--color-danger);
-}
+.sidebar-link.danger { color: var(--color-danger); }
 .sidebar-link.danger:hover {
   background: var(--color-danger-bg);
   color: var(--color-danger);
@@ -1121,3 +1160,98 @@ input[type="checkbox"] {
 }
 .reply-box textarea { margin-bottom: var(--space-2); min-height: 72px; }
 .reply-box .actions-row { margin-top: 0; }
+
+/* ── Recharts overrides ─────────────────────────────────────── */
+.recharts-tooltip-wrapper .recharts-default-tooltip {
+  background: var(--color-bg) !important;
+  border: var(--border-whisper) !important;
+  border-radius: var(--radius-sm) !important;
+  box-shadow: var(--shadow-card) !important;
+  font-family: var(--font-sans) !important;
+  font-size: 0.8125rem !important;
+}
+.recharts-tooltip-item { color: var(--color-text) !important; }
+
+/* ── Dark Mode ──────────────────────────────────────────────── */
+@media (prefers-color-scheme: dark) {
+  :root {
+    /* Backgrounds — warm dark, not cold black */
+    --color-bg:            #19181a;
+    --color-bg-alt:        #211f1e;
+    --color-bg-input:      #2a2826;
+
+    /* Text */
+    --color-text:          rgba(255,255,255,0.92);
+    --color-text-secondary:#a09b96;
+    --color-text-muted:    #6e6a66;
+
+    /* Accent stays the same — blue works on dark */
+    --color-accent:        #4da3ff;
+    --color-accent-hover:  #74b8ff;
+    --color-accent-focus:  #5baeff;
+
+    /* Badge */
+    --color-badge-bg:      #1a2b42;
+    --color-badge-text:    #5baeff;
+
+    /* Semantic */
+    --color-success:       #22c557;
+    --color-warning:       #f59242;
+    --color-danger:        #f87171;
+    --color-danger-bg:     #2d1515;
+    --color-danger-border: #7f2828;
+
+    --color-pending-bg:    #2b2010;
+    --color-pending-text:  #f59242;
+    --color-private-bg:    #1e1836;
+    --color-private-text:  #a78bfa;
+
+    /* Borders */
+    --border-whisper:      1px solid rgba(255,255,255,0.08);
+    --border-input:        1px solid rgba(255,255,255,0.14);
+    --border-color:        rgba(255,255,255,0.08);
+
+    /* Shadows — adapted for dark */
+    --shadow-card:
+      rgba(0,0,0,0.4) 0px 4px 18px,
+      rgba(0,0,0,0.3) 0px 2px 7px,
+      rgba(0,0,0,0.15) 0px 0.8px 3px;
+    --shadow-card-hover:
+      rgba(0,0,0,0.55) 0px 6px 24px,
+      rgba(0,0,0,0.35) 0px 2.5px 10px,
+      rgba(0,0,0,0.2) 0px 1px 4px;
+    --shadow-deep:
+      rgba(0,0,0,0.3) 0px 1px 3px,
+      rgba(0,0,0,0.4) 0px 7px 15px,
+      rgba(0,0,0,0.5) 0px 23px 52px;
+  }
+
+  /* Code areas */
+  .code-textarea {
+    background: #111010;
+    color: rgba(255,255,255,0.85);
+  }
+
+  /* Charts background in dark */
+  .recharts-tooltip-wrapper .recharts-default-tooltip {
+    background: #2a2826 !important;
+  }
+
+  /* Auth page left pane */
+  .auth-feature-card {
+    background: #2a2826;
+  }
+
+  /* Badge pills */
+  .badge.owner   { background: #1a2b42; border-color: #2d4d73; }
+  .badge.pending { background: #2b2010; border-color: #7a4a1e; }
+  .badge.private { background: #1e1836; border-color: #4c3580; }
+
+  /* Tester / field-editor cards */
+  .tester-card, .field-editor, .form-preview {
+    background: var(--color-bg-alt);
+  }
+
+  /* Sidebar brand — keep readable */
+  .sidebar-brand { color: rgba(255,255,255,0.92); }
+}

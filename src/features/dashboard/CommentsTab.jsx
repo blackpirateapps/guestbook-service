@@ -1,8 +1,3 @@
-import CodeBlock from "../../components/CodeBlock.jsx";
-import {
-  generateCommentWidgetSnippet,
-  generateCommentHtmlSnippet,
-} from "./snippets.js";
 
 const DEFAULT_SETTINGS = {
   fields: {
@@ -16,13 +11,11 @@ const DEFAULT_SETTINGS = {
 };
 
 export default function CommentsTab({
-  origin,
   commentSections,
   commentsBusy,
   editingSection,   setEditingSection,
   sectionName,      setSectionName,
   sectionSettings,  setSectionSettings,
-  selectedSectionId, setSelectedSectionId,
   startNewSection,
   startEditSection,
   saveSection,
@@ -144,42 +137,6 @@ export default function CommentsTab({
           </div>
         )}
       </div>
-
-      {/* Integration */}
-      {commentSections.length > 0 && (
-        <div className="panel-card">
-          <h3>Integration</h3>
-          <div className="form-group">
-            <label htmlFor="select-section">Select Section</label>
-            <select
-              id="select-section"
-              value={selectedSectionId}
-              onChange={(e) => setSelectedSectionId(e.target.value)}
-            >
-              <option value="">Choose a section...</option>
-              {commentSections.map((s) => (
-                <option key={s.id} value={s.id}>{s.name}</option>
-              ))}
-            </select>
-          </div>
-
-          {selectedSection && (
-            <>
-              <h4 style={{ marginTop: "1.25rem" }}>Embed Snippet</h4>
-              <CodeBlock
-                code={generateCommentWidgetSnippet(origin, selectedSection)}
-                rows={8}
-              />
-
-              <h4 style={{ marginTop: "1.5rem" }}>Headless API (Custom Form)</h4>
-              <CodeBlock
-                code={generateCommentHtmlSnippet(origin, selectedSection)}
-                rows={15}
-              />
-            </>
-          )}
-        </div>
-      )}
     </>
   );
 }

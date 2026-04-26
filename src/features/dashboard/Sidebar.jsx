@@ -1,39 +1,125 @@
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
+import {
+  BookOpen,
+  Mail,
+  MessageSquare,
+  Heart,
+  LayoutDashboard,
+  Code2,
+  Settings,
+  Database,
+  Terminal,
+  Layers,
+  Shield,
+  Inbox,
+  Plug,
+  LogOut,
+  ChevronRight,
+  FormInput,
+} from "lucide-react";
+
+// ── Tab → Group mapping ────────────────────────────────────────
+const TAB_GROUP_MAP = {
+  overview:             "guestbook",
+  embed:                "guestbook",
+  settings:             "guestbook",
+  data:                 "guestbook",
+  tester:               "guestbook",
+  "forms-overview":     "contact-forms",
+  forms:                "contact-forms",
+  "forms-integration":  "contact-forms",
+  submissions:          "contact-forms",
+  "comments-overview":  "comments",
+  "comment-sections":   "comments",
+  "comments-integration": "comments",
+  "comment-moderation": "comments",
+  likes:                "likes",
+};
 
 const NAV_GROUPS = [
   {
+    id: "guestbook",
     label: "Guestbook",
+    Icon: BookOpen,
+    defaultTab: "overview",
     items: [
-      { id: "overview", label: "Overview",   icon: "◈" },
-      { id: "embed",    label: "Embed",      icon: "⊙" },
-      { id: "settings", label: "Settings",   icon: "⚙" },
-      { id: "data",     label: "Data",       icon: "⬡" },
-      { id: "tester",   label: "API Tester", icon: "⌥" },
+      { id: "overview",  label: "Overview",   Icon: LayoutDashboard },
+      { id: "embed",     label: "Embed",      Icon: Code2 },
+      { id: "settings",  label: "Settings",   Icon: Settings },
+      { id: "data",      label: "Data",       Icon: Database },
+      { id: "tester",    label: "API Tester", Icon: Terminal },
     ],
   },
   {
+    id: "contact-forms",
     label: "Contact Forms",
+    Icon: Mail,
+    defaultTab: "forms-overview",
     items: [
-      { id: "forms",       label: "Forms",       icon: "☰" },
-      { id: "submissions", label: "Submissions",  icon: "✉" },
+      { id: "forms-overview",    label: "Overview",     Icon: LayoutDashboard },
+      { id: "forms",             label: "Form Builder", Icon: FormInput },
+      { id: "forms-integration", label: "Integration",  Icon: Plug },
+      { id: "submissions",       label: "Submissions",  Icon: Inbox },
     ],
   },
   {
+    id: "comments",
     label: "Comments",
+    Icon: MessageSquare,
+    defaultTab: "comments-overview",
     items: [
-      { id: "comment-sections",   label: "Sections",   icon: "≡" },
-      { id: "comment-moderation", label: "Moderation", icon: "⊿" },
+      { id: "comments-overview",    label: "Overview",   Icon: LayoutDashboard },
+      { id: "comment-sections",     label: "Sections",   Icon: Layers },
+      { id: "comments-integration", label: "Integration", Icon: Plug },
+      { id: "comment-moderation",   label: "Moderation", Icon: Shield },
     ],
   },
   {
+    id: "likes",
     label: "Likes",
-    items: [
-      { id: "likes", label: "Likes", icon: "♥" },
-    ],
+    Icon: Heart,
+    defaultTab: "likes",
+    items: null, // direct nav, no sub-items
   },
 ];
 
 export default function Sidebar({ activeTab, onTabChange, username, onLogout }) {
+  const activeGroup = TAB_GROUP_MAP[activeTab] || "guestbook";
+
+  // Track which groups are open
+  const [openGroups, setOpenGroups] = useState(() => new Set([activeGroup]));
+
+  // Sync: when activeTab changes externally (e.g., URL nav), ensure the group is visible
+  useEffect(() => {
+    const g = TAB_GROUP_MAP[activeTab] || "guestbook";
+    setOpenGroups((prev) => {
+      if (prev.has(g)) return prev;
+      return new Set([...prev, g]);
+    });
+  }, [activeTab]);
+
+  function handleGroupClick(group) {
+    if (!group.items) {
+      // Direct nav (e.g., Likes)
+      onTabChange(group.defaultTab);
+      return;
+    }
+    const isOpen = openGroups.has(group.id);
+    if (!isOpen) {
+      // Open and navigate to default sub-tab
+      setOpenGroups((prev) => new Set([...prev, group.id]));
+      onTabChange(group.defaultTab);
+    } else {
+      // Close (don't navigate)
+      setOpenGroups((prev) => {
+        const next = new Set(prev);
+        next.delete(group.id);
+        return next;
+      });
+    }
+  }
+
   return (
     <aside className="dashboard-sidebar">
       {/* Header */}
@@ -50,32 +136,58 @@ export default function Sidebar({ activeTab, onTabChange, username, onLogout }) 
 
       {/* Navigation */}
       <nav className="sidebar-nav" aria-label="Dashboard navigation">
-        {NAV_GROUPS.map((group) => (
-          <div key={group.label} className="sidebar-group">
-            <div className="sidebar-group-label">{group.label}</div>
-            <div className="sidebar-links">
-              {group.items.map((item) => (
-                <button
-                  key={item.id}
-                  className={`sidebar-link${activeTab === item.id ? " active" : ""}`}
-                  onClick={() => onTabChange(item.id)}
-                  aria-current={activeTab === item.id ? "page" : undefined}
-                >
-                  <span aria-hidden="true" style={{ fontSize: "0.875rem", flexShrink: 0 }}>
-                    {item.icon}
-                  </span>
-                  {item.label}
-                </button>
-              ))}
+        {NAV_GROUPS.map((group) => {
+          const isOpen       = openGroups.has(group.id);
+          const isGroupActive = activeGroup === group.id;
+          const { Icon }     = group;
+
+          return (
+            <div key={group.id} className="sidebar-group">
+              {/* Parent button */}
+              <button
+                className={`sidebar-group-btn${isGroupActive ? " active-group" : ""}`}
+                onClick={() => handleGroupClick(group)}
+                aria-expanded={isOpen}
+              >
+                <Icon size={16} style={{ flexShrink: 0 }} />
+                {group.label}
+                {group.items && (
+                  <ChevronRight
+                    size={14}
+                    className={`sidebar-group-btn-chevron${isOpen ? " open" : ""}`}
+                  />
+                )}
+              </button>
+
+              {/* Sub-items */}
+              {group.items && isOpen && (
+                <div className="sidebar-sub-links">
+                  {group.items.map((item) => {
+                    const { Icon: ItemIcon } = item;
+                    return (
+                      <button
+                        key={item.id}
+                        className={`sidebar-link${activeTab === item.id ? " active" : ""}`}
+                        onClick={() => onTabChange(item.id)}
+                        aria-current={activeTab === item.id ? "page" : undefined}
+                      >
+                        <ItemIcon size={13} style={{ flexShrink: 0 }} />
+                        {item.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
             </div>
-          </div>
-        ))}
+          );
+        })}
       </nav>
 
       {/* Footer */}
       <div className="sidebar-footer">
         <button className="sidebar-link danger" onClick={onLogout}>
-          <span aria-hidden="true">⏻</span> Logout
+          <LogOut size={13} style={{ flexShrink: 0 }} />
+          Logout
         </button>
       </div>
     </aside>

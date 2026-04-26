@@ -1,6 +1,3 @@
-import CodeBlock from "../../components/CodeBlock.jsx";
-import { generateFormHtmlSnippet } from "./snippets.js";
-
 const FIELD_TYPES = [
   { value: "text",     label: "Text" },
   { value: "email",    label: "Email" },
@@ -29,13 +26,11 @@ export function makeField(field = {}) {
 }
 
 export default function FormsTab({
-  origin,
   forms,
   formsBusy,
   editingForm,
   formName,      setFormName,
   formFields,    setFormFields,
-  selectedFormId, setSelectedFormId,
   startNewForm,
   startEditForm,
   cancelFormEdit,
@@ -46,7 +41,6 @@ export default function FormsTab({
   saveForm,
   deleteForm,
 }) {
-  const getFormEndpoint = (id) => `${origin}/api/submit?form=${id}`;
 
   if (editingForm) {
     return (
@@ -209,52 +203,6 @@ export default function FormsTab({
           </div>
         )}
       </div>
-
-      {/* Integration */}
-      {forms.length > 0 && (
-        <div className="panel-card">
-          <h3>Integration</h3>
-          <p className="text-muted">Select a form to get the embed code and API endpoint.</p>
-
-          <div className="form-group">
-            <label htmlFor="select-form">Select Form</label>
-            <select
-              id="select-form"
-              value={selectedFormId}
-              onChange={(e) => setSelectedFormId(e.target.value)}
-            >
-              <option value="">Choose a form...</option>
-              {forms.map((form) => (
-                <option key={form.id} value={form.id}>{form.name}</option>
-              ))}
-            </select>
-          </div>
-
-          {selectedFormId && (() => {
-            const form = forms.find((f) => f.id === selectedFormId);
-            if (!form) return null;
-            return (
-              <>
-                <div className="form-group">
-                  <label>API Endpoint</label>
-                  <div style={{ display: "flex", gap: "0.5rem" }}>
-                    <input
-                      type="text"
-                      readOnly
-                      value={getFormEndpoint(selectedFormId)}
-                      style={{ fontFamily: "var(--font-mono)", fontSize: "0.875rem" }}
-                    />
-                  </div>
-                  <p className="text-muted text-sm mt-1">POST JSON data to this endpoint from any website.</p>
-                </div>
-
-                <h4 style={{ marginTop: "1.5rem" }}>HTML Form Snippet</h4>
-                <CodeBlock code={generateFormHtmlSnippet(origin, form)} rows={20} />
-              </>
-            );
-          })()}
-        </div>
-      )}
     </>
   );
 }
