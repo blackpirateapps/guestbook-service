@@ -171,11 +171,16 @@ export default function Sidebar({ activeTab, onTabChange, username, onLogout }) 
             <div key={group.id} className="sidebar-group">
               {/* Parent button */}
               <button
-                className={`sidebar-group-btn${isGroupActive ? " active-group" : ""}`}
-                onClick={() => handleGroupClick(group)}
-                aria-expanded={isOpen}
+                className={group.items ? `sidebar-group-btn${isGroupActive ? " active-group" : ""}` : `sidebar-link${isGroupActive ? " active" : ""}`}
+                onClick={() => {
+                  handleGroupClick(group);
+                  if (!group.items && window.innerWidth <= 768) {
+                    setIsMobileMenuOpen(false);
+                  }
+                }}
+                aria-expanded={group.items ? isOpen : undefined}
               >
-                <Icon size={16} style={{ flexShrink: 0 }} />
+                <Icon size={group.items ? 16 : 13} style={{ flexShrink: 0 }} />
                 {group.label}
                 {group.items && (
                   <ChevronRight

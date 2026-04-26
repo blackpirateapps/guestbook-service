@@ -600,8 +600,8 @@ input[type="checkbox"] {
   transition: background 0.12s ease;
   display: flex;
   align-items: center;
-  justify-content: flex-end;
-  flex-direction: row-reverse;
+  justify-content: flex-start;
+  flex-direction: row;
   gap: 8px;
 }
 .sidebar-group-btn:hover {
@@ -612,7 +612,7 @@ input[type="checkbox"] {
   color: var(--color-accent);
 }
 .sidebar-group-btn-chevron {
-  margin-right: auto;
+  margin-left: auto;
   transition: transform 0.18s ease;
   flex-shrink: 0;
   opacity: 0.5;
@@ -747,10 +747,7 @@ input[type="checkbox"] {
     flex-direction: row;
     justify-content: flex-start;
   }
-  .dashboard-sidebar.mobile-open .sidebar-group-btn-chevron {
-    margin-right: 0;
-    margin-left: auto;
-  }
+
   .dashboard-sidebar.mobile-open .sidebar-sub-links {
     margin-right: 0;
     margin-left: 18px;
