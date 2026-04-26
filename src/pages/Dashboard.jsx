@@ -1,223 +1,166 @@
 import { useEffect, useRef, useState } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { useToast } from "../components/Toast.jsx";
 
-const GUESTBOOK_TABS = [
-  { id: "overview", label: "Overview" },
-  { id: "embed", label: "Embed" },
-  { id: "settings", label: "Settings" },
-  { id: "data", label: "Data" },
-  { id: "tester", label: "API Tester" },
-];
+import Sidebar       from "../features/dashboard/Sidebar.jsx";
+import OverviewTab   from "../features/dashboard/OverviewTab.jsx";
+import EmbedTab      from "../features/dashboard/EmbedTab.jsx";
+import SettingsTab   from "../features/dashboard/SettingsTab.jsx";
+import DataTab       from "../features/dashboard/DataTab.jsx";
+import TesterTab     from "../features/dashboard/TesterTab.jsx";
+import FormsTab, { makeField } from "../features/dashboard/FormsTab.jsx";
+import SubmissionsTab from "../features/dashboard/SubmissionsTab.jsx";
+import CommentsTab   from "../features/dashboard/CommentsTab.jsx";
+import ModerationTab from "../features/dashboard/ModerationTab.jsx";
+import LikesTab      from "../features/dashboard/LikesTab.jsx";
 
-const CONTACT_FORM_TABS = [
-  { id: "forms", label: "Forms" },
-  { id: "submissions", label: "Submissions" },
-];
-
-const COMMENT_TABS = [
-  { id: "comment-sections", label: "Sections" },
-  { id: "comment-moderation", label: "Moderation" },
-];
-
-const LIKES_TABS = [{ id: "likes", label: "Likes" }];
-
-const FIELD_TYPES = [
-  { value: "text", label: "Text" },
-  { value: "email", label: "Email" },
-  { value: "textarea", label: "Textarea" },
-  { value: "number", label: "Number" },
-  { value: "phone", label: "Phone" },
-  { value: "url", label: "URL" },
-  { value: "checkbox", label: "Checkbox" },
-  { value: "select", label: "Dropdown" },
-  { value: "radio", label: "Radio Buttons" },
-];
-
-function makeField(field = {}) {
-  return {
-    _id:
-      field._id ||
-      (typeof crypto !== "undefined" && crypto.randomUUID
-        ? crypto.randomUUID()
-        : `${Date.now()}-${Math.random().toString(36).slice(2)}`),
-    name: field.name || "",
-    label: field.label || "",
-    type: field.type || "text",
-    required: field.required === true,
-    options: Array.isArray(field.options) ? field.options : undefined,
-  };
-}
+const TAB_TITLES = {
+  overview:            "Overview",
+  embed:               "Embed",
+  settings:            "Settings",
+  data:                "Data",
+  tester:              "API Tester",
+  forms:               "Contact Forms",
+  submissions:         "Submissions",
+  "comment-sections":  "Comment Sections",
+  "comment-moderation":"Moderation",
+  likes:               "Likes",
+};
 
 export default function Dashboard() {
-  const [entries, setEntries] = useState([]);
-  const [customCss, setCustomCss] = useState("");
-  const [customHtml, setCustomHtml] = useState("");
-  const [embedCssUrl, setEmbedCssUrl] = useState("");
-  const [requireApproval, setRequireApproval] = useState(false);
-  const [origin, setOrigin] = useState("");
-  const [replyingTo, setReplyingTo] = useState(null);
-  const [replyMsg, setReplyMsg] = useState("");
-  const [importName, setImportName] = useState("");
-  const [importWebsite, setImportWebsite] = useState("");
-  const [importDate, setImportDate] = useState("");
-  const [importMessage, setImportMessage] = useState("");
-  const [testerBaseUrl, setTesterBaseUrl] = useState("");
-  const [testerName, setTesterName] = useState("");
-  const [testerWebsite, setTesterWebsite] = useState("");
-  const [testerMessage, setTesterMessage] = useState("");
-  const [testerIsPrivate, setTesterIsPrivate] = useState(false);
-  const [testerReplyParentId, setTesterReplyParentId] = useState("");
-  const [testerLikeId, setTesterLikeId] = useState("");
-  const [testerResult, setTesterResult] = useState("");
-  const [testerBusy, setTesterBusy] = useState(false);
-  const [dataTransferBusy, setDataTransferBusy] = useState(false);
+  const toast    = useToast();
+  const navigate = useNavigate();
+  const token    = localStorage.getItem("token");
+  const username = localStorage.getItem("username");
 
-  // Forms feature state
-  const [forms, setForms] = useState([]);
-  const [formsBusy, setFormsBusy] = useState(false);
-  const [editingForm, setEditingForm] = useState(null);
-  const [formName, setFormName] = useState("");
-  const [formFields, setFormFields] = useState([]);
-  const [selectedFormId, setSelectedFormId] = useState("");
-  const [submissions, setSubmissions] = useState([]);
-  const [submissionsBusy, setSubmissionsBusy] = useState(false);
-  const [expandedSubmission, setExpandedSubmission] = useState(null);
-
-  // Comments feature state
-  const [commentSections, setCommentSections] = useState([]);
-  const [commentsBusy, setCommentsBusy] = useState(false);
-  const [editingSection, setEditingSection] = useState(null);
-  const [sectionName, setSectionName] = useState("");
-  const [sectionSettings, setSectionSettings] = useState({
-    fields: {
-      name: { show: true, required: true },
-      email: { show: true, required: true },
-      url: { show: false, required: false },
-    },
-    allow_anonymous: false,
-    allow_likes: true,
-    require_approval: false,
-
-  });
-  const [selectedSectionId, setSelectedSectionId] = useState("");
-  const [allComments, setAllComments] = useState([]);
-  const [allCommentsBusy, setAllCommentsBusy] = useState(false);
-  const [replyingToComment, setReplyingToComment] = useState(null);
-  const [commentReplyMsg, setCommentReplyMsg] = useState("");
-
-  // Likes feature state
-  const [likesSummary, setLikesSummary] = useState({
-    total_likes: 0,
-    post_count: 0,
-    top_posts: [],
-  });
-  const [likesBusy, setLikesBusy] = useState(false);
-  const [likesPostUrl, setLikesPostUrl] = useState("");
-  const [likesAction, setLikesAction] = useState("get");
-  const [likesResult, setLikesResult] = useState("");
-
-  const importFileRef = useRef(null);
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTab = searchParams.get("tab") || "overview";
 
-  const navigate = useNavigate();
-  const token = localStorage.getItem("token");
-  const username = localStorage.getItem("username");
+  // ── Guestbook State ───────────────────────────────────────
+  const [entries,         setEntries]         = useState([]);
+  const [customCss,       setCustomCss]       = useState("");
+  const [customHtml,      setCustomHtml]      = useState("");
+  const [embedCssUrl,     setEmbedCssUrl]     = useState("");
+  const [requireApproval, setRequireApproval] = useState(false);
+  const [origin,          setOrigin]          = useState("");
+  const [replyingTo,      setReplyingTo]      = useState(null);
+  const [replyMsg,        setReplyMsg]        = useState("");
+  const [dataTransferBusy, setDataTransferBusy] = useState(false);
 
+  // Import form state
+  const [importName,    setImportName]    = useState("");
+  const [importWebsite, setImportWebsite] = useState("");
+  const [importDate,    setImportDate]    = useState("");
+  const [importMessage, setImportMessage] = useState("");
+  const importFileRef = useRef(null);
+
+  // API Tester state
+  const [testerBaseUrl,       setTesterBaseUrl]       = useState("");
+  const [testerName,          setTesterName]          = useState("");
+  const [testerWebsite,       setTesterWebsite]       = useState("");
+  const [testerMessage,       setTesterMessage]       = useState("");
+  const [testerIsPrivate,     setTesterIsPrivate]     = useState(false);
+  const [testerReplyParentId, setTesterReplyParentId] = useState("");
+  const [testerLikeId,        setTesterLikeId]        = useState("");
+  const [testerResult,        setTesterResult]        = useState("");
+  const [testerBusy,          setTesterBusy]          = useState(false);
+
+  // ── Forms State ───────────────────────────────────────────
+  const [forms,              setForms]              = useState([]);
+  const [formsBusy,          setFormsBusy]          = useState(false);
+  const [editingForm,        setEditingForm]        = useState(null);
+  const [formName,           setFormName]           = useState("");
+  const [formFields,         setFormFields]         = useState([]);
+  const [selectedFormId,     setSelectedFormId]     = useState("");
+  const [submissions,        setSubmissions]        = useState([]);
+  const [submissionsBusy,    setSubmissionsBusy]    = useState(false);
+  const [expandedSubmission, setExpandedSubmission] = useState(null);
+
+  // ── Comments State ────────────────────────────────────────
+  const [commentSections,   setCommentSections]   = useState([]);
+  const [commentsBusy,      setCommentsBusy]      = useState(false);
+  const [editingSection,    setEditingSection]     = useState(null);
+  const [sectionName,       setSectionName]        = useState("");
+  const [sectionSettings,   setSectionSettings]   = useState({
+    fields: {
+      name:  { show: true,  required: true  },
+      email: { show: true,  required: true  },
+      url:   { show: false, required: false },
+    },
+    allow_anonymous:  false,
+    allow_likes:      true,
+    require_approval: false,
+  });
+  const [selectedSectionId,  setSelectedSectionId]  = useState("");
+  const [allComments,        setAllComments]         = useState([]);
+  const [allCommentsBusy,    setAllCommentsBusy]     = useState(false);
+  const [replyingToComment,  setReplyingToComment]   = useState(null);
+  const [commentReplyMsg,    setCommentReplyMsg]     = useState("");
+
+  // ── Likes State ───────────────────────────────────────────
+  const [likesSummary, setLikesSummary] = useState({ total_likes: 0, post_count: 0, top_posts: [] });
+  const [likesBusy,    setLikesBusy]   = useState(false);
+  const [likesPostUrl, setLikesPostUrl] = useState("");
+  const [likesAction,  setLikesAction]  = useState("get");
+  const [likesResult,  setLikesResult]  = useState("");
+
+  // ── Bootstrap ─────────────────────────────────────────────
   useEffect(() => {
     setOrigin(window.location.origin);
     setTesterBaseUrl(window.location.origin);
-    if (!token) {
-      navigate("/");
-      return;
-    }
+    if (!token) { navigate("/"); return; }
     fetchData();
   }, [token]);
 
   useEffect(() => {
-    if (activeTab === "submissions" && selectedFormId) {
-      fetchSubmissions(selectedFormId);
-    }
-    if (activeTab === "comment-moderation" && selectedSectionId) {
-      fetchComments(selectedSectionId);
-    }
-    if (activeTab === "likes") {
-      fetchLikesSummary();
-    }
+    if (activeTab === "submissions" && selectedFormId) fetchSubmissions(selectedFormId);
+    if (activeTab === "comment-moderation" && selectedSectionId) fetchComments(selectedSectionId);
+    if (activeTab === "likes") fetchLikesSummary();
   }, [activeTab, selectedFormId, selectedSectionId]);
 
-  const handleTabChange = (tabId) => {
-    setSearchParams({ tab: tabId });
-  };
+  const handleTabChange = (tabId) => setSearchParams({ tab: tabId });
 
+  // ── Fetch helpers ─────────────────────────────────────────
   async function fetchData() {
-    const entryRes = await fetch("/api/entries", {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    if (entryRes.ok) setEntries(await entryRes.json());
-
-    const profileRes = await fetch(`/api/user?username=${username}`);
+    const [entryRes, profileRes] = await Promise.all([
+      fetch("/api/entries", { headers: { Authorization: `Bearer ${token}` } }),
+      fetch(`/api/user?username=${username}`),
+    ]);
+    if (entryRes.ok)   setEntries(await entryRes.json());
     if (profileRes.ok) {
-      const data = await profileRes.json();
-      setCustomCss(data.custom_css || "");
-      setCustomHtml(data.custom_html || "");
-      setEmbedCssUrl(data.embed_css_url || "");
-      setRequireApproval(data.require_approval === 1);
+      const d = await profileRes.json();
+      setCustomCss(d.custom_css || "");
+      setCustomHtml(d.custom_html || "");
+      setEmbedCssUrl(d.embed_css_url || "");
+      setRequireApproval(d.require_approval === 1);
     }
-
-    // Fetch forms
     fetchForms();
-    // Fetch comment sections
     fetchCommentSections();
   }
 
   async function fetchForms() {
-    const res = await fetch("/api/forms", {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    if (res.ok) {
-      const data = await res.json();
-      setForms(data);
-    }
+    const res = await fetch("/api/forms", { headers: { Authorization: `Bearer ${token}` } });
+    if (res.ok) setForms(await res.json());
   }
 
   async function fetchSubmissions(formId) {
-    if (!formId) {
-      setSubmissions([]);
-      return;
-    }
+    if (!formId) { setSubmissions([]); return; }
     setSubmissionsBusy(true);
-    const res = await fetch(`/api/submissions?form=${formId}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    if (res.ok) {
-      setSubmissions(await res.json());
-    }
+    const res = await fetch(`/api/submissions?form=${formId}`, { headers: { Authorization: `Bearer ${token}` } });
+    if (res.ok) setSubmissions(await res.json());
     setSubmissionsBusy(false);
   }
 
   async function fetchCommentSections() {
-    const res = await fetch("/api/comment-sections", {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    if (res.ok) {
-      setCommentSections(await res.json());
-    }
+    const res = await fetch("/api/comment-sections", { headers: { Authorization: `Bearer ${token}` } });
+    if (res.ok) setCommentSections(await res.json());
   }
 
   async function fetchComments(sectionId) {
-    if (!sectionId) {
-      setAllComments([]);
-      return;
-    }
+    if (!sectionId) { setAllComments([]); return; }
     setAllCommentsBusy(true);
-    const res = await fetch(`/api/comments?section=${sectionId}&auth=1`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    if (res.ok) {
-      const data = await res.json();
-      setAllComments(data.comments || []);
-    }
+    const res = await fetch(`/api/comments?section=${sectionId}&auth=1`, { headers: { Authorization: `Bearer ${token}` } });
+    if (res.ok) { const d = await res.json(); setAllComments(d.comments || []); }
     setAllCommentsBusy(false);
   }
 
@@ -231,55 +174,41 @@ export default function Dashboard() {
         body: JSON.stringify({ action: "summary", owner_username: username }),
       });
       if (res.ok) {
-        const data = await res.json();
+        const d = await res.json();
         setLikesSummary({
-          total_likes: data.total_likes || 0,
-          post_count: data.post_count || 0,
-          top_posts: Array.isArray(data.top_posts) ? data.top_posts : [],
+          total_likes: d.total_likes || 0,
+          post_count:  d.post_count  || 0,
+          top_posts:   Array.isArray(d.top_posts) ? d.top_posts : [],
         });
       }
-    } catch {
-      // ignore
-    } finally {
-      setLikesBusy(false);
-    }
+    } finally { setLikesBusy(false); }
   }
 
+  // ── Actions ───────────────────────────────────────────────
   async function saveSettings() {
     const res = await fetch("/api/user", {
       method: "PUT",
       headers: { Authorization: `Bearer ${token}` },
-      body: JSON.stringify({
-        custom_css: customCss,
-        custom_html: customHtml,
-        embed_css_url: embedCssUrl,
-        require_approval: requireApproval,
-      }),
+      body: JSON.stringify({ custom_css: customCss, custom_html: customHtml, embed_css_url: embedCssUrl, require_approval: requireApproval }),
     });
     if (res.ok) {
-      alert("Settings saved!");
+      toast.success("Saved", "Settings updated successfully.");
     } else {
-      const data = await res.json().catch(() => ({}));
-      alert(data.error || "Failed to save settings.");
+      const d = await res.json().catch(() => ({}));
+      toast.error("Error", d.error || "Failed to save settings.");
     }
   }
 
   async function deleteEntry(id) {
     if (!confirm("Delete this entry?")) return;
-    await fetch("/api/entries", {
-      method: "DELETE",
-      body: JSON.stringify({ id }),
-      headers: { Authorization: `Bearer ${token}` },
-    });
+    await fetch("/api/entries", { method: "DELETE", body: JSON.stringify({ id }), headers: { Authorization: `Bearer ${token}` } });
+    toast.info("Deleted", "Entry removed.");
     fetchData();
   }
 
   async function approveEntry(id) {
-    await fetch("/api/entries", {
-      method: "PUT",
-      headers: { Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ action: "approve", id }),
-    });
+    await fetch("/api/entries", { method: "PUT", headers: { Authorization: `Bearer ${token}` }, body: JSON.stringify({ action: "approve", id }) });
+    toast.success("Approved", "Entry is now visible.");
     fetchData();
   }
 
@@ -288,724 +217,185 @@ export default function Dashboard() {
     await fetch("/api/entries", {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },
-      body: JSON.stringify({
-        owner_username: username,
-        sender_name: username,
-        message: replyMsg,
-        parent_id: parentId,
-      }),
+      body: JSON.stringify({ owner_username: username, sender_name: username, message: replyMsg, parent_id: parentId }),
     });
-    setReplyMsg("");
-    setReplyingTo(null);
+    setReplyMsg(""); setReplyingTo(null);
+    toast.success("Reply sent");
     fetchData();
   }
 
   async function addImportedEntry(e) {
     e.preventDefault();
     if (!importName.trim() || !importMessage.trim() || !importDate) return;
-
     const dateObj = new Date(importDate);
-    if (Number.isNaN(dateObj.getTime())) {
-      alert("Please provide a valid date.");
-      return;
-    }
-
+    if (Number.isNaN(dateObj.getTime())) { toast.error("Error", "Please provide a valid date."); return; }
     const res = await fetch("/api/entries", {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },
-      body: JSON.stringify({
-        action: "import",
-        owner_username: username,
-        sender_name: importName,
-        sender_website: importWebsite,
-        message: importMessage,
-        created_at: dateObj.toISOString(),
-      }),
+      body: JSON.stringify({ action: "import", owner_username: username, sender_name: importName, sender_website: importWebsite, message: importMessage, created_at: dateObj.toISOString() }),
     });
-
     if (res.ok) {
-      setImportName("");
-      setImportWebsite("");
-      setImportDate("");
-      setImportMessage("");
+      setImportName(""); setImportWebsite(""); setImportDate(""); setImportMessage("");
+      toast.success("Added", "Entry imported.");
       fetchData();
-      alert("Entry added.");
     } else {
-      const data = await res.json().catch(() => ({}));
-      alert(data.error || "Failed to add entry.");
+      const d = await res.json().catch(() => ({}));
+      toast.error("Error", d.error || "Failed to add entry.");
     }
-  }
-
-  const embedSrc = origin && username ? `${origin}/u/${username}?embed=1` : "";
-  const widgetSrc = origin ? `${origin}/guestbook-widget.js` : "";
-
-  const rootEntryCount = entries.filter((e) => !e.parent_id).length;
-  const replyCount = entries.filter((e) => !!e.parent_id).length;
-  const pendingCount = entries.filter((e) => e.status === "pending").length;
-  const privateCount = entries.filter((e) => e.is_private === 1).length;
-  const likesTotal = entries.reduce((sum, e) => sum + (e.likes || 0), 0);
-
-  const embedSnippet = embedSrc
-    ? `<iframe
-  id="guestbook-embed"
-  src="${embedSrc}"
-  style="width:100%;border:0;height:650px"
-  loading="lazy"
-></iframe>
-<script>
-(function () {
-  var iframe = document.getElementById('guestbook-embed');
-  function onMessage(e) {
-    if (!iframe || e.source !== iframe.contentWindow) return;
-    if (!e.data || e.data.type !== 'guestbook:resize') return;
-    if (typeof e.data.height === 'number') iframe.style.height = (e.data.height + 20) + 'px';
-  }
-  window.addEventListener('message', onMessage, false);
-})();
-</script>
-<div style="margin-top:8px;font-size:12px;opacity:.75;font-family:ui-serif,Georgia,Cambria,'Times New Roman',Times,serif">
-  Powered by <a href="/" target="_blank" rel="noreferrer">Website Tools</a>
-</div>`
-    : "";
-
-  async function copyText(text) {
-    if (!text) return;
-    try {
-      await navigator.clipboard.writeText(text);
-      alert("Copied to clipboard.");
-    } catch {
-      alert(
-        "Could not copy automatically. Select the text and copy it manually.",
-      );
-    }
-  }
-
-  const headlessSubmitSnippet =
-    origin && username
-      ? `<form id="guestbook-form">
-  <input name="name" placeholder="Your name" required />
-  <input name="website" placeholder="https://example.com (optional)" />
-  <textarea name="message" placeholder="Leave a note..." required></textarea>
-  <button type="submit">Sign Guestbook</button>
-</form>
-
-<script>
-  const baseUrl = "${origin}";
-  const owner = "${username}";
-  document.getElementById("guestbook-form").addEventListener("submit", async (e) => {
-    e.preventDefault();
-    const fd = new FormData(e.target);
-    const payload = {
-      owner_username: owner,
-      sender_name: fd.get("name"),
-      sender_website: fd.get("website"),
-      message: fd.get("message"),
-      is_private: false,
-      bot_field: ""
-    };
-    const res = await fetch(baseUrl + "/api/entries", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
-    });
-    if (!res.ok) throw new Error("Failed to submit");
-    alert("Submitted!");
-  });
-</script>`
-      : "";
-
-  const headlessReplySnippet =
-    origin && username
-      ? `<script>
-  const baseUrl = "${origin}";
-  const owner = "${username}";
-
-  async function postReply(parentId, name, message, website = "") {
-    const payload = {
-      owner_username: owner,
-      sender_name: name,
-      sender_website: website,
-      message,
-      parent_id: parentId,
-      is_private: false,
-      bot_field: ""
-    };
-
-    const res = await fetch(baseUrl + "/api/entries", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
-    });
-    if (!res.ok) throw new Error("Failed to post reply");
-    return await res.json();
-  }
-</script>`
-      : "";
-
-  const headlessLikeSnippet = origin
-    ? `<script>
-  const baseUrl = "${origin}";
-
-  async function likeEntry(entryId) {
-    const res = await fetch(baseUrl + "/api/entries", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "like", id: entryId })
-    });
-    if (!res.ok) throw new Error("Failed to like entry");
-    return await res.json();
-  }
-</script>`
-    : "";
-
-  const headlessApiDocs =
-    origin && username
-      ? `GET ${origin}/api/entries?user=${username}
-- Public: returns approved, non-private entries (threads + replies).
-
-POST ${origin}/api/entries
-- Public: create a new thread OR reply.
-- Use parent_id: null for a top-level entry.
-- Use parent_id: <entry id> to create a reply.
-- Body fields:
-  owner_username (string, required)
-  sender_name (string, required)
-  message (string, required)
-  sender_website (string, optional)
-  parent_id (number|null, optional)
-  is_private (boolean, optional)
-  bot_field (string, optional honeypot)
-
-PUT ${origin}/api/entries
-- Public likes:
-  { "action": "like", "id": <entry id> }
-
-PUT ${origin}/api/entries (Owner only)
-- Approve pending entries (requires Authorization: Bearer <JWT>):
-  { "action": "approve", "id": <entry id> }
-
-DELETE ${origin}/api/entries (Owner only)
-- Delete an entry (requires Authorization: Bearer <JWT>):
-  { "id": <entry id> }`
-      : "";
-
-  const headlessWidgetSnippet =
-    widgetSrc && username
-      ? `<div id="guestbook-entries"></div>
-<script src="${widgetSrc}"></script>
-<script>
-  GuestbookWidget.mount({
-    baseUrl: "${origin}",
-    username: "${username}",
-    container: "#guestbook-entries"
-  });
-</script>`
-    : "";
-
-  const likesApiBase = origin ? `${origin}/api/likes` : "";
-  const likesApiDocs = likesApiBase
-    ? `POST ${likesApiBase}
-- Single endpoint for likes.
-- Body fields:
-  action ("like" | "get" | "summary")
-  owner_username (string, required)
-  post_url (string, required for like/get)
-
-Like a post:
-{ "action": "like", "owner_username": "${username}", "post_url": "https://example.com/blog/my-post" }
-
-Get likes for a post:
-{ "action": "get", "owner_username": "${username}", "post_url": "https://example.com/blog/my-post" }
-
-Summary for dashboard:
-{ "action": "summary", "owner_username": "${username}" }`
-    : "";
-
-  const likesUsageFetch = likesApiBase
-    ? `// Like a post
-await fetch("${likesApiBase}", {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({
-    action: "like",
-    owner_username: "${username}",
-    post_url: "https://example.com/blog/my-post"
-  })
-});
-
-// Get likes for a post
-const res = await fetch("${likesApiBase}", {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({
-    action: "get",
-    owner_username: "${username}",
-    post_url: "https://example.com/blog/my-post"
-  })
-});
-const data = await res.json();
-
-// Summary for dashboard
-await fetch("${likesApiBase}", {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({
-    action: "summary",
-    owner_username: "${username}"
-  })
-});`
-    : "";
-
-  const likesUsageCurl = likesApiBase
-    ? `# Like a post
-curl -X POST "${likesApiBase}" \
-  -H "Content-Type: application/json" \
-  -d '{"action":"like","owner_username":"${username}","post_url":"https://example.com/blog/my-post"}'
-
-# Get likes for a post
-curl -X POST "${likesApiBase}" \
-  -H "Content-Type: application/json" \
-  -d '{"action":"get","owner_username":"${username}","post_url":"https://example.com/blog/my-post"}'
-
-# Summary for dashboard
-curl -X POST "${likesApiBase}" \
-  -H "Content-Type: application/json" \
-  -d '{"action":"summary","owner_username":"${username}"}'`
-    : "";
-
-  const likesResponseDocs = `Like / Get response:
-{ "success": true, "post_url": "https://example.com/blog/my-post/", "likes": 12 }
-
-Summary response:
-{
-  "success": true,
-  "owner_username": "${username}",
-  "total_likes": 120,
-  "post_count": 8,
-  "top_posts": [
-    { "post_url": "https://example.com/blog/my-post/", "likes": 42 }
-  ]
-}`;
-
-  const headlessCssExample = `/* Example styling for the default GuestbookWidget markup */
-#guestbook-entries {
-  max-width: 720px;
-  margin: 0 auto;
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
-}
-
-.gbw-entry {
-  background: #fff;
-  border: 1px solid rgba(0, 0, 0, 0.12);
-  border-radius: 12px;
-  padding: 16px;
-  margin: 0 0 16px 0;
-}
-
-.gbw-entry-title {
-  font-weight: 700;
-  margin-bottom: 8px;
-}
-
-.gbw-author {
-  color: #007aff;
-  text-decoration: none;
-}
-
-.gbw-author:hover {
-  text-decoration: underline;
-}
-
-.gbw-date {
-  color: rgba(0, 0, 0, 0.6);
-  font-weight: 500;
-}
-
-.gbw-entry-body {
-  white-space: pre-wrap;
-  line-height: 1.55;
-}`;
-
-  function resolveTesterEndpoint() {
-    const base = (testerBaseUrl || origin || window.location.origin)
-      .trim()
-      .replace(/\/+$/, "");
-    return `${base}/api/entries`;
-  }
-
-  async function runTesterRequest({ method, payload, actionLabel }) {
-    const endpoint = resolveTesterEndpoint();
-    setTesterBusy(true);
-    setTesterResult(`Running ${actionLabel}...`);
-
-    try {
-      const res = await fetch(endpoint, {
-        method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-
-      const rawText = await res.text();
-      let parsedBody = rawText;
-      try {
-        parsedBody = rawText ? JSON.parse(rawText) : {};
-      } catch {
-        // Keep plain text body if response is not JSON
-      }
-
-      const output = {
-        request: { method, url: endpoint, body: payload },
-        response: { status: res.status, ok: res.ok, body: parsedBody },
-      };
-
-      setTesterResult(JSON.stringify(output, null, 2));
-      if (res.ok) fetchData();
-    } catch (error) {
-      setTesterResult(
-        JSON.stringify(
-          {
-            request: { method, url: endpoint, body: payload },
-            error: error?.message || "Request failed",
-          },
-          null,
-          2,
-        ),
-      );
-    } finally {
-      setTesterBusy(false);
-    }
-  }
-
-  async function testCreateEntry(e) {
-    e.preventDefault();
-    if (!testerName.trim() || !testerMessage.trim()) return;
-
-    await runTesterRequest({
-      method: "POST",
-      actionLabel: "entry test",
-      payload: {
-        owner_username: username,
-        sender_name: testerName.trim(),
-        sender_website: testerWebsite.trim(),
-        message: testerMessage.trim(),
-        parent_id: null,
-        is_private: testerIsPrivate,
-        bot_field: "",
-      },
-    });
-  }
-
-  async function testCreateReply(e) {
-    e.preventDefault();
-    const parsedParentId = Number(testerReplyParentId);
-    if (
-      !testerName.trim() ||
-      !testerMessage.trim() ||
-      !Number.isInteger(parsedParentId) ||
-      parsedParentId <= 0
-    ) {
-      return;
-    }
-
-    await runTesterRequest({
-      method: "POST",
-      actionLabel: "reply test",
-      payload: {
-        owner_username: username,
-        sender_name: testerName.trim(),
-        sender_website: testerWebsite.trim(),
-        message: testerMessage.trim(),
-        parent_id: parsedParentId,
-        is_private: false,
-        bot_field: "",
-      },
-    });
-  }
-
-  async function testLikeEntry(e) {
-    e.preventDefault();
-    const parsedLikeId = Number(testerLikeId);
-    if (!Number.isInteger(parsedLikeId) || parsedLikeId <= 0) return;
-
-    await runTesterRequest({
-      method: "PUT",
-      actionLabel: "like test",
-      payload: { action: "like", id: parsedLikeId },
-    });
   }
 
   async function exportAllData() {
     setDataTransferBusy(true);
     try {
-      const res = await fetch("/api/entries?export=1", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || "Failed to export data");
-      }
-
+      const res = await fetch("/api/entries?export=1", { headers: { Authorization: `Bearer ${token}` } });
+      if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.error || "Export failed"); }
       const data = await res.json();
-      const blob = new Blob([JSON.stringify(data, null, 2)], {
-        type: "application/json",
-      });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `${username}-guestbook-export-${new Date().toISOString().slice(0, 10)}.json`;
-      a.click();
-      URL.revokeObjectURL(url);
-    } catch (error) {
-      alert(error?.message || "Failed to export data.");
-    } finally {
-      setDataTransferBusy(false);
-    }
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement("a");
+      a.href = url; a.download = `${username}-guestbook-export-${new Date().toISOString().slice(0, 10)}.json`;
+      a.click(); URL.revokeObjectURL(url);
+      toast.success("Exported", "Data downloaded.");
+    } catch (err) { toast.error("Export failed", err?.message); }
+    finally { setDataTransferBusy(false); }
   }
 
   async function importAllDataFromFile(e) {
     const file = e.target.files?.[0];
     if (!file) return;
-
     setDataTransferBusy(true);
     try {
-      const raw = await file.text();
+      const raw    = await file.text();
       const parsed = JSON.parse(raw);
-
-      if (parsed?.owner_username && parsed.owner_username !== username) {
-        throw new Error("This export belongs to a different username.");
-      }
-
-      if (!Array.isArray(parsed?.entries) || !parsed?.profile) {
-        throw new Error("Invalid export file format.");
-      }
-
-      const confirmed = confirm(
-        "Import will replace all your current guestbook entries and profile customization. Continue?",
-      );
-      if (!confirmed) return;
-
+      if (parsed?.owner_username && parsed.owner_username !== username) throw new Error("Export belongs to a different username.");
+      if (!Array.isArray(parsed?.entries) || !parsed?.profile) throw new Error("Invalid export file format.");
+      if (!confirm("Import will replace all your current entries and profile customization. Continue?")) return;
       const res = await fetch("/api/entries", {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
-        body: JSON.stringify({
-          action: "import_all",
-          owner_username: username,
-          data: parsed,
-        }),
+        body: JSON.stringify({ action: "import_all", owner_username: username, data: parsed }),
       });
-
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || "Import failed");
-      }
-
-      alert("Data imported successfully.");
+      if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.error || "Import failed"); }
+      toast.success("Imported", "Data imported successfully.");
       fetchData();
-    } catch (error) {
-      alert(error?.message || "Failed to import data.");
-    } finally {
-      e.target.value = "";
-      setDataTransferBusy(false);
-    }
+    } catch (err) { toast.error("Import failed", err?.message); }
+    finally { e.target.value = ""; setDataTransferBusy(false); }
   }
 
-  // Form management functions
+  // Forms
   function startNewForm() {
-    setEditingForm("new");
-    setFormName("");
+    setEditingForm("new"); setFormName("");
     setFormFields([
-      makeField({ name: "name", label: "Name", type: "text", required: true }),
-      makeField({ name: "email", label: "Email", type: "email", required: true }),
-      makeField({
-        name: "message",
-        label: "Message",
-        type: "textarea",
-        required: true,
-      }),
+      makeField({ name: "name",    label: "Name",    type: "text",     required: true }),
+      makeField({ name: "email",   label: "Email",   type: "email",    required: true }),
+      makeField({ name: "message", label: "Message", type: "textarea", required: true }),
     ]);
   }
-
-  function startEditForm(form) {
-    setEditingForm(form.id);
-    setFormName(form.name);
-    setFormFields(form.fields.map((field) => makeField(field)));
-  }
-
-  function cancelFormEdit() {
-    setEditingForm(null);
-    setFormName("");
-    setFormFields([]);
-  }
-
-  function addField() {
-    const newFieldName = `field_${formFields.length + 1}`;
-    setFormFields([
-      ...formFields,
-      makeField({ name: newFieldName, label: "New Field", type: "text", required: false }),
-    ]);
-  }
-
-  function updateField(index, updates) {
-    const updated = [...formFields];
-    updated[index] = { ...updated[index], ...updates };
-    setFormFields(updated);
-  }
-
-  function removeField(index) {
-    setFormFields(formFields.filter((_, i) => i !== index));
-  }
-
-  function moveField(index, direction) {
-    const newIndex = index + direction;
-    if (newIndex < 0 || newIndex >= formFields.length) return;
-    const updated = [...formFields];
-    [updated[index], updated[newIndex]] = [updated[newIndex], updated[index]];
-    setFormFields(updated);
+  function startEditForm(form)  { setEditingForm(form.id); setFormName(form.name); setFormFields(form.fields.map((f) => makeField(f))); }
+  function cancelFormEdit()     { setEditingForm(null); setFormName(""); setFormFields([]); }
+  function addField()           { setFormFields([...formFields, makeField({ name: `field_${formFields.length + 1}`, label: "New Field", type: "text" })]); }
+  function updateField(i, upd)  { const upd2 = [...formFields]; upd2[i] = { ...upd2[i], ...upd }; setFormFields(upd2); }
+  function removeField(i)       { setFormFields(formFields.filter((_, j) => j !== i)); }
+  function moveField(i, dir)    {
+    const ni = i + dir;
+    if (ni < 0 || ni >= formFields.length) return;
+    const upd = [...formFields]; [upd[i], upd[ni]] = [upd[ni], upd[i]]; setFormFields(upd);
   }
 
   async function saveForm() {
-    if (!formName.trim()) {
-      alert("Form name is required");
-      return;
-    }
-    if (formFields.length === 0) {
-      alert("At least one field is required");
-      return;
-    }
-
+    if (!formName.trim()) { toast.error("Error", "Form name is required"); return; }
+    if (formFields.length === 0) { toast.error("Error", "At least one field is required"); return; }
     setFormsBusy(true);
-    const payload = {
-      name: formName,
-      fields: formFields.map(({ _id, ...field }) => field),
-    };
-
-    if (editingForm !== "new") {
-      payload.id = editingForm;
-    }
-
+    const payload = { name: formName, fields: formFields.map(({ _id, ...f }) => f) };
+    if (editingForm !== "new") payload.id = editingForm;
     const res = await fetch("/api/forms", {
       method: editingForm === "new" ? "POST" : "PUT",
       headers: { Authorization: `Bearer ${token}` },
       body: JSON.stringify(payload),
     });
-
     if (res.ok) {
-      alert(editingForm === "new" ? "Form created!" : "Form updated!");
-      cancelFormEdit();
-      fetchForms();
+      toast.success(editingForm === "new" ? "Form created!" : "Form updated!");
+      cancelFormEdit(); fetchForms();
     } else {
-      const data = await res.json().catch(() => ({}));
-      alert(data.error || "Failed to save form");
+      const d = await res.json().catch(() => ({}));
+      toast.error("Error", d.error || "Failed to save form");
     }
     setFormsBusy(false);
   }
 
   async function deleteForm(formId) {
     if (!confirm("Delete this form and all its submissions?")) return;
-
-    const res = await fetch("/api/forms", {
-      method: "DELETE",
-      headers: { Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ id: formId }),
-    });
-
+    const res = await fetch("/api/forms", { method: "DELETE", headers: { Authorization: `Bearer ${token}` }, body: JSON.stringify({ id: formId }) });
     if (res.ok) {
+      toast.info("Deleted", "Form removed.");
       fetchForms();
-      if (selectedFormId === formId) {
-        setSelectedFormId("");
-        setSubmissions([]);
-      }
+      if (selectedFormId === formId) { setSelectedFormId(""); setSubmissions([]); }
     } else {
-      const data = await res.json().catch(() => ({}));
-      alert(data.error || "Failed to delete form");
+      const d = await res.json().catch(() => ({}));
+      toast.error("Error", d.error || "Failed to delete form");
     }
   }
 
   async function deleteSubmission(id) {
     if (!confirm("Delete this submission?")) return;
-    const res = await fetch("/api/submissions", {
-      method: "DELETE",
-      headers: { Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ id }),
-    });
-    if (res.ok) fetchSubmissions(selectedFormId);
+    const res = await fetch("/api/submissions", { method: "DELETE", headers: { Authorization: `Bearer ${token}` }, body: JSON.stringify({ id }) });
+    if (res.ok) { toast.info("Deleted"); fetchSubmissions(selectedFormId); }
   }
 
-  // Comment management functions
+  async function exportFormSubmissions() {
+    if (!selectedFormId) return;
+    const res = await fetch(`/api/submissions?form=${selectedFormId}&export=1`, { headers: { Authorization: `Bearer ${token}` } });
+    if (res.ok) {
+      const data  = await res.json();
+      const blob  = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+      const url   = URL.createObjectURL(blob);
+      const a     = document.createElement("a");
+      const fname = forms.find((f) => f.id === selectedFormId)?.name || "form";
+      a.href = url; a.download = `${fname}-submissions-${new Date().toISOString().slice(0, 10)}.json`; a.click();
+      URL.revokeObjectURL(url);
+    }
+  }
+
+  // Comments
   function startNewSection() {
-    setEditingSection("new");
-    setSectionName("");
-    setSectionSettings({
-      fields: {
-        name: { show: true, required: true },
-        email: { show: true, required: true },
-        url: { show: false, required: false },
-      },
-      allow_anonymous: false,
-      allow_likes: true,
-      require_approval: false,
-
-    });
+    setEditingSection("new"); setSectionName("");
+    setSectionSettings({ fields: { name: { show: true, required: true }, email: { show: true, required: true }, url: { show: false, required: false } }, allow_anonymous: false, allow_likes: true, require_approval: false });
   }
-
-  function startEditSection(section) {
-    setEditingSection(section.id);
-    setSectionName(section.name);
-    setSectionSettings(section.settings);
-  }
+  function startEditSection(s) { setEditingSection(s.id); setSectionName(s.name); setSectionSettings(s.settings); }
 
   async function saveSection() {
-    if (!sectionName.trim()) return alert("Name is required");
+    if (!sectionName.trim()) { toast.error("Error", "Name is required"); return; }
     setCommentsBusy(true);
     const payload = { name: sectionName, settings: sectionSettings };
     if (editingSection !== "new") payload.id = editingSection;
-
     const res = await fetch("/api/comment-sections", {
       method: editingSection === "new" ? "POST" : "PUT",
       headers: { Authorization: `Bearer ${token}` },
       body: JSON.stringify(payload),
     });
-
-    if (res.ok) {
-      setEditingSection(null);
-      fetchCommentSections();
-    } else {
-      alert("Failed to save section");
-    }
+    if (res.ok) { setEditingSection(null); toast.success("Saved"); fetchCommentSections(); }
+    else        { toast.error("Error", "Failed to save section"); }
     setCommentsBusy(false);
   }
 
   async function deleteSection(id) {
     if (!confirm("Delete this section and all comments?")) return;
-    await fetch("/api/comment-sections", {
-      method: "DELETE",
-      headers: { Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ id }),
-    });
+    await fetch("/api/comment-sections", { method: "DELETE", headers: { Authorization: `Bearer ${token}` }, body: JSON.stringify({ id }) });
+    toast.info("Deleted");
     fetchCommentSections();
-    if (selectedSectionId === id) {
-      setSelectedSectionId("");
-      setAllComments([]);
-    }
+    if (selectedSectionId === id) { setSelectedSectionId(""); setAllComments([]); }
   }
 
   async function approveComment(id) {
-    await fetch("/api/comments", {
-      method: "PUT",
-      headers: { Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ action: "approve", id }),
-    });
+    await fetch("/api/comments", { method: "PUT", headers: { Authorization: `Bearer ${token}` }, body: JSON.stringify({ action: "approve", id }) });
+    toast.success("Approved");
     fetchComments(selectedSectionId);
   }
 
   async function deleteComment(id) {
     if (!confirm("Delete this comment?")) return;
-    await fetch("/api/comments", {
-      method: "DELETE",
-      headers: { Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ id }),
-    });
+    await fetch("/api/comments", { method: "DELETE", headers: { Authorization: `Bearer ${token}` }, body: JSON.stringify({ id }) });
+    toast.info("Deleted");
     fetchComments(selectedSectionId);
   }
 
@@ -1014,1937 +404,238 @@ Summary response:
     await fetch("/api/comments", {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },
-      body: JSON.stringify({
-        section_id: selectedSectionId,
-        comment_text: commentReplyMsg,
-        parent_id: parentId,
-      }),
+      body: JSON.stringify({ section_id: selectedSectionId, comment_text: commentReplyMsg, parent_id: parentId }),
     });
-    setCommentReplyMsg("");
-    setReplyingToComment(null);
+    setCommentReplyMsg(""); setReplyingToComment(null);
+    toast.success("Reply sent");
     fetchComments(selectedSectionId);
   }
 
-  function generateCommentSnippet(section) {
-    if (!section) return "";
-    return `<!-- Add this to your HTML -->
-<div id="comments-container"></div>
-<script src="${origin}/comments-widget.js"></script>
-<script>
-  CommentsWidget.mount({
-    baseUrl: "${origin}",
-    sectionId: "${section.id}",
-    container: "#comments-container"
-  });
-</script>`;
+  // API Tester
+  function resolveTesterEndpoint() {
+    const base = (testerBaseUrl || origin || window.location.origin).trim().replace(/\/+$/, "");
+    return `${base}/api/entries`;
   }
 
-  function generateCommentHtmlSnippet(section) {
-    if (!section) return "";
-    const settings = section.settings;
-    const fields = settings.fields;
-
-    let formFields = "";
-    if (settings.allow_anonymous) {
-      formFields += `  <div class="form-group">
-    <label>
-      <input type="checkbox" name="is_anonymous" id="anon-check">
-      Comment as Anonymous
-    </label>
-  </div>\n`;
-    }
-
-    const fieldList = [
-      { id: "name", label: "Name", type: "text" },
-      { id: "email", label: "Email", type: "email" },
-      { id: "url", label: "Website", type: "url" },
-    ];
-
-    fieldList.forEach((f) => {
-      if (fields[f.id].show) {
-        const required = fields[f.id].required ? " required" : "";
-        const reqLabel = fields[f.id].required ? " *" : "";
-        formFields += `  <div class="form-group field-${f.id}">
-    <label for="${f.id}">${f.label}${reqLabel}</label>
-    <input type="${f.type}" id="${f.id}" name="sender_${f.id}"${required}>
-  </div>\n`;
-      }
-    });
-
-    formFields += `  <div class="form-group">
-    <label for="comment">Comment *</label>
-    <textarea id="comment" name="comment_text" required></textarea>
-  </div>`;
-
-    return `<div id="comments-section-${section.id}">
-  <!-- Comments List Container -->
-  <div id="comments-list-${section.id}" style="margin-bottom: 2rem;">
-    Loading comments...
-  </div>
-
-  <!-- Post Comment Form -->
-  <form id="comment-form-${section.id}">
-    <h3>Post a Comment</h3>
-    <input type="text" name="website_url_check" style="display:none !important;" tabindex="-1" autocomplete="off">
-${formFields}
-    <input type="hidden" name="parent_id" id="parent-id-${section.id}">
-    <div id="replying-to-info-${section.id}" style="display:none; margin-bottom: 1rem; color: #666;">
-      Replying to a comment... <button type="button" id="cancel-reply-${section.id}" style="background:none; border:none; color: #007aff; cursor:pointer; padding:0; text-decoration:underline;">Cancel</button>
-    </div>
-    <button type="submit">Post Comment</button>
-  </form>
-</div>
-
-<style>
-  #comments-section-${section.id} .comment { border-left: 2px solid #eee; padding-left: 1rem; margin-bottom: 1.5rem; }
-  #comments-section-${section.id} .comment-header { font-size: 0.9rem; margin-bottom: 0.3rem; }
-  #comments-section-${section.id} .comment-author { font-weight: 600; color: #007aff; }
-  #comments-section-${section.id} .comment-date { color: #888; font-size: 0.8rem; margin-left: 0.5rem; }
-  #comments-section-${section.id} .comment-body { line-height: 1.5; white-space: pre-wrap; margin-bottom: 0.5rem; }
-  #comments-section-${section.id} .comment-footer { display: flex; gap: 1rem; }
-  #comments-section-${section.id} .comment-footer button { background:none; border:none; color: #007aff; cursor:pointer; padding:0; font-size: 0.85rem; }
-  #comments-section-${section.id} .replies { margin-top: 1rem; padding-left: 1rem; border-left: 1px solid #eee; }
-  #comments-section-${section.id} .form-group { margin-bottom: 1rem; }
-  #comments-section-${section.id} .form-group label { display: block; margin-bottom: 0.3rem; font-weight: 500; }
-  #comments-section-${section.id} .form-group input:not([type="checkbox"]), #comments-section-${section.id} .form-group textarea { width: 100%; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; }
-</style>
-
-<script>
-(function() {
-  const form = document.getElementById("comment-form-${section.id}");
-  const list = document.getElementById("comments-list-${section.id}");
-  const parentInput = document.getElementById("parent-id-${section.id}");
-  const replyInfo = document.getElementById("replying-to-info-${section.id}");
-  const cancelReplyBtn = document.getElementById("cancel-reply-${section.id}");
-  const baseUrl = "${origin}";
-  const sectionId = "${section.id}";
-  let pageUrl = window.location.origin + window.location.pathname;
-  if (!pageUrl.endsWith("/")) pageUrl += "/";
-
-  async function fetchComments() {
+  async function runTesterRequest({ method, payload, actionLabel }) {
+    const endpoint = resolveTesterEndpoint();
+    setTesterBusy(true); setTesterResult(`Running ${actionLabel}...`);
     try {
-      const res = await fetch(baseUrl + "/api/comments?section=" + sectionId + "&page_url=" + encodeURIComponent(pageUrl));
-      const data = await res.json();
-      renderComments(data.comments);
+      const res      = await fetch(endpoint, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+      const rawText  = await res.text();
+      let   parsed   = rawText;
+      try { parsed = rawText ? JSON.parse(rawText) : {}; } catch {}
+      setTesterResult(JSON.stringify({ request: { method, url: endpoint, body: payload }, response: { status: res.status, ok: res.ok, body: parsed } }, null, 2));
+      if (res.ok) fetchData();
     } catch (err) {
-      list.innerHTML = "Error loading comments.";
-    }
+      setTesterResult(JSON.stringify({ request: { method, url: endpoint, body: payload }, error: err?.message || "Request failed" }, null, 2));
+    } finally { setTesterBusy(false); }
   }
 
-  function renderComments(comments) {
-    if (!comments || comments.length === 0) {
-      list.innerHTML = "<p>No comments yet.</p>";
-      return;
-    }
-
-    const roots = comments.filter(c => !c.parent_id);
-    list.innerHTML = roots.map(c => renderComment(c, comments)).join("");
-  }
-
-  function renderComment(comment, all) {
-    const replies = all.filter(c => c.parent_id === comment.id);
-    const date = new Date(comment.created_at).toLocaleString();
-    
-    return \`
-      <div class="comment" id="comment-\${comment.id}">
-        <div class="comment-header">
-          <span class="comment-author">\${escapeHtml(comment.sender_name || "Anonymous")}</span>
-          \${comment.is_owner ? '<span style="background:#eee; padding:2px 5px; border-radius:3px; font-size:0.7rem;">Owner</span>' : ''}
-          <span class="comment-date">\${date}</span>
-        </div>
-        <div class="comment-body">\${escapeHtml(comment.comment_text)}</div>
-        <div class="comment-footer">
-          ${settings.allow_likes ? `\n          <button type="button" onclick="window.__cw_like(\${comment.id})">❤ \${comment.likes || 0}</button>` : ""}
-          <button type="button" onclick="window.__cw_reply(\${comment.id})">Reply</button>
-        </div>
-        \${replies.length > 0 ? \`
-          <div class="replies">
-            \${replies.map(r => renderComment(r, all)).join("")}
-          </div>
-        \` : ""}
-      </div>
-    \`;
-  }
-
-  function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-  }
-
-  window.__cw_like = async (id) => {
-    await fetch(baseUrl + "/api/comments", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "like", id })
-    });
-    fetchComments();
-  };
-
-  window.__cw_reply = (id) => {
-    parentInput.value = id;
-    replyInfo.style.display = "block";
-    form.scrollIntoView({ behavior: 'smooth' });
-    form.querySelector("textarea").focus();
-  };
-
-  cancelReplyBtn.onclick = () => {
-    parentInput.value = "";
-    replyInfo.style.display = "none";
-  };
-
-  // Handle anonymous toggle
-  const anonCheck = document.getElementById("anon-check");
-  if (anonCheck) {
-    anonCheck.addEventListener("change", (e) => {
-      const isAnon = e.target.checked;
-      ["name", "email", "url"].forEach(f => {
-        const el = form.querySelector(".field-" + f);
-        if (el) el.style.display = isAnon ? "none" : "block";
-        const input = form.querySelector("[name='sender_" + f + "']");
-        if (input) input.required = isAnon ? false : (input.dataset.wasRequired === "true");
-      });
-    });
-    // Store original requirement
-    ["name", "email", "url"].forEach(f => {
-      const input = form.querySelector("[name='sender_" + f + "']");
-      if (input) input.dataset.wasRequired = input.required ? "true" : "false";
-    });
-  }
-
-  form.addEventListener("submit", async (e) => {
+  async function testCreateEntry(e) {
     e.preventDefault();
-    const fd = new FormData(e.target);
-    const data = Object.fromEntries(fd.entries());
-    data.section_id = sectionId;
-    data.page_url = pageUrl;
-    data.is_anonymous = anonCheck ? anonCheck.checked : false;
-    
-    const res = await fetch(baseUrl + "/api/comments", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data)
-    });
-    
-    const result = await res.json();
-    if (res.ok) {
-      alert(result.status === "pending" ? "Awaiting approval!" : "Comment posted!");
-      e.target.reset();
-      parentInput.value = "";
-      replyInfo.style.display = "none";
-      fetchComments();
-    } else {
-      alert(result.error || "Failed to post");
-    }
-  });
-
-  fetchComments();
-})();
-</script>`;
+    if (!testerName.trim() || !testerMessage.trim()) return;
+    await runTesterRequest({ method: "POST", actionLabel: "entry test", payload: { owner_username: username, sender_name: testerName.trim(), sender_website: testerWebsite.trim(), message: testerMessage.trim(), parent_id: null, is_private: testerIsPrivate, bot_field: "" } });
   }
-
-  async function exportFormSubmissions() {
-    if (!selectedFormId) return;
-    const res = await fetch(`/api/submissions?form=${selectedFormId}&export=1`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    if (res.ok) {
-      const data = await res.json();
-      const blob = new Blob([JSON.stringify(data, null, 2)], {
-        type: "application/json",
-      });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      const formName = forms.find((f) => f.id === selectedFormId)?.name || "form";
-      a.download = `${formName}-submissions-${new Date().toISOString().slice(0, 10)}.json`;
-      a.click();
-      URL.revokeObjectURL(url);
-    }
+  async function testCreateReply(e) {
+    e.preventDefault();
+    const pid = Number(testerReplyParentId);
+    if (!testerName.trim() || !testerMessage.trim() || !Number.isInteger(pid) || pid <= 0) return;
+    await runTesterRequest({ method: "POST", actionLabel: "reply test", payload: { owner_username: username, sender_name: testerName.trim(), sender_website: testerWebsite.trim(), message: testerMessage.trim(), parent_id: pid, is_private: false, bot_field: "" } });
   }
-
-  function getFormEndpoint(formId) {
-    return `${origin}/api/submit?form=${formId}`;
-  }
-
-  function generateHtmlSnippet(form) {
-    const fields = form.fields
-      .map((f) => {
-        const required = f.required ? " required" : "";
-        const reqLabel = f.required ? " *" : "";
-        
-        if (f.type === "textarea") {
-          return `  <div class="form-group">
-    <label for="${f.name}">${f.label}${reqLabel}</label>
-    <textarea id="${f.name}" name="${f.name}"${required}></textarea>
-  </div>`;
-        }
-        
-        if (f.type === "checkbox") {
-          return `  <div class="form-group">
-    <label>
-      <input type="checkbox" name="${f.name}"${required}>
-      ${f.label}
-    </label>
-  </div>`;
-        }
-        
-        if (f.type === "select") {
-          const options = (f.options || [])
-            .map((opt) => `      <option value="${opt}">${opt}</option>`)
-            .join("\n");
-          return `  <div class="form-group">
-    <label for="${f.name}">${f.label}${reqLabel}</label>
-    <select id="${f.name}" name="${f.name}"${required}>
-      <option value="">Select...</option>
-${options}
-    </select>
-  </div>`;
-        }
-        
-        if (f.type === "radio") {
-          const radios = (f.options || [])
-            .map(
-              (opt) =>
-                `    <label><input type="radio" name="${f.name}" value="${opt}"${required}> ${opt}</label>`,
-            )
-            .join("\n");
-          return `  <div class="form-group">
-    <label>${f.label}${reqLabel}</label>
-${radios}
-  </div>`;
-        }
-        
-        const inputType =
-          f.type === "phone" ? "tel" : f.type === "url" ? "url" : f.type === "number" ? "number" : f.type === "email" ? "email" : "text";
-        
-        return `  <div class="form-group">
-    <label for="${f.name}">${f.label}${reqLabel}</label>
-    <input type="${inputType}" id="${f.name}" name="${f.name}"${required}>
-  </div>`;
-      })
-      .join("\n");
-
-    return `<form id="contact-form-${form.id}">
-${fields}
-  <!-- Honeypot field for spam protection -->
-  <input type="text" name="_honeypot" style="display:none" tabindex="-1" autocomplete="off">
-  <button type="submit">Submit</button>
-</form>
-
-<script>
-document.getElementById("contact-form-${form.id}").addEventListener("submit", async (e) => {
-  e.preventDefault();
-  const fd = new FormData(e.target);
-  const data = Object.fromEntries(fd.entries());
-  
-  const res = await fetch("${getFormEndpoint(form.id)}", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(data)
-  });
-  
-  const result = await res.json();
-  if (res.ok) {
-    alert(result.message || "Form submitted successfully!");
-    e.target.reset();
-  } else {
-    alert(result.error || "Failed to submit form");
-  }
-});
-</script>`;
+  async function testLikeEntry(e) {
+    e.preventDefault();
+    const lid = Number(testerLikeId);
+    if (!Number.isInteger(lid) || lid <= 0) return;
+    await runTesterRequest({ method: "PUT", actionLabel: "like test", payload: { action: "like", id: lid } });
   }
 
   async function runLikesRequest(e) {
     e.preventDefault();
-    if (!username) return;
-    if (!likesApiBase) return;
+    if (!username || !origin) return;
     if ((likesAction === "like" || likesAction === "get") && !likesPostUrl.trim()) return;
-
-    setLikesBusy(true);
-    setLikesResult("Running request...");
-
-    const payload = {
-      action: likesAction,
-      owner_username: username,
-    };
-
-    if (likesAction === "like" || likesAction === "get") {
-      payload.post_url = likesPostUrl.trim();
-    }
-
+    setLikesBusy(true); setLikesResult("Running request...");
+    const payload = { action: likesAction, owner_username: username };
+    if (likesAction === "like" || likesAction === "get") payload.post_url = likesPostUrl.trim();
     try {
-      const res = await fetch("/api/likes", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-
+      const res     = await fetch("/api/likes", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
       const rawText = await res.text();
-      let parsedBody = rawText;
-      try {
-        parsedBody = rawText ? JSON.parse(rawText) : {};
-      } catch {
-        // keep plain text
-      }
-
-      const output = {
-        request: { method: "POST", url: "/api/likes", body: payload },
-        response: { status: res.status, ok: res.ok, body: parsedBody },
-      };
-
-      setLikesResult(JSON.stringify(output, null, 2));
+      let  parsed   = rawText;
+      try { parsed = rawText ? JSON.parse(rawText) : {}; } catch {}
+      setLikesResult(JSON.stringify({ request: { method: "POST", url: "/api/likes", body: payload }, response: { status: res.status, ok: res.ok, body: parsed } }, null, 2));
       if (res.ok) fetchLikesSummary();
-    } catch (error) {
-      setLikesResult(
-        JSON.stringify(
-          {
-            request: { method: "POST", url: "/api/likes", body: payload },
-            error: error?.message || "Request failed",
-          },
-          null,
-          2,
-        ),
-      );
-    } finally {
-      setLikesBusy(false);
-    }
+    } catch (err) {
+      setLikesResult(JSON.stringify({ request: { method: "POST", url: "/api/likes", body: payload }, error: err?.message || "Request failed" }, null, 2));
+    } finally { setLikesBusy(false); }
   }
 
-  // Tab content components
-  const OverviewTab = () => (
-    <>
-      <div className="dashboard-stats">
-        <div className="stat-card">
-          <div className="stat-label">Threads</div>
-          <div className="stat-value">{rootEntryCount}</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-label">Replies</div>
-          <div className="stat-value">{replyCount}</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-label">Pending</div>
-          <div className="stat-value">{pendingCount}</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-label">Private</div>
-          <div className="stat-value">{privateCount}</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-label">Total Likes</div>
-          <div className="stat-value">{likesTotal}</div>
-        </div>
-      </div>
-
-      <div className="panel-card">
-        <div className="entries-header">
-          <h3 style={{ margin: 0 }}>Recent Entries</h3>
-          <span className="entries-count">{entries.length}</span>
-        </div>
-
-        {entries.length === 0 ? (
-          <p style={{ color: "var(--text-muted)", marginBottom: 0 }}>
-            No messages yet.
-          </p>
-        ) : (
-          <div className="entries-list" style={{ marginTop: "1rem" }}>
-            {entries.map((entry) => (
-              <div
-                key={entry.id}
-                className="entry-card"
-                style={{ marginBottom: "1rem" }}
-              >
-                <header className="entry-card-header">
-                  <div className="entry-title-row">
-                    <div className="entry-name">
-                      {entry.sender_name}
-                      {entry.sender_website && (
-                        <a
-                          className="entry-website"
-                          href={entry.sender_website}
-                          target="_blank"
-                          rel="noreferrer"
-                          title="Open sender website"
-                        >
-                          [↗]
-                        </a>
-                      )}
-                      <span className="badge-group">
-                        {entry.status === "pending" && (
-                          <span className="badge pending">Pending</span>
-                        )}
-                        {entry.is_private === 1 && (
-                          <span className="badge private">Private</span>
-                        )}
-                        {entry.is_owner === 1 && (
-                          <span className="badge owner">[OWNER]</span>
-                        )}
-                      </span>
-                    </div>
-                    <div className="entry-date">
-                      {new Date(entry.created_at).toLocaleString()}
-                    </div>
-                  </div>
-                  <div className="entry-metrics">
-                    <span>&lt;3 {entry.likes || 0}</span>
-                  </div>
-                </header>
-
-                <div className="entry-content">{entry.message}</div>
-
-                <div className="entry-actions">
-                  {entry.status === "pending" && (
-                    <button onClick={() => approveEntry(entry.id)}>
-                      <span>[ok] Approve</span>
-                    </button>
-                  )}
-                  <button
-                    className="secondary"
-                    onClick={() => setReplyingTo(entry.id)}
-                  >
-                    <span>[&lt;-] Reply</span>
-                  </button>
-                  <button
-                    className="danger"
-                    onClick={() => deleteEntry(entry.id)}
-                  >
-                    <span>[x] Delete</span>
-                  </button>
-                </div>
-
-                {replyingTo === entry.id && (
-                  <div style={{ marginTop: "1rem" }}>
-                    <textarea
-                      rows="2"
-                      value={replyMsg}
-                      onChange={(e) => setReplyMsg(e.target.value)}
-                      placeholder="Write a reply as the owner..."
-                      style={{ marginBottom: "0.5rem", minHeight: "80px" }}
-                    />
-                    <div style={{ display: "flex", gap: "0.5rem" }}>
-                      <button onClick={() => sendReply(entry.id)}>Send</button>
-                      <button
-                        className="secondary"
-                        onClick={() => setReplyingTo(null)}
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    </>
-  );
-
-  const LikesTab = () => (
-    <>
-      <div className="dashboard-stats">
-        <div className="stat-card">
-          <div className="stat-label">Total Likes</div>
-          <div className="stat-value">
-            {likesBusy ? "..." : likesSummary.total_likes}
-          </div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-label">Liked Posts</div>
-          <div className="stat-value">
-            {likesBusy ? "..." : likesSummary.post_count}
-          </div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-label">Top Post Likes</div>
-          <div className="stat-value">
-            {likesBusy
-              ? "..."
-              : likesSummary.top_posts[0]?.likes || 0}
-          </div>
-        </div>
-      </div>
-
-      <div className="panel-card" style={{ marginBottom: "1.5rem" }}>
-        <div className="entries-header">
-          <h3 style={{ margin: 0 }}>Top Posts</h3>
-        </div>
-        {likesSummary.top_posts.length === 0 ? (
-          <p style={{ color: "var(--text-muted)", marginBottom: 0 }}>
-            No likes recorded yet.
-          </p>
-        ) : (
-          <div style={{ display: "grid", gap: "0.75rem", marginTop: "1rem" }}>
-            {likesSummary.top_posts.map((post) => (
-              <div
-                key={post.post_url}
-                className="entry-card"
-                style={{ marginBottom: 0 }}
-              >
-                <div className="entry-title-row" style={{ marginBottom: "0.5rem" }}>
-                  <div className="entry-name" style={{ fontSize: "0.95rem" }}>
-                    {post.post_url}
-                  </div>
-                </div>
-                <div className="entry-metrics">
-                  <span>&lt;3 {post.likes || 0}</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      <div className="panel-card" style={{ marginBottom: "1.5rem" }}>
-        <h3>Likes API</h3>
-        <p style={{ color: "var(--text-muted)" }}>
-          Single endpoint to add likes or fetch counts by post URL.
-        </p>
-        <textarea
-          className="code-textarea"
-          rows={12}
-          readOnly
-          value={likesApiDocs}
-        />
-        <div className="actions-row" style={{ marginTop: "0.75rem" }}>
-          <button
-            className="secondary"
-            onClick={() => copyText(likesApiDocs)}
-            disabled={!likesApiDocs}
-          >
-            [copy] Copy
-          </button>
-        </div>
-      </div>
-
-      <div className="panel-card" style={{ marginBottom: "1.5rem" }}>
-        <h3>How to Use</h3>
-        <p style={{ color: "var(--text-muted)" }}>
-          Use your post URL as the unique identifier. Summary and get are public.
-        </p>
-
-        <h4 style={{ marginTop: "1rem" }}>Fetch (Browser)</h4>
-        <textarea
-          className="code-textarea"
-          rows={14}
-          readOnly
-          value={likesUsageFetch}
-        />
-        <div className="actions-row">
-          <button
-            className="secondary"
-            onClick={() => copyText(likesUsageFetch)}
-            disabled={!likesUsageFetch}
-          >
-            [copy] Copy
-          </button>
-        </div>
-
-        <h4 style={{ marginTop: "1.5rem" }}>cURL</h4>
-        <textarea
-          className="code-textarea"
-          rows={12}
-          readOnly
-          value={likesUsageCurl}
-        />
-        <div className="actions-row">
-          <button
-            className="secondary"
-            onClick={() => copyText(likesUsageCurl)}
-            disabled={!likesUsageCurl}
-          >
-            [copy] Copy
-          </button>
-        </div>
-
-        <h4 style={{ marginTop: "1.5rem" }}>Response Format</h4>
-        <textarea
-          className="code-textarea"
-          rows={10}
-          readOnly
-          value={likesResponseDocs}
-        />
-        <div className="actions-row">
-          <button
-            className="secondary"
-            onClick={() => copyText(likesResponseDocs)}
-          >
-            [copy] Copy
-          </button>
-        </div>
-
-        <p style={{ color: "var(--text-muted)", marginTop: "1rem" }}>
-          Rate limit: 5 seconds between likes and 50 likes per hour per IP per post.
-        </p>
-      </div>
-
-      <div className="panel-card">
-        <h3>API Tester</h3>
-        <form onSubmit={runLikesRequest}>
-          <div className="form-group">
-            <label>Action</label>
-            <select
-              value={likesAction}
-              onChange={(e) => setLikesAction(e.target.value)}
-            >
-              <option value="get">Get Likes</option>
-              <option value="like">Add Like</option>
-              <option value="summary">Summary</option>
-            </select>
-          </div>
-          {(likesAction === "get" || likesAction === "like") && (
-            <div className="form-group">
-              <label>Post URL</label>
-              <input
-                type="url"
-                value={likesPostUrl}
-                onChange={(e) => setLikesPostUrl(e.target.value)}
-                placeholder="https://example.com/blog/my-post"
-                required
-              />
-            </div>
-          )}
-          <button type="submit" disabled={likesBusy}>
-            {likesBusy ? "Running..." : "Run"}
-          </button>
-        </form>
-
-        <textarea
-          className="code-textarea"
-          rows={12}
-          readOnly
-          value={likesResult || "Run a test to see output."}
-          style={{ marginTop: "1rem" }}
-        />
-      </div>
-    </>
-  );
-
-  function renderFormsTab() {
-    return (
-      <>
-      {editingForm ? (
-        <div className="panel-card">
-          <h3>{editingForm === "new" ? "Create New Form" : "Edit Form"}</h3>
-          <p>Define your form fields. Each field will be validated on submission.</p>
-
-          <div className="form-group">
-            <label>Form Name *</label>
-            <input
-              type="text"
-              value={formName}
-              onChange={(e) => setFormName(e.target.value)}
-              placeholder="Contact Form"
-            />
-          </div>
-
-          <div style={{ marginBottom: "1rem" }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.75rem" }}>
-              <label style={{ margin: 0 }}>Fields</label>
-              <button className="secondary" onClick={addField} style={{ padding: "0.375rem 0.75rem", fontSize: "0.8125rem" }}>
-                + Add Field
-              </button>
-            </div>
-
-                {formFields.map((field, index) => (
-                  <div key={field._id} className="field-editor">
-                    <div className="field-editor-row">
-                      <input
-                        type="text"
-                        value={field.label}
-                        onChange={(e) => updateField(index, { label: e.target.value })}
-                        placeholder="Field Label"
-                        style={{ flex: 2 }}
-                      />
-                      <input
-                        type="text"
-                        value={field.name}
-                        onChange={(e) => updateField(index, { name: e.target.value })}
-                        placeholder="Field Name (api_key)"
-                        style={{ flex: 1 }}
-                      />
-                  <select
-                    value={field.type}
-                    onChange={(e) => updateField(index, { type: e.target.value })}
-                    style={{ flex: 1 }}
-                  >
-                    {FIELD_TYPES.map((t) => (
-                      <option key={t.value} value={t.value}>
-                        {t.label}
-                      </option>
-                    ))}
-                  </select>
-                  <label className="checkbox-label" style={{ flex: 0, whiteSpace: "nowrap" }}>
-                    <input
-                      type="checkbox"
-                      checked={field.required}
-                      onChange={(e) => updateField(index, { required: e.target.checked })}
-                    />
-                    Required
-                  </label>
-                  <div className="field-editor-actions">
-                    <button
-                      className="secondary"
-                      onClick={() => moveField(index, -1)}
-                      disabled={index === 0}
-                      style={{ padding: "0.25rem 0.5rem" }}
-                      title="Move up"
-                    >
-                      ↑
-                    </button>
-                    <button
-                      className="secondary"
-                      onClick={() => moveField(index, 1)}
-                      disabled={index === formFields.length - 1}
-                      style={{ padding: "0.25rem 0.5rem" }}
-                      title="Move down"
-                    >
-                      ↓
-                    </button>
-                      <button
-                        className="danger"
-                        onClick={() => removeField(index)}
-                        style={{ padding: "0.25rem 0.5rem" }}
-                        title="Remove field"
-                      >
-                        [x] Remove
-                      </button>
-                  </div>
-                </div>
-                {(field.type === "select" || field.type === "radio") && (
-                  <div style={{ marginTop: "0.5rem" }}>
-                    <input
-                      type="text"
-                      value={(field.options || []).join(", ")}
-                      onChange={(e) =>
-                        updateField(index, {
-                          options: e.target.value.split(",").map((o) => o.trim()).filter(Boolean),
-                        })
-                      }
-                      placeholder="Options (comma separated): Option 1, Option 2, Option 3"
-                      style={{ fontSize: "0.875rem" }}
-                    />
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-
-          {/* Form Preview */}
-          <div style={{ marginBottom: "1rem" }}>
-            <h4 style={{ marginTop: 0, marginBottom: "0.75rem" }}>Preview</h4>
-            <div className="form-preview">
-              {formFields.map((field, index) => (
-                <div key={index} className="form-group" style={{ marginBottom: "0.75rem" }}>
-                  <label>
-                    {field.label}
-                    {field.required && <span style={{ color: "#dc2626" }}> *</span>}
-                  </label>
-                  {field.type === "textarea" ? (
-                    <textarea rows={3} disabled placeholder={`Enter ${field.label.toLowerCase()}...`} />
-                  ) : field.type === "checkbox" ? (
-                    <label className="checkbox-label">
-                      <input type="checkbox" disabled />
-                      {field.label}
-                    </label>
-                  ) : field.type === "select" ? (
-                    <select disabled>
-                      <option>Select {field.label.toLowerCase()}...</option>
-                      {(field.options || []).map((opt, i) => (
-                        <option key={i}>{opt}</option>
-                      ))}
-                    </select>
-                  ) : field.type === "radio" ? (
-                    <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap" }}>
-                      {(field.options || []).map((opt, i) => (
-                        <label key={i} className="checkbox-label">
-                          <input type="radio" name={`preview_${field.name}`} disabled />
-                          {opt}
-                        </label>
-                      ))}
-                    </div>
-                  ) : (
-                    <input
-                      type={field.type === "phone" ? "tel" : field.type}
-                      disabled
-                      placeholder={`Enter ${field.label.toLowerCase()}...`}
-                    />
-                  )}
-                </div>
-              ))}
-              <button disabled style={{ opacity: 0.6 }}>Submit</button>
-            </div>
-          </div>
-
-          <div className="actions-row">
-            <button onClick={saveForm} disabled={formsBusy}>
-              {editingForm === "new" ? "Create Form" : "Save Changes"}
-            </button>
-            <button className="secondary" onClick={cancelFormEdit}>
-              Cancel
-            </button>
-          </div>
-        </div>
-      ) : (
-        <>
-          <div className="panel-card">
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1rem" }}>
-              <div>
-                <h3 style={{ margin: 0 }}>Contact Forms</h3>
-                <p style={{ margin: "0.25rem 0 0 0", fontSize: "0.875rem", color: "var(--text-muted)" }}>
-                  Create custom forms for external websites
-                </p>
-              </div>
-              <button onClick={startNewForm}>+ New Form</button>
-            </div>
-
-            {forms.length === 0 ? (
-              <p style={{ color: "var(--text-muted)", marginBottom: 0 }}>
-                No forms created yet. Click "New Form" to create your first contact form.
-              </p>
-            ) : (
-              <div className="forms-list">
-                {forms.map((form) => (
-                  <div key={form.id} className="form-item">
-                    <div className="form-item-info">
-                      <div className="form-item-name">{form.name}</div>
-                      <div className="form-item-meta">
-                        {form.fields.length} fields | {form.submission_count || 0} submissions
-                      </div>
-                    </div>
-                    <div className="form-item-actions">
-                      <button className="secondary" onClick={() => startEditForm(form)} style={{ padding: "0.375rem 0.75rem", fontSize: "0.8125rem" }}>
-                        Edit
-                      </button>
-                      <button className="danger" onClick={() => deleteForm(form.id)} style={{ padding: "0.375rem 0.75rem", fontSize: "0.8125rem" }}>
-                        [x] Delete
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {forms.length > 0 && (
-            <div className="panel-card">
-              <h3>Integration</h3>
-              <p>Select a form to get the embed code and API endpoint.</p>
-
-              <div className="form-group">
-                <label>Select Form</label>
-                <select
-                  value={selectedFormId}
-                  onChange={(e) => setSelectedFormId(e.target.value)}
-                >
-                  <option value="">Choose a form...</option>
-                  {forms.map((form) => (
-                    <option key={form.id} value={form.id}>
-                      {form.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {selectedFormId && (
-                <>
-                  <div className="form-group">
-                    <label>API Endpoint</label>
-                    <div style={{ display: "flex", gap: "0.5rem" }}>
-                      <input
-                        type="text"
-                        readOnly
-                        value={getFormEndpoint(selectedFormId)}
-                        style={{ fontFamily: "monospace", fontSize: "0.875rem" }}
-                      />
-                      <button
-                        className="secondary"
-                        onClick={() => copyText(getFormEndpoint(selectedFormId))}
-                        style={{ whiteSpace: "nowrap" }}
-                      >
-                        [copy] Copy
-                      </button>
-                    </div>
-                    <p style={{ color: "var(--text-muted)", fontSize: "0.8125rem", marginTop: "0.5rem", marginBottom: 0 }}>
-                      POST JSON data to this endpoint from any website.
-                    </p>
-                  </div>
-
-                  <h4 style={{ marginTop: "1.5rem" }}>HTML Form Snippet</h4>
-                  <textarea
-                    className="code-textarea"
-                    rows={20}
-                    readOnly
-                    value={generateHtmlSnippet(forms.find((f) => f.id === selectedFormId))}
-                  />
-                  <div className="actions-row">
-                    <button
-                      className="secondary"
-                      onClick={() =>
-                        copyText(generateHtmlSnippet(forms.find((f) => f.id === selectedFormId)))
-                      }
-                    >
-                      [copy] Copy HTML
-                    </button>
-                  </div>
-                </>
-              )}
-            </div>
-          )}
-        </>
-      )}
-    </>
-    );
-  }
-
-  function renderCommentSectionsTab() {
-    return (
-      <>
-        {editingSection ? (
-          <div className="panel-card">
-            <h3>{editingSection === "new" ? "New Comment Section" : "Edit Section"}</h3>
-            <div className="form-group">
-              <label>Section Name</label>
-              <input
-                type="text"
-                value={sectionName}
-                onChange={(e) => setSectionName(e.target.value)}
-                placeholder="Blog Post Comments"
-              />
-            </div>
-
-            <h4 style={{ marginTop: "1.5rem" }}>Field Configuration</h4>
-            <div className="dashboard-grid">
-              <div className="card" style={{ padding: "1rem" }}>
-                <div style={{ fontWeight: 600, marginBottom: "0.5rem" }}>Name Field</div>
-                <label className="checkbox-label">
-                  <input
-                    type="checkbox"
-                    checked={sectionSettings.fields.name.show}
-                    onChange={(e) => setSectionSettings({
-                      ...sectionSettings,
-                      fields: { ...sectionSettings.fields, name: { ...sectionSettings.fields.name, show: e.target.checked } }
-                    })}
-                  /> Show
-                </label>
-                <label className="checkbox-label">
-                  <input
-                    type="checkbox"
-                    checked={sectionSettings.fields.name.required}
-                    onChange={(e) => setSectionSettings({
-                      ...sectionSettings,
-                      fields: { ...sectionSettings.fields, name: { ...sectionSettings.fields.name, required: e.target.checked } }
-                    })}
-                    disabled={!sectionSettings.fields.name.show}
-                  /> Required
-                </label>
-              </div>
-
-              <div className="card" style={{ padding: "1rem" }}>
-                <div style={{ fontWeight: 600, marginBottom: "0.5rem" }}>Email Field</div>
-                <label className="checkbox-label">
-                  <input
-                    type="checkbox"
-                    checked={sectionSettings.fields.email.show}
-                    onChange={(e) => setSectionSettings({
-                      ...sectionSettings,
-                      fields: { ...sectionSettings.fields, email: { ...sectionSettings.fields.email, show: e.target.checked } }
-                    })}
-                  /> Show
-                </label>
-                <label className="checkbox-label">
-                  <input
-                    type="checkbox"
-                    checked={sectionSettings.fields.email.required}
-                    onChange={(e) => setSectionSettings({
-                      ...sectionSettings,
-                      fields: { ...sectionSettings.fields, email: { ...sectionSettings.fields.email, required: e.target.checked } }
-                    })}
-                    disabled={!sectionSettings.fields.email.show}
-                  /> Required
-                </label>
-              </div>
-
-              <div className="card" style={{ padding: "1rem" }}>
-                <div style={{ fontWeight: 600, marginBottom: "0.5rem" }}>URL Field</div>
-                <label className="checkbox-label">
-                  <input
-                    type="checkbox"
-                    checked={sectionSettings.fields.url.show}
-                    onChange={(e) => setSectionSettings({
-                      ...sectionSettings,
-                      fields: { ...sectionSettings.fields, url: { ...sectionSettings.fields.url, show: e.target.checked } }
-                    })}
-                  /> Show
-                </label>
-                <label className="checkbox-label">
-                  <input
-                    type="checkbox"
-                    checked={sectionSettings.fields.url.required}
-                    onChange={(e) => setSectionSettings({
-                      ...sectionSettings,
-                      fields: { ...sectionSettings.fields, url: { ...sectionSettings.fields.url, required: e.target.checked } }
-                    })}
-                    disabled={!sectionSettings.fields.url.show}
-                  /> Required
-                </label>
-              </div>
-            </div>
-
-            <h4 style={{ marginTop: "1.5rem" }}>Behavior Settings</h4>
-            <div className="dashboard-grid">
-              <label className="checkbox-label">
-                <input
-                  type="checkbox"
-                  checked={sectionSettings.allow_anonymous}
-                  onChange={(e) => setSectionSettings({ ...sectionSettings, allow_anonymous: e.target.checked })}
-                /> Allow Anonymous Comments
-              </label>
-              <label className="checkbox-label">
-                <input
-                  type="checkbox"
-                  checked={sectionSettings.allow_likes}
-                  onChange={(e) => setSectionSettings({ ...sectionSettings, allow_likes: e.target.checked })}
-                /> Enable Likes
-              </label>
-              <label className="checkbox-label">
-                <input
-                  type="checkbox"
-                  checked={sectionSettings.require_approval}
-                  onChange={(e) => setSectionSettings({ ...sectionSettings, require_approval: e.target.checked })}
-                /> Require Approval
-              </label>
-            </div>
-
-            <div className="actions-row" style={{ marginTop: "2rem" }}>
-              <button onClick={saveSection} disabled={commentsBusy}>Save Section</button>
-              <button className="secondary" onClick={() => setEditingSection(null)}>Cancel</button>
-            </div>
-          </div>
-        ) : (
-          <>
-            <div className="panel-card">
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
-                <h3 style={{ margin: 0 }}>Comment Sections</h3>
-                <button onClick={startNewSection}>+ New Section</button>
-              </div>
-
-              {commentSections.length === 0 ? (
-                <p style={{ color: "var(--text-muted)" }}>No comment sections yet.</p>
-              ) : (
-                <div className="forms-list">
-                  {commentSections.map(s => (
-                    <div key={s.id} className="form-item">
-                      <div className="form-item-info">
-                        <div className="form-item-name">{s.name}</div>
-                        <div className="form-item-meta">{s.comment_count || 0} comments</div>
-                      </div>
-                      <div className="form-item-actions">
-                        <button className="secondary" onClick={() => startEditSection(s)}>Edit</button>
-                        <button className="danger" onClick={() => deleteSection(s.id)}>[x]</button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {commentSections.length > 0 && (
-              <div className="panel-card">
-                <h3>Integration</h3>
-                <div className="form-group">
-                  <label>Select Section</label>
-                  <select value={selectedSectionId} onChange={(e) => setSelectedSectionId(e.target.value)}>
-                    <option value="">Choose a section...</option>
-                    {commentSections.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                  </select>
-                </div>
-                {selectedSectionId && (
-                  <>
-                    <label>Embed Snippet</label>
-                    <textarea
-                      className="code-textarea"
-                      rows={8}
-                      readOnly
-                      value={generateCommentSnippet(commentSections.find(s => s.id === selectedSectionId))}
-                      style={{ marginBottom: "1rem" }}
-                    />
-                    <div className="actions-row" style={{ marginBottom: "1.5rem" }}>
-                      <button className="secondary" onClick={() => copyText(generateCommentSnippet(commentSections.find(s => s.id === selectedSectionId)))}>
-                        [copy] Copy Snippet
-                      </button>
-                    </div>
-
-                    <label>Headless API (Custom Form)</label>
-                    <textarea
-                      className="code-textarea"
-                      rows={15}
-                      readOnly
-                      value={generateCommentHtmlSnippet(commentSections.find(s => s.id === selectedSectionId))}
-                      style={{ marginBottom: "1rem" }}
-                    />
-                    <div className="actions-row">
-                      <button className="secondary" onClick={() => copyText(generateCommentHtmlSnippet(commentSections.find(s => s.id === selectedSectionId)))}>
-                        [copy] Copy HTML Snippet
-                      </button>
-                    </div>
-                  </>
-                )}
-              </div>
-            )}
-          </>
-        )}
-      </>
-    );
-  }
-
-  function renderCommentModerationTab() {
-    return (
-      <div className="panel-card">
-        <h3>Comment Moderation</h3>
-        <div className="form-group">
-          <label>Select Section</label>
-          <select value={selectedSectionId} onChange={(e) => setSelectedSectionId(e.target.value)}>
-            <option value="">Choose a section...</option>
-            {commentSections.map(s => <option key={s.id} value={s.id}>{s.name} ({s.comment_count || 0})</option>)}
-          </select>
-        </div>
-
-        {selectedSectionId && (
-          <>
-            <div className="actions-row" style={{ marginTop: 0, marginBottom: "1rem" }}>
-              <button className="secondary" onClick={() => fetchComments(selectedSectionId)} disabled={allCommentsBusy}>Refresh</button>
-            </div>
-
-            {allCommentsBusy ? (
-              <p>Loading comments...</p>
-            ) : allComments.length === 0 ? (
-              <p style={{ color: "var(--text-muted)" }}>No comments in this section.</p>
-            ) : (
-              <div className="entries-list">
-                {allComments.map(comment => (
-                  <div key={comment.id} className="entry-card" style={{ marginLeft: comment.parent_id ? "2rem" : "0" }}>
-                    <header className="entry-card-header">
-                      <div className="entry-title-row">
-                        <div className="entry-name">
-                          {comment.sender_name || "Anonymous"}
-                          <span className="badge-group">
-                            {comment.status === "pending" && <span className="badge pending">Pending</span>}
-                            {comment.is_owner === 1 && <span className="badge owner">[OWNER]</span>}
-                          </span>
-                        </div>
-                        <div className="entry-date">{new Date(comment.created_at).toLocaleString()}</div>
-                      </div>
-                      <div className="entry-metrics">
-                        <span>&lt;3 {comment.likes || 0}</span>
-                      </div>
-                    </header>
-                    {comment.page_url && (
-                      <div style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginBottom: "0.5rem" }}>
-                        From: <a href={comment.page_url} target="_blank" rel="noreferrer" style={{ color: "inherit" }}>{comment.page_url}</a>
-                      </div>
-                    )}
-                    <div className="entry-content">{comment.comment_text}</div>
-                    <div className="entry-actions">
-                      {comment.status === "pending" && (
-                        <button onClick={() => approveComment(comment.id)}>[ok] Approve</button>
-                      )}
-                      <button className="secondary" onClick={() => setReplyingToComment(comment.id)}>[&lt;-] Reply</button>
-                      <button className="danger" onClick={() => deleteComment(comment.id)}>[x] Delete</button>
-                    </div>
-
-                    {replyingToComment === comment.id && (
-                      <div style={{ marginTop: "1rem" }}>
-                        <textarea
-                          rows="2"
-                          value={commentReplyMsg}
-                          onChange={(e) => setCommentReplyMsg(e.target.value)}
-                          placeholder="Write a reply..."
-                          style={{ marginBottom: "0.5rem" }}
-                        />
-                        <div style={{ display: "flex", gap: "0.5rem" }}>
-                          <button onClick={() => sendCommentReply(comment.id)}>Send</button>
-                          <button className="secondary" onClick={() => setReplyingToComment(null)}>Cancel</button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </>
-        )}
-      </div>
-    );
-  }
-
-  function renderSubmissionsTab() {
-    return (
-      <>
-        <div className="panel-card">
-          <h3>Form Submissions</h3>
-          <p>View and manage private submissions from your contact forms. Only you can access this data.</p>
-
-          <div className="form-group">
-            <label>Select Form</label>
-            <select
-              value={selectedFormId}
-              onChange={(e) => {
-                setSelectedFormId(e.target.value);
-                setExpandedSubmission(null);
-              }}
-            >
-              <option value="">Choose a form...</option>
-              {forms.map((form) => (
-                <option key={form.id} value={form.id}>
-                  {form.name} ({form.submission_count || 0})
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {selectedFormId && (
-            <div className="actions-row" style={{ marginTop: 0, marginBottom: "1rem" }}>
-              <button className="secondary" onClick={() => fetchSubmissions(selectedFormId)} disabled={submissionsBusy}>
-                Refresh
-              </button>
-              <button className="secondary" onClick={exportFormSubmissions} disabled={submissions.length === 0}>
-                Export JSON
-              </button>
-            </div>
-          )}
-
-          {!selectedFormId ? (
-            <p style={{ color: "var(--text-muted)", marginBottom: 0 }}>
-              Select a form above to view its submissions.
-            </p>
-          ) : submissionsBusy ? (
-            <p style={{ color: "var(--text-muted)", marginBottom: 0 }}>Loading...</p>
-          ) : submissions.length === 0 ? (
-            <p style={{ color: "var(--text-muted)", marginBottom: 0 }}>
-              No submissions yet for this form.
-            </p>
-          ) : (
-            <div className="submissions-list">
-              {submissions.map((sub) => {
-                const form = forms.find((f) => f.id === selectedFormId);
-                const isExpanded = expandedSubmission === sub.id;
-
-                return (
-                  <div key={sub.id} className="submission-item">
-                    <div
-                      className="submission-header"
-                      onClick={() => setExpandedSubmission(isExpanded ? null : sub.id)}
-                      style={{ cursor: "pointer" }}
-                    >
-                      <div className="submission-preview">
-                        <span className="submission-id">#{sub.id}</span>
-                        <span className="submission-summary">
-                          {Object.values(sub.data).slice(0, 2).join(" - ").substring(0, 60)}
-                          {Object.values(sub.data).slice(0, 2).join(" - ").length > 60 && "..."}
-                        </span>
-                      </div>
-                      <div className="submission-date">
-                        {new Date(sub.created_at).toLocaleString()}
-                      </div>
-                    </div>
-
-                    {isExpanded && (
-                      <div className="submission-details">
-                        <table className="submission-table">
-                          <tbody>
-                            {form?.fields.map((field) => (
-                              <tr key={field.name}>
-                                <td className="submission-label">{field.label}</td>
-                                <td className="submission-value">
-                                  {field.type === "checkbox"
-                                    ? sub.data[field.name]
-                                      ? "Yes"
-                                      : "No"
-                                    : sub.data[field.name] || "-"}
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                        <div className="submission-actions">
-                          <button className="danger" onClick={() => deleteSubmission(sub.id)}>
-                            [x] Delete
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      </>
-    );
-  }
-
-  const EmbedTab = () => (
-    <>
-      <div className="panel-card">
-        <h3>Embed on your site</h3>
-        <p>Paste this snippet into any HTML page to embed your guestbook.</p>
-        <textarea
-          className="code-textarea"
-          rows={12}
-          readOnly
-          value={embedSnippet || "Loading embed code..."}
-          style={{ marginBottom: "1rem" }}
-        />
-        <div className="form-group">
-          <label>Embed CSS URL (optional)</label>
-          <input
-            type="url"
-            placeholder="https://example.com/embed.css"
-            value={embedCssUrl}
-            onChange={(e) => setEmbedCssUrl(e.target.value)}
-          />
-          <p
-            style={{
-              color: "var(--text-muted)",
-              fontSize: "0.875rem",
-              marginTop: "0.5rem",
-              marginBottom: 0,
-            }}
-          >
-            This stylesheet loads inside the iframe so you can style the embed
-            independently.
-          </p>
-        </div>
-        <div className="actions-row" style={{ marginTop: "1rem" }}>
-          <button
-            className="secondary"
-            onClick={() => copyText(embedSnippet)}
-            disabled={!embedSnippet}
-          >
-            <span>[copy] Copy embed code</span>
-          </button>
-          {embedSrc && (
-            <a href={embedSrc} target="_blank" rel="noreferrer">
-              <button className="secondary" type="button">
-                <span>[↗] Preview embed</span>
-              </button>
-            </a>
-          )}
-          <button onClick={saveSettings}>Save Embed Settings</button>
-        </div>
-      </div>
-
-      <div className="panel-card">
-        <h3>Headless API</h3>
-        <p>Build your own UI with the API. Supports cross-origin requests.</p>
-
-        <h4 style={{ marginTop: "1rem" }}>Custom form</h4>
-        <textarea
-          className="code-textarea"
-          rows={10}
-          readOnly
-          value={headlessSubmitSnippet || "Loading..."}
-        />
-        <div className="actions-row">
-          <button
-            className="secondary"
-            onClick={() => copyText(headlessSubmitSnippet)}
-          >
-            [copy] Copy
-          </button>
-        </div>
-
-        <h4 style={{ marginTop: "1.5rem" }}>Reply to entry</h4>
-        <textarea
-          className="code-textarea"
-          rows={10}
-          readOnly
-          value={headlessReplySnippet || "Loading..."}
-        />
-        <div className="actions-row">
-          <button
-            className="secondary"
-            onClick={() => copyText(headlessReplySnippet)}
-          >
-            [copy] Copy
-          </button>
-        </div>
-
-        <h4 style={{ marginTop: "1.5rem" }}>Like an entry</h4>
-        <textarea
-          className="code-textarea"
-          rows={8}
-          readOnly
-          value={headlessLikeSnippet || "Loading..."}
-        />
-        <div className="actions-row">
-          <button
-            className="secondary"
-            onClick={() => copyText(headlessLikeSnippet)}
-          >
-            [copy] Copy
-          </button>
-        </div>
-
-        <h4 style={{ marginTop: "1.5rem" }}>Widget renderer</h4>
-        <textarea
-          className="code-textarea"
-          rows={7}
-          readOnly
-          value={headlessWidgetSnippet || "Loading..."}
-        />
-        <div className="actions-row">
-          <button
-            className="secondary"
-            onClick={() => copyText(headlessWidgetSnippet)}
-          >
-            [copy] Copy
-          </button>
-        </div>
-
-        <h4 style={{ marginTop: "1.5rem" }}>Example CSS</h4>
-        <textarea
-          className="code-textarea"
-          rows={10}
-          readOnly
-          value={headlessCssExample}
-        />
-        <div className="actions-row">
-          <button
-            className="secondary"
-            onClick={() => copyText(headlessCssExample)}
-          >
-            [copy] Copy
-          </button>
-        </div>
-
-        <h4 style={{ marginTop: "1.5rem" }}>API reference</h4>
-        <textarea
-          className="code-textarea"
-          rows={18}
-          readOnly
-          value={headlessApiDocs || "Loading..."}
-        />
-        <div className="actions-row">
-          <button
-            className="secondary"
-            onClick={() => copyText(headlessApiDocs)}
-          >
-            [copy] Copy
-          </button>
-        </div>
-      </div>
-    </>
-  );
-
-  const SettingsTab = () => (
-    <>
-      <div className="panel-card">
-        <h3>Moderation</h3>
-        <p>Control how new messages appear on your guestbook.</p>
-        <label className="checkbox-label">
-          <input
-            type="checkbox"
-            checked={requireApproval}
-            onChange={(e) => setRequireApproval(e.target.checked)}
-          />
-          Require approval for new messages
-        </label>
-        <div className="actions-row" style={{ marginTop: "1rem" }}>
-          <button onClick={saveSettings}>Save Moderation</button>
-        </div>
-      </div>
-
-      <div className="panel-card">
-        <h3>Customize Appearance</h3>
-        <p>Inject custom CSS and HTML into your public guestbook page.</p>
-        <div className="dashboard-grid">
-          <div className="form-group">
-            <label>Custom CSS</label>
-            <textarea
-              rows="6"
-              value={customCss}
-              onChange={(e) => setCustomCss(e.target.value)}
-              placeholder="/* Add styles here */"
-              className="code-textarea"
-            />
-          </div>
-          <div className="form-group">
-            <label>Custom HTML header</label>
-            <textarea
-              rows="6"
-              value={customHtml}
-              onChange={(e) => setCustomHtml(e.target.value)}
-              placeholder="<!-- Add HTML here -->"
-              className="code-textarea"
-            />
-          </div>
-        </div>
-        <div className="actions-row">
-          <button onClick={saveSettings}>Save Appearance</button>
-        </div>
-      </div>
-    </>
-  );
-
-  const DataTab = () => (
-    <>
-      <div className="panel-card">
-        <h3>Data Backup</h3>
-        <p>
-          Export all your guestbook data as JSON, or import a previous export.
-        </p>
-        <div className="actions-row" style={{ marginTop: 0 }}>
-          <button
-            className="secondary"
-            onClick={exportAllData}
-            disabled={dataTransferBusy}
-          >
-            Export all data
-          </button>
-          <button
-            className="secondary"
-            type="button"
-            onClick={() => importFileRef.current?.click()}
-            disabled={dataTransferBusy}
-          >
-            Import JSON
-          </button>
-          <input
-            ref={importFileRef}
-            type="file"
-            accept="application/json,.json"
-            style={{ display: "none" }}
-            onChange={importAllDataFromFile}
-          />
-        </div>
-        <p
-          style={{
-            color: "var(--text-muted)",
-            fontSize: "0.875rem",
-            marginTop: "1rem",
-            marginBottom: 0,
-          }}
-        >
-          Import replaces your current entries and appearance settings.
-        </p>
-      </div>
-
-      <div className="panel-card">
-        <h3>Add Past Entry</h3>
-        <p>Manually import entries from an older guestbook.</p>
-        <form onSubmit={addImportedEntry} style={{ marginBottom: 0 }}>
-          <div className="dashboard-grid">
-            <div className="form-group">
-              <label>Name *</label>
-              <input
-                type="text"
-                value={importName}
-                onChange={(e) => setImportName(e.target.value)}
-                placeholder="Jane Doe"
-                required
-              />
-            </div>
-            <div className="form-group">
-              <label>Website (optional)</label>
-              <input
-                type="url"
-                value={importWebsite}
-                onChange={(e) => setImportWebsite(e.target.value)}
-                placeholder="https://example.com"
-              />
-            </div>
-          </div>
-          <div className="form-group">
-            <label>Date *</label>
-            <input
-              type="datetime-local"
-              value={importDate}
-              onChange={(e) => setImportDate(e.target.value)}
-              required
-              style={{ maxWidth: "300px" }}
-            />
-          </div>
-          <div className="form-group">
-            <label>Message *</label>
-            <textarea
-              rows={4}
-              value={importMessage}
-              onChange={(e) => setImportMessage(e.target.value)}
-              placeholder="Write the original message..."
-              required
-            />
-          </div>
-          <button type="submit" className="secondary">
-            Add entry
-          </button>
-        </form>
-      </div>
-    </>
-  );
-
-  const TesterTab = () => (
-    <>
-      <div className="panel-card">
-        <h3>API Tester</h3>
-        <p>Test entry, reply, and like calls against your endpoint.</p>
-
-        <div className="form-group">
-          <label>Base URL</label>
-          <input
-            type="url"
-            placeholder="https://your-app.vercel.app"
-            value={testerBaseUrl}
-            onChange={(e) => setTesterBaseUrl(e.target.value)}
-          />
-        </div>
-
-        <div className="tester-grid">
-          <div className="tester-card">
-            <h4>Test Entry (POST)</h4>
-            <form onSubmit={testCreateEntry} style={{ marginBottom: 0 }}>
-              <div className="form-group">
-                <label>Name *</label>
-                <input
-                  type="text"
-                  value={testerName}
-                  onChange={(e) => setTesterName(e.target.value)}
-                  required
-                />
-              </div>
-              <div className="form-group">
-                <label>Website</label>
-                <input
-                  type="url"
-                  value={testerWebsite}
-                  onChange={(e) => setTesterWebsite(e.target.value)}
-                  placeholder="https://example.com"
-                />
-              </div>
-              <div className="form-group">
-                <label>Message *</label>
-                <textarea
-                  rows={3}
-                  value={testerMessage}
-                  onChange={(e) => setTesterMessage(e.target.value)}
-                  required
-                />
-              </div>
-              <label
-                className="checkbox-label"
-                style={{ marginBottom: "0.75rem" }}
-              >
-                <input
-                  type="checkbox"
-                  checked={testerIsPrivate}
-                  onChange={(e) => setTesterIsPrivate(e.target.checked)}
-                />
-                Private message
-              </label>
-              <button type="submit" disabled={testerBusy}>
-                Run entry test
-              </button>
-            </form>
-          </div>
-
-          <div className="tester-card">
-            <h4>Test Reply (POST)</h4>
-            <form onSubmit={testCreateReply} style={{ marginBottom: 0 }}>
-              <div className="form-group">
-                <label>Parent Entry ID *</label>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  value={testerReplyParentId}
-                  onChange={(e) => setTesterReplyParentId(e.target.value)}
-                  placeholder="123"
-                  required
-                />
-              </div>
-              <p
-                style={{
-                  color: "var(--text-muted)",
-                  fontSize: "0.875rem",
-                  marginBottom: "0.75rem",
-                }}
-              >
-                Uses name/website/message from entry test.
-              </p>
-              <button type="submit" disabled={testerBusy}>
-                Run reply test
-              </button>
-            </form>
-          </div>
-        </div>
-
-        <div className="tester-card" style={{ marginTop: "1rem" }}>
-          <h4>Test Like (PUT)</h4>
-          <form onSubmit={testLikeEntry} style={{ marginBottom: 0 }}>
-            <div
-              style={{ display: "flex", gap: "1rem", alignItems: "flex-end" }}
-            >
-              <div className="form-group" style={{ marginBottom: 0, flex: 1 }}>
-                <label>Entry ID *</label>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  value={testerLikeId}
-                  onChange={(e) => setTesterLikeId(e.target.value)}
-                  placeholder="123"
-                  required
-                />
-              </div>
-              <button type="submit" disabled={testerBusy}>
-                Run like test
-              </button>
-            </div>
-          </form>
-        </div>
-
-        <h4 style={{ marginTop: "1.5rem", marginBottom: "0.5rem" }}>Output</h4>
-        <textarea
-          className="code-textarea"
-          rows={14}
-          readOnly
-          value={testerResult || "Run a test to see output."}
-        />
-      </div>
-    </>
-  );
-
-  const renderTabContent = () => {
+  // ── Derived ───────────────────────────────────────────────
+  const rootEntryCount = entries.filter((e) => !e.parent_id).length;
+  const replyCount     = entries.filter((e) => !!e.parent_id).length;
+  const pendingCount   = entries.filter((e) => e.status === "pending").length;
+  const privateCount   = entries.filter((e) => e.is_private === 1).length;
+  const likesTotal     = entries.reduce((s, e) => s + (e.likes || 0), 0);
+
+  // ── Render ────────────────────────────────────────────────
+  function renderTab() {
     switch (activeTab) {
-      case "overview":
-        return <OverviewTab />;
-      case "forms":
-        return renderFormsTab();
-      case "submissions":
-        return renderSubmissionsTab();
-      case "comment-sections":
-        return renderCommentSectionsTab();
-      case "comment-moderation":
-        return renderCommentModerationTab();
-      case "embed":
-        return <EmbedTab />;
-      case "settings":
-        return <SettingsTab />;
-      case "data":
-        return <DataTab />;
-      case "tester":
-        return <TesterTab />;
-      case "likes":
-        return <LikesTab />;
-      default:
-        return <OverviewTab />;
+      case "overview": return (
+        <OverviewTab
+          entries={entries}
+          rootEntryCount={rootEntryCount}
+          replyCount={replyCount}
+          pendingCount={pendingCount}
+          privateCount={privateCount}
+          likesTotal={likesTotal}
+          replyingTo={replyingTo}
+          setReplyingTo={setReplyingTo}
+          replyMsg={replyMsg}
+          setReplyMsg={setReplyMsg}
+          approveEntry={approveEntry}
+          deleteEntry={deleteEntry}
+          sendReply={sendReply}
+        />
+      );
+      case "embed": return (
+        <EmbedTab
+          origin={origin}
+          username={username}
+          embedCssUrl={embedCssUrl}
+          setEmbedCssUrl={setEmbedCssUrl}
+          saveSettings={saveSettings}
+        />
+      );
+      case "settings": return (
+        <SettingsTab
+          requireApproval={requireApproval}
+          setRequireApproval={setRequireApproval}
+          customCss={customCss}
+          setCustomCss={setCustomCss}
+          customHtml={customHtml}
+          setCustomHtml={setCustomHtml}
+          saveSettings={saveSettings}
+        />
+      );
+      case "data": return (
+        <DataTab
+          importFileRef={importFileRef}
+          dataTransferBusy={dataTransferBusy}
+          exportAllData={exportAllData}
+          importAllDataFromFile={importAllDataFromFile}
+          importName={importName}       setImportName={setImportName}
+          importWebsite={importWebsite} setImportWebsite={setImportWebsite}
+          importDate={importDate}       setImportDate={setImportDate}
+          importMessage={importMessage} setImportMessage={setImportMessage}
+          addImportedEntry={addImportedEntry}
+        />
+      );
+      case "tester": return (
+        <TesterTab
+          origin={origin}
+          testerBaseUrl={testerBaseUrl}       setTesterBaseUrl={setTesterBaseUrl}
+          testerName={testerName}             setTesterName={setTesterName}
+          testerWebsite={testerWebsite}       setTesterWebsite={setTesterWebsite}
+          testerMessage={testerMessage}       setTesterMessage={setTesterMessage}
+          testerIsPrivate={testerIsPrivate}   setTesterIsPrivate={setTesterIsPrivate}
+          testerReplyParentId={testerReplyParentId} setTesterReplyParentId={setTesterReplyParentId}
+          testerLikeId={testerLikeId}         setTesterLikeId={setTesterLikeId}
+          testerResult={testerResult}
+          testerBusy={testerBusy}
+          testCreateEntry={testCreateEntry}
+          testCreateReply={testCreateReply}
+          testLikeEntry={testLikeEntry}
+        />
+      );
+      case "forms": return (
+        <FormsTab
+          origin={origin}
+          forms={forms}
+          formsBusy={formsBusy}
+          editingForm={editingForm}
+          formName={formName}           setFormName={setFormName}
+          formFields={formFields}       setFormFields={setFormFields}
+          selectedFormId={selectedFormId} setSelectedFormId={setSelectedFormId}
+          startNewForm={startNewForm}
+          startEditForm={startEditForm}
+          cancelFormEdit={cancelFormEdit}
+          addField={addField}
+          updateField={updateField}
+          removeField={removeField}
+          moveField={moveField}
+          saveForm={saveForm}
+          deleteForm={deleteForm}
+        />
+      );
+      case "submissions": return (
+        <SubmissionsTab
+          forms={forms}
+          selectedFormId={selectedFormId}         setSelectedFormId={setSelectedFormId}
+          submissions={submissions}
+          submissionsBusy={submissionsBusy}
+          expandedSubmission={expandedSubmission} setExpandedSubmission={setExpandedSubmission}
+          fetchSubmissions={fetchSubmissions}
+          deleteSubmission={deleteSubmission}
+          exportFormSubmissions={exportFormSubmissions}
+        />
+      );
+      case "comment-sections": return (
+        <CommentsTab
+          origin={origin}
+          commentSections={commentSections}
+          commentsBusy={commentsBusy}
+          editingSection={editingSection}       setEditingSection={setEditingSection}
+          sectionName={sectionName}             setSectionName={setSectionName}
+          sectionSettings={sectionSettings}     setSectionSettings={setSectionSettings}
+          selectedSectionId={selectedSectionId} setSelectedSectionId={setSelectedSectionId}
+          startNewSection={startNewSection}
+          startEditSection={startEditSection}
+          saveSection={saveSection}
+          deleteSection={deleteSection}
+        />
+      );
+      case "comment-moderation": return (
+        <ModerationTab
+          commentSections={commentSections}
+          selectedSectionId={selectedSectionId}   setSelectedSectionId={setSelectedSectionId}
+          allComments={allComments}
+          allCommentsBusy={allCommentsBusy}
+          replyingToComment={replyingToComment}   setReplyingToComment={setReplyingToComment}
+          commentReplyMsg={commentReplyMsg}        setCommentReplyMsg={setCommentReplyMsg}
+          approveComment={approveComment}
+          deleteComment={deleteComment}
+          sendCommentReply={sendCommentReply}
+          fetchComments={fetchComments}
+        />
+      );
+      case "likes": return (
+        <LikesTab
+          origin={origin}
+          username={username}
+          likesSummary={likesSummary}
+          likesBusy={likesBusy}
+          likesAction={likesAction}   setLikesAction={setLikesAction}
+          likesPostUrl={likesPostUrl} setLikesPostUrl={setLikesPostUrl}
+          likesResult={likesResult}
+          runLikesRequest={runLikesRequest}
+        />
+      );
+      default: return null;
     }
-  };
+  }
 
   return (
     <div className="dashboard-container">
-      <aside className="dashboard-sidebar">
-        <div className="sidebar-header">
-          <Link to="/" className="sidebar-brand">
-            <span>Website</span>Tools
-          </Link>
-          <div className="sidebar-group-label" style={{ paddingLeft: "0.75rem", fontSize: "0.65rem", marginTop: "-1rem", marginBottom: "1.5rem" }}>
-            <a
-              className="dashboard-link"
-              href={`/u/${username}`}
-              target="_blank"
-              rel="noreferrer"
-              style={{ color: "var(--text-muted)", display: "flex", alignItems: "center", gap: "0.25rem" }}
-            >
-              /u/{username} [↗]
-            </a>
-          </div>
-        </div>
-
-        <nav className="sidebar-nav">
-          <div className="sidebar-group">
-            <div className="sidebar-group-label">Guestbook Service</div>
-            <div className="sidebar-links">
-              {GUESTBOOK_TABS.map((tab) => (
-                <button
-                  key={tab.id}
-                  className={`sidebar-link${activeTab === tab.id ? " active" : ""}`}
-                  onClick={() => handleTabChange(tab.id)}
-                >
-                  {tab.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="sidebar-group">
-            <div className="sidebar-group-label">Contact Forms</div>
-            <div className="sidebar-links">
-              {CONTACT_FORM_TABS.map((tab) => (
-                <button
-                  key={tab.id}
-                  className={`sidebar-link${activeTab === tab.id ? " active" : ""}`}
-                  onClick={() => handleTabChange(tab.id)}
-                >
-                  {tab.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="sidebar-group">
-            <div className="sidebar-group-label">Comments</div>
-            <div className="sidebar-links">
-              {COMMENT_TABS.map((tab) => (
-                <button
-                  key={tab.id}
-                  className={`sidebar-link${activeTab === tab.id ? " active" : ""}`}
-                  onClick={() => handleTabChange(tab.id)}
-                >
-                  {tab.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="sidebar-group">
-            <div className="sidebar-group-label">Likes</div>
-            <div className="sidebar-links">
-              {LIKES_TABS.map((tab) => (
-                <button
-                  key={tab.id}
-                  className={`sidebar-link${activeTab === tab.id ? " active" : ""}`}
-                  onClick={() => handleTabChange(tab.id)}
-                >
-                  {tab.label}
-                </button>
-              ))}
-            </div>
-          </div>
-        </nav>
-
-        <div className="sidebar-footer">
-          <button
-            className="sidebar-link danger"
-            onClick={() => {
-              localStorage.clear();
-              navigate("/");
-            }}
-            style={{ color: "#dc2626" }}
-          >
-            Logout
-          </button>
-        </div>
-      </aside>
-
+      <Sidebar
+        activeTab={activeTab}
+        onTabChange={handleTabChange}
+        username={username}
+        onLogout={() => { localStorage.clear(); navigate("/"); }}
+      />
       <main className="dashboard-main">
-        <header className="dashboard-header" style={{ marginBottom: "2rem" }}>
-          <h1 style={{ margin: 0, textTransform: "capitalize" }}>
-            {activeTab.replace("-", " ")}
-          </h1>
+        <header className="dashboard-header">
+          <h1>{TAB_TITLES[activeTab] || activeTab}</h1>
         </header>
-
-        <div className="tab-content">{renderTabContent()}</div>
+        {renderTab()}
       </main>
     </div>
   );

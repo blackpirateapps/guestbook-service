@@ -1,32 +1,28 @@
 import { useEffect, useState } from "react";
-import { Routes, Route, Link, useLocation } from "react-router-dom";
-import Auth from "./pages/Auth";
-import Dashboard from "./pages/Dashboard";
-import PublicGuestbook from "./pages/PublicGuestbook";
+import { Routes, Route, useLocation } from "react-router-dom";
+import { ToastProvider } from "./components/Toast.jsx";
+import Auth             from "./pages/Auth";
+import Dashboard        from "./pages/Dashboard";
+import PublicGuestbook  from "./pages/PublicGuestbook";
 import "./index.css";
 
 function App() {
   const [loading, setLoading] = useState(true);
   const location = useLocation();
-  const isEmbedRequest =
-    new URLSearchParams(window.location.search).get("embed") === "1";
-  const isDashboard = location.pathname.startsWith("/dashboard");
+  const isEmbedRequest = new URLSearchParams(window.location.search).get("embed") === "1";
+  const isDashboard    = location.pathname.startsWith("/dashboard");
 
-  useEffect(() => {
-    setLoading(false);
-  }, []);
+  useEffect(() => { setLoading(false); }, []);
 
   if (loading) {
     return (
-      <div
-        className="container text-center"
-        style={{ marginTop: "100px", color: "var(--text-muted)" }}
-      >
-        Loading...
+      <div style={{ padding: "3rem", textAlign: "center", color: "var(--color-text-muted)" }}>
+        Loading…
       </div>
     );
   }
 
+  // Embed mode — no chrome, no toast needed
   if (isEmbedRequest) {
     return (
       <div style={{ padding: 0, maxWidth: "100%" }}>
@@ -35,7 +31,7 @@ function App() {
           <Route
             path="*"
             element={
-              <div style={{ padding: "1rem", color: "var(--text-muted)" }}>
+              <div style={{ padding: "1rem", color: "var(--color-text-muted)" }}>
                 Invalid embed URL.
               </div>
             }
@@ -45,31 +41,25 @@ function App() {
     );
   }
 
+  // Dashboard — full-page layout (no outer nav)
   if (isDashboard) {
     return (
-      <Routes>
-        <Route path="/dashboard" element={<Dashboard />} />
-      </Routes>
+      <ToastProvider>
+        <Routes>
+          <Route path="/dashboard" element={<Dashboard />} />
+        </Routes>
+      </ToastProvider>
     );
   }
 
+  // Public routes — Auth + Public Guestbook
   return (
-    <div className="container">
-      <nav className="navbar">
-        <Link to="/" className="navbar-brand">
-          <span>Website</span>Tools
-        </Link>
-        <div className="nav-links">
-          <Link to="/">Home</Link>
-          <Link to="/dashboard">Dashboard</Link>
-        </div>
-      </nav>
-
+    <ToastProvider>
       <Routes>
-        <Route path="/" element={<Auth />} />
+        <Route path="/"            element={<Auth />} />
         <Route path="/u/:username" element={<PublicGuestbook />} />
       </Routes>
-    </div>
+    </ToastProvider>
   );
 }
 

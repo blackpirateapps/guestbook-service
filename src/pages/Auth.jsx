@@ -1,143 +1,210 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useToast } from "../components/Toast.jsx";
+
+const FEATURES = [
+  {
+    icon: "📖",
+    title: "Guestbooks",
+    desc:  "A public wall for readers to leave notes. Supports moderation, threading, and privacy mode.",
+  },
+  {
+    icon: "📬",
+    title: "Contact Forms",
+    desc:  "Customizable drag-and-drop forms. Gather submissions without writing any backend code.",
+  },
+  {
+    icon: "💬",
+    title: "Comments",
+    desc:  "Threaded comment sections for any page. Includes likes, replies, and robust anti-spam.",
+  },
+];
+
+const PILLS = [
+  "No email required",
+  "Embeddable iframes",
+  "Headless API",
+  "Custom CSS injection",
+  "JSON export / import",
+  "Moderation flows",
+  "Anti-spam honeypots",
+  "Open source",
+];
 
 export default function Auth() {
-  const [isLogin, setIsLogin] = useState(true);
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
+  const [isLogin,       setIsLogin]       = useState(true);
+  const [username,      setUsername]      = useState("");
+  const [password,      setPassword]      = useState("");
+  const [submitting,    setSubmitting]    = useState(false);
   const navigate = useNavigate();
+  const toast    = useToast();
 
   async function handleSubmit(e) {
     e.preventDefault();
-    const endpoint = isLogin ? "/api/user?action=login" : "/api/user?action=signup";
+    setSubmitting(true);
+    const endpoint = isLogin
+      ? "/api/user?action=login"
+      : "/api/user?action=signup";
 
-    const res = await fetch(endpoint, {
-      method: "POST",
-      body: JSON.stringify({ username, password }),
-    });
-    const data = await res.json();
+    try {
+      const res  = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password }),
+      });
+      const data = await res.json();
 
-    if (res.ok) {
-      if (isLogin) {
-        localStorage.setItem("token", data.token);
-        localStorage.setItem("username", data.username);
-        navigate("/dashboard");
+      if (res.ok) {
+        if (isLogin) {
+          localStorage.setItem("token",    data.token);
+          localStorage.setItem("username", data.username);
+          navigate("/dashboard");
+        } else {
+          toast.success("Account created!", "You can now sign in.");
+          setIsLogin(true);
+          setPassword("");
+        }
       } else {
-        alert("Signup successful, please login");
-        setIsLogin(true);
+        toast.error("Error", data.error || "Something went wrong.");
       }
-    } else {
-      alert(data.error);
+    } catch {
+      toast.error("Network error", "Could not reach the server.");
+    } finally {
+      setSubmitting(false);
     }
   }
 
   return (
-    <div className="auth-wrapper">
-      <header className="auth-hero">
-        <h1>Website Tools</h1>
-        <p className="subtitle">
-          Essential, lightweight, and embeddable tools for your personal website. 
-          Guestbooks, Contact Forms, and Threaded Comments — all in one place.
+    <div className="auth-page">
+      {/* ── Left: Feature spotlight ── */}
+      <div className="auth-left">
+        <a href="/" className="auth-logo">
+          <span style={{ color: "var(--color-accent)" }}>⬡</span>
+          WebsiteTools
+        </a>
+
+        <h1 className="auth-headline">
+          Essential tools for your<br />personal website.
+        </h1>
+        <p className="auth-subline">
+          Lightweight, embeddable, and privacy-first. Guestbooks, contact forms,
+          and threaded comments — all in one place, no email required.
         </p>
-        <p className="meta">
-          Built with simplicity in mind. No email required. Open source at{" "}
-          <a href="https://github.com/blackpirateapps/guestbook-service" target="_blank" rel="noreferrer">
+
+        <div className="auth-features-grid">
+          {FEATURES.map((f) => (
+            <div key={f.title} className="auth-feature-card">
+              <div className="auth-feature-icon">{f.icon}</div>
+              <div className="auth-feature-title">{f.title}</div>
+              <div className="auth-feature-desc">{f.desc}</div>
+            </div>
+          ))}
+        </div>
+
+        <div className="auth-pill-list" style={{ marginTop: "1.5rem" }}>
+          {PILLS.map((p) => (
+            <span key={p} className="auth-pill">{p}</span>
+          ))}
+        </div>
+
+        <p style={{ marginTop: "1.5rem", fontSize: "0.8125rem", color: "var(--color-text-muted)" }}>
+          Open source on{" "}
+          <a
+            href="https://github.com/blackpirateapps/guestbook-service"
+            target="_blank"
+            rel="noreferrer"
+          >
             GitHub
           </a>
-          .
         </p>
-      </header>
-
-      <div className="auth-features card">
-        <h3>What's Included</h3>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.5rem', marginBottom: '1rem' }}>
-          <div>
-            <h4 style={{ color: 'var(--accent-primary)', marginBottom: '0.5rem' }}>Guestbooks</h4>
-            <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>
-              A public wall for readers to leave notes. Supports private messages, moderation, and threading.
-            </p>
-          </div>
-          <div>
-            <h4 style={{ color: 'var(--accent-primary)', marginBottom: '0.5rem' }}>Contact Forms</h4>
-            <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>
-              Customizable forms for your site. Gather submissions without writing any backend code.
-            </p>
-          </div>
-          <div>
-            <h4 style={{ color: 'var(--accent-primary)', marginBottom: '0.5rem' }}>Comments</h4>
-            <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>
-              Threaded comment sections for any page. Includes likes, replies, and robust bot protection.
-            </p>
-          </div>
-        </div>
-        
-        <h4 style={{ marginTop: '1rem', marginBottom: '0.5rem' }}>Core Features</h4>
-        <ul style={{ columnCount: 2, columnGap: '2rem' }}>
-          <li>No-email account flow</li>
-          <li>Embeddable iframe snippets</li>
-          <li>Headless API support</li>
-          <li>Custom CSS & HTML injection</li>
-          <li>JSON data export/import</li>
-          <li>Privacy-first & lightweight</li>
-          <li>Moderation & Approval flows</li>
-          <li>Anti-spam Honeypots</li>
-        </ul>
       </div>
 
-      <div className="auth-card">
-        <div className="auth-tabs">
-          <button
-            type="button"
-            className={`auth-tab${isLogin ? " active" : ""}`}
-            onClick={() => setIsLogin(true)}
-          >
-            Sign in
-          </button>
-          <button
-            type="button"
-            className={`auth-tab${!isLogin ? " active" : ""}`}
-            onClick={() => setIsLogin(false)}
-          >
-            Create account
-          </button>
-        </div>
-
-        <div className="auth-form-wrapper">
-          <p>
+      {/* ── Right: Auth form ── */}
+      <div className="auth-right">
+        <div className="auth-form-box">
+          <h2 className="auth-form-title">
+            {isLogin ? "Welcome back." : "Create account"}
+          </h2>
+          <p className="auth-form-subtitle">
             {isLogin
-              ? "Welcome back."
+              ? "Sign in to your dashboard."
               : "Pick a username and password — that's it."}
           </p>
 
-          <form onSubmit={handleSubmit} style={{ marginBottom: 0 }}>
-            <div className="form-group">
-              <label htmlFor="username">Username</label>
-              <input
-                id="username"
-                type="text"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                placeholder="Username"
-                required
-              />
-            </div>
-
-            <div className="form-group">
-              <label htmlFor="password">Password</label>
-              <input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Password"
-                required
-              />
-            </div>
-
-            <button type="submit">
-              {isLogin ? "Sign in" : "Create account"}
+          {/* Tab switcher */}
+          <div className="auth-tabs" role="tablist">
+            <button
+              type="button"
+              role="tab"
+              className={`auth-tab${isLogin ? " active" : ""}`}
+              aria-selected={isLogin}
+              onClick={() => setIsLogin(true)}
+            >
+              Sign in
             </button>
-          </form>
+            <button
+              type="button"
+              role="tab"
+              className={`auth-tab${!isLogin ? " active" : ""}`}
+              aria-selected={!isLogin}
+              onClick={() => setIsLogin(false)}
+            >
+              Create account
+            </button>
+          </div>
+
+          <div className="auth-form-wrapper">
+            <form onSubmit={handleSubmit} style={{ marginBottom: 0 }}>
+              <div className="form-group">
+                <label htmlFor="auth-username">Username</label>
+                <input
+                  id="auth-username"
+                  type="text"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  placeholder="your_username"
+                  autoComplete="username"
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <label htmlFor="auth-password">Password</label>
+                <input
+                  id="auth-password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  autoComplete={isLogin ? "current-password" : "new-password"}
+                  required
+                />
+              </div>
+              <button
+                type="submit"
+                className="auth-submit"
+                disabled={submitting}
+              >
+                {submitting
+                  ? "Please wait…"
+                  : isLogin
+                  ? "Sign in →"
+                  : "Create account →"}
+              </button>
+            </form>
+          </div>
+
+          <p className="auth-footer-note">
+            By signing up you agree to use this service responsibly.
+            <br />
+            Questions?{" "}
+            <a
+              href="https://github.com/blackpirateapps/guestbook-service"
+              target="_blank"
+              rel="noreferrer"
+            >
+              See the docs.
+            </a>
+          </p>
         </div>
       </div>
     </div>
