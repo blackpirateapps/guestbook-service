@@ -1,4 +1,4 @@
-import { db, initCommentsTables, initRateLimitTable } from './db.js';
+import { db, initCommentsTables, initRateLimitTable, sendTelegramNotification } from './db.js';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 
@@ -206,6 +206,16 @@ export default async function handler(req, res) {
           page_url || ''
         ]
       });
+      
+      if (!isOwnerPosting) {
+        sendTelegramNotification(owner_username, {
+          type: 'comment',
+          sender_name: is_anonymous ? 'Anonymous' : sender_name,
+          message: comment_text,
+          url: page_url || ''
+        }).catch(() => {});
+      }
+
       return res.status(201).json({ success: true, status });
     } catch (e) {
       console.error(e);

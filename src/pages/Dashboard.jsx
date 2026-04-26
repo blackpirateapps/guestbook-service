@@ -17,6 +17,7 @@ import CommentsTab          from "../features/dashboard/CommentsTab.jsx";
 import CommentsIntegrationTab from "../features/dashboard/CommentsIntegrationTab.jsx";
 import ModerationTab        from "../features/dashboard/ModerationTab.jsx";
 import LikesTab             from "../features/dashboard/LikesTab.jsx";
+import AccountTab           from "../features/dashboard/AccountTab.jsx";
 
 const TAB_TITLES = {
   overview:              "Overview",
@@ -33,6 +34,7 @@ const TAB_TITLES = {
   "comments-integration":"Integration",
   "comment-moderation":  "Moderation",
   likes:                 "Likes",
+  account:               "Account",
 };
 
 export default function Dashboard() {
@@ -55,6 +57,11 @@ export default function Dashboard() {
   const [replyingTo,       setReplyingTo]       = useState(null);
   const [replyMsg,         setReplyMsg]         = useState("");
   const [dataTransferBusy, setDataTransferBusy] = useState(false);
+
+  // Account
+  const [email, setEmail] = useState("");
+  const [telegramChatId, setTelegramChatId] = useState("");
+  const [telegramNotifications, setTelegramNotifications] = useState(false);
 
   // Import form state
   const [importName,    setImportName]    = useState("");
@@ -159,6 +166,9 @@ export default function Dashboard() {
       setCustomHtml(d.custom_html || "");
       setEmbedCssUrl(d.embed_css_url || "");
       setRequireApproval(d.require_approval === 1);
+      setEmail(d.email || "");
+      setTelegramChatId(d.telegram_chat_id || "");
+      setTelegramNotifications(d.telegram_notifications === 1);
     }
     fetchForms();
     fetchCommentSections();
@@ -249,7 +259,15 @@ export default function Dashboard() {
     const res = await fetch("/api/user", {
       method: "PUT",
       headers: { Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ custom_css: customCss, custom_html: customHtml, embed_css_url: embedCssUrl, require_approval: requireApproval }),
+      body: JSON.stringify({
+        custom_css: customCss,
+        custom_html: customHtml,
+        embed_css_url: embedCssUrl,
+        require_approval: requireApproval,
+        email,
+        telegram_chat_id: telegramChatId,
+        telegram_notifications: telegramNotifications
+      }),
     });
     if (res.ok) { toast.success("Saved", "Settings updated."); }
     else { const d = await res.json().catch(() => ({})); toast.error("Error", d.error || "Failed to save."); }
@@ -477,6 +495,14 @@ export default function Dashboard() {
           requireApproval={requireApproval} setRequireApproval={setRequireApproval}
           customCss={customCss}             setCustomCss={setCustomCss}
           customHtml={customHtml}           setCustomHtml={setCustomHtml}
+          saveSettings={saveSettings}
+        />
+      );
+      case "account": return (
+        <AccountTab
+          email={email} setEmail={setEmail}
+          telegramChatId={telegramChatId} setTelegramChatId={setTelegramChatId}
+          telegramNotifications={telegramNotifications} setTelegramNotifications={setTelegramNotifications}
           saveSettings={saveSettings}
         />
       );

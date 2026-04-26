@@ -101,3 +101,53 @@ export async function initCommentsTables() {
     await db.execute("ALTER TABLE comments ADD COLUMN page_url TEXT");
   } catch (e) {}
 }
+
+// Telegram notification helper
+export async function sendTelegramNotification(ownerUsername, payload) {
+  const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
+  if (!TELEGRAM_BOT_TOKEN) return; // Silent return if not configured
+
+  try {
+    // Check if the user has telegram_notifications enabled, and get the chat_id
+    const res = await db.execute({
+      sql: 'SELECT telegram_chat_id, telegram_notifications FROM users WHERE username = ?',
+      args: [ownerUsername]
+    });
+
+    if (res.rows.length === 0) return;
+    const user = res.rows[0];
+
+    if (user.telegram_notifications !== 1 || !user.telegram_chat_id) {
+      return;
+    }
+
+    let textStr = "";
+    if (payload.type === 'guestbook') {
+      textStr = `📖 *New Guestbook Entry*\n\n*Name*: ${payload.sender_name}\n*Message*: ${payload.message}`;
+    } else if (payload.type === 'comment') {
+      textStr = `💬 *New Comment*\n\n*Page*: ${payload.url}\n*Name*: ${payload.sender_name}\n*Message*: ${payload.message}`;
+    } else if (payload.type === 'form') {
+      textStr = `📬 *New Form Submission*\n\n*Form*: ${payload.formName}\n*Data*:\n`;
+      for (const [key, val] of Object.entries(payload.data)) {
+        textStr += `• *${key}*: ${val}\n`;
+      }
+    } else {
+      textStr = `🔔 *New Notification*\n\n${JSON.stringify(payload)}`;
+    }
+
+    // Call the Telegram bot API
+    const url = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
+    await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        chat_id: user.telegram_chat_id,
+        text: textStr,
+        parse_mode: "Markdown"
+      })
+    });
+  } catch (err) {
+    // Swallow error to not interrupt the main process flow
+    console.error("Telegram notification error:", err);
+  }
+}

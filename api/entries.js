@@ -1,4 +1,4 @@
-import { db } from './db.js';
+import { db, sendTelegramNotification } from './db.js';
 import jwt from 'jsonwebtoken';
 
 const SECRET = process.env.JWT_SECRET || 'secret';
@@ -344,6 +344,15 @@ export default async function handler(req, res) {
           status
         ]
       });
+
+      // Send telegram notification natively (non-owner posts only)
+      if (!isOwner) {
+        sendTelegramNotification(owner_username, {
+          type: 'guestbook',
+          sender_name,
+          message
+        }).catch(() => {});
+      }
 
       return res.status(201).json({ success: true, status: status });
 

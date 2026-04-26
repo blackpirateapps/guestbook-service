@@ -1,4 +1,4 @@
-import { db, initFormsTables } from './db.js';
+import { db, initFormsTables, sendTelegramNotification } from './db.js';
 
 function setCors(res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -170,6 +170,12 @@ export default async function handler(req, res) {
             VALUES (?, ?, ?, ?)`,
       args: [form, JSON.stringify(cleanData), status, ipAddress]
     });
+
+    sendTelegramNotification(formData.owner_username, {
+      type: 'form',
+      formName: formData.name,
+      data: cleanData
+    }).catch(() => {});
 
     return res.status(201).json({
       success: true,

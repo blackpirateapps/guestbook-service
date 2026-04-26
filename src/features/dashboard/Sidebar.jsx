@@ -19,6 +19,7 @@ import {
   FormInput,
   Menu,
   X,
+  UserCog,
 } from "lucide-react";
 
 // ── Tab → Group mapping ────────────────────────────────────────
@@ -37,6 +38,7 @@ const TAB_GROUP_MAP = {
   "comments-integration": "comments",
   "comment-moderation": "comments",
   likes:                "likes",
+  account:              "account",
 };
 
 const NAV_GROUPS = [
@@ -83,6 +85,13 @@ const NAV_GROUPS = [
     Icon: Heart,
     defaultTab: "likes",
     items: null, // direct nav, no sub-items
+  },
+  {
+    id: "account",
+    label: "Account",
+    Icon: UserCog,
+    defaultTab: "account",
+    items: null,
   },
 ];
 
