@@ -3,6 +3,7 @@ import { Routes, Route, useLocation } from "react-router-dom";
 import { ToastProvider } from "./components/Toast.jsx";
 import Auth             from "./pages/Auth";
 import Dashboard        from "./pages/Dashboard";
+import Docs             from "./pages/Docs";
 import PublicGuestbook  from "./pages/PublicGuestbook";
 import ResetPassword    from "./pages/ResetPassword";
 import "./index.css";
@@ -58,6 +59,7 @@ function App() {
     <ToastProvider>
       <Routes>
         <Route path="/"            element={<Auth />} />
+        <Route path="/docs/*"      element={<Docs />} />
         <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/u/:username" element={<PublicGuestbook />} />
       </Routes>

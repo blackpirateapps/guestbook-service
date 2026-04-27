@@ -294,9 +294,7 @@ export default function Auth() {
             <br />
             Questions?{" "}
             <a
-              href="https://github.com/blackpirateapps/guestbook-service"
-              target="_blank"
-              rel="noreferrer"
+              href="/docs"
             >
               See the docs.
             </a>
