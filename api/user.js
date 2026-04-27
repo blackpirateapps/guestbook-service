@@ -1,4 +1,4 @@
-import { db } from './db.js';
+import { db, sendTelegramNotification } from './db.js';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 
@@ -11,13 +11,21 @@ async function ensureUserColumns() {
   try { await db.execute('ALTER TABLE users ADD COLUMN telegram_notifications INTEGER DEFAULT 0'); } catch {}
 }
 
+function getJsonBody(req) {
+  if (!req.body) return {};
+  if (typeof req.body === 'string') {
+    try { return JSON.parse(req.body); } catch { return {}; }
+  }
+  return req.body;
+}
+
 export default async function handler(req, res) {
   const { method } = req;
   const { action } = req.query;
 
   // 1. SIGNUP (POST ?action=signup)
   if (method === 'POST' && action === 'signup') {
-    const { username, password } = JSON.parse(req.body);
+    const { username, password } = getJsonBody(req);
     const hashedPassword = await bcrypt.hash(password, 10);
     try {
       await db.execute({
@@ -32,7 +40,7 @@ export default async function handler(req, res) {
 
   // 2. LOGIN (POST ?action=login)
   if (method === 'POST' && action === 'login') {
-    const { username, password } = JSON.parse(req.body);
+    const { username, password } = getJsonBody(req);
     const result = await db.execute({
       sql: 'SELECT * FROM users WHERE username = ?',
       args: [username]
@@ -43,6 +51,32 @@ export default async function handler(req, res) {
       return res.status(200).json({ token, username: user.username });
     }
     return res.status(401).json({ error: 'Invalid credentials' });
+  }
+
+  // 2b. TEST TELEGRAM (POST ?action=test_telegram)
+  if (method === 'POST' && action === 'test_telegram') {
+    const token = req.headers.authorization?.split(' ')[1];
+    if (!token) return res.status(401).json({ error: 'Unauthorized' });
+
+    try {
+      await ensureUserColumns();
+      const decoded = jwt.verify(token, SECRET);
+      const result = await sendTelegramNotification(decoded.username, {
+        type: 'test',
+        message: 'This is a test alert from Website Tools.'
+      });
+
+      if (result?.sent) {
+        return res.json({ success: true });
+      }
+
+      return res.status(400).json({
+        error: 'Telegram notification was not sent',
+        reason: result?.reason || 'unknown'
+      });
+    } catch (e) {
+      return res.status(401).json({ error: 'Unauthorized or Telegram test failed' });
+    }
   }
 
   // 3. PROFILE GET (GET ?username=...)
@@ -64,7 +98,7 @@ export default async function handler(req, res) {
         embed_css_url: profile.embed_css_url || '',
         email: profile.email || '',
         telegram_chat_id: profile.telegram_chat_id || '',
-        telegram_notifications: profile.telegram_notifications === 1 ? 1 : 0
+        telegram_notifications: Number(profile.telegram_notifications) === 1 ? 1 : 0
       });
     } catch (e) {
       return res.status(500).json({ error: 'Database error' });
@@ -78,7 +112,7 @@ export default async function handler(req, res) {
     try {
       await ensureUserColumns();
       const decoded = jwt.verify(token, SECRET);
-      const { custom_css, custom_html, require_approval, embed_css_url, email, telegram_chat_id, telegram_notifications } = JSON.parse(req.body);
+      const { custom_css, custom_html, require_approval, embed_css_url, email, telegram_chat_id, telegram_notifications } = getJsonBody(req);
 
       const nextEmbedCssUrl = (embed_css_url || '').trim();
       if (nextEmbedCssUrl) {

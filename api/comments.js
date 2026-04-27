@@ -208,12 +208,12 @@ export default async function handler(req, res) {
       });
       
       if (!isOwnerPosting) {
-        sendTelegramNotification(owner_username, {
+        await sendTelegramNotification(owner_username, {
           type: 'comment',
           sender_name: is_anonymous ? 'Anonymous' : sender_name,
           message: comment_text,
           url: page_url || ''
-        }).catch(() => {});
+        });
       }
 
       return res.status(201).json({ success: true, status });

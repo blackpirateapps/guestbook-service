@@ -347,11 +347,11 @@ export default async function handler(req, res) {
 
       // Send telegram notification natively (non-owner posts only)
       if (!isOwner) {
-        sendTelegramNotification(owner_username, {
+        await sendTelegramNotification(owner_username, {
           type: 'guestbook',
           sender_name,
           message
-        }).catch(() => {});
+        });
       }
 
       return res.status(201).json({ success: true, status: status });

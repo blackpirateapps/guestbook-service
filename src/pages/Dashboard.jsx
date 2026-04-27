@@ -258,7 +258,7 @@ export default function Dashboard() {
   async function saveSettings() {
     const res = await fetch("/api/user", {
       method: "PUT",
-      headers: { Authorization: `Bearer ${token}` },
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
       body: JSON.stringify({
         custom_css: customCss,
         custom_html: customHtml,
@@ -271,6 +271,29 @@ export default function Dashboard() {
     });
     if (res.ok) { toast.success("Saved", "Settings updated."); }
     else { const d = await res.json().catch(() => ({})); toast.error("Error", d.error || "Failed to save."); }
+  }
+
+  async function testTelegramNotification() {
+    const res = await fetch("/api/user?action=test_telegram", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({})
+    });
+
+    const data = await res.json().catch(() => ({}));
+    if (res.ok) {
+      toast.success("Telegram sent", "Check your Telegram chat for the test alert.");
+      return;
+    }
+
+    const reasonMessages = {
+      missing_bot_token: "TELEGRAM_BOT_TOKEN is not configured in Vercel.",
+      owner_not_found: "Could not find your account row.",
+      disabled_or_missing_chat_id: "Save a Telegram Chat ID and enable Telegram notifications first.",
+      telegram_api_error: "Telegram rejected the send. Make sure you started a chat with your bot and the chat ID is correct.",
+      exception: "The server hit an exception while sending the Telegram test."
+    };
+    toast.error("Telegram test failed", reasonMessages[data.reason] || data.error || "Could not send the test alert.");
   }
 
   async function deleteEntry(id) {
@@ -507,6 +530,7 @@ export default function Dashboard() {
           telegramChatId={telegramChatId} setTelegramChatId={setTelegramChatId}
           telegramNotifications={telegramNotifications} setTelegramNotifications={setTelegramNotifications}
           saveSettings={saveSettings}
+          testTelegramNotification={testTelegramNotification}
         />
       );
       case "data": return (

@@ -171,11 +171,11 @@ export default async function handler(req, res) {
       args: [form, JSON.stringify(cleanData), status, ipAddress]
     });
 
-    sendTelegramNotification(formData.owner_username, {
+    await sendTelegramNotification(formData.owner_username, {
       type: 'form',
       formName: formData.name,
       data: cleanData
-    }).catch(() => {});
+    });
 
     return res.status(201).json({
       success: true,

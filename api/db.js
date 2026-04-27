@@ -152,13 +152,20 @@ function buildTelegramMessage(payload) {
     return lines.join('\n');
   }
 
+  if (payload.type === 'test') {
+    return `🔔 <b>Telegram Test</b>\n\n${escapeTelegramHtml(payload.message || 'Your Website Tools Telegram notifications are working.')}`;
+  }
+
   return `🔔 <b>New Notification</b>\n\n${escapeTelegramHtml(JSON.stringify(payload))}`;
 }
 
 // Telegram notification helper
 export async function sendTelegramNotification(ownerUsername, payload) {
   const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
-  if (!TELEGRAM_BOT_TOKEN) return; // Silent return if not configured
+  if (!TELEGRAM_BOT_TOKEN) {
+    console.warn("Telegram notification skipped: TELEGRAM_BOT_TOKEN is not configured.");
+    return { sent: false, reason: "missing_bot_token" };
+  }
 
   try {
     await ensureTelegramColumns();
@@ -169,12 +176,21 @@ export async function sendTelegramNotification(ownerUsername, payload) {
       args: [ownerUsername]
     });
 
-    if (res.rows.length === 0) return;
+    if (res.rows.length === 0) {
+      console.warn("Telegram notification skipped: owner not found.", { ownerUsername });
+      return { sent: false, reason: "owner_not_found" };
+    }
+
     const user = res.rows[0];
     const chatId = String(user.telegram_chat_id || '').trim();
 
     if (Number(user.telegram_notifications) !== 1 || !chatId) {
-      return;
+      console.warn("Telegram notification skipped: notifications disabled or chat ID missing.", {
+        ownerUsername,
+        hasChatId: Boolean(chatId),
+        telegramNotifications: Number(user.telegram_notifications)
+      });
+      return { sent: false, reason: "disabled_or_missing_chat_id" };
     }
 
     const textStr = trimTelegramMessage(buildTelegramMessage(payload));
@@ -195,9 +211,13 @@ export async function sendTelegramNotification(ownerUsername, payload) {
     if (!telegramRes.ok) {
       const details = await telegramRes.text().catch(() => '');
       console.error("Telegram notification failed:", telegramRes.status, details);
+      return { sent: false, reason: "telegram_api_error", status: telegramRes.status };
     }
+
+    return { sent: true };
   } catch (err) {
     // Swallow error to not interrupt the main process flow
     console.error("Telegram notification error:", err);
+    return { sent: false, reason: "exception" };
   }
 }

@@ -4,7 +4,8 @@ export default function AccountTab({
   email, setEmail,
   telegramChatId, setTelegramChatId,
   telegramNotifications, setTelegramNotifications,
-  saveSettings
+  saveSettings,
+  testTelegramNotification
 }) {
   return (
     <div className="account-tab">
@@ -67,6 +68,13 @@ export default function AccountTab({
         <div className="actions-row">
           <button className="primary" onClick={saveSettings}>
             Save Changes
+          </button>
+          <button
+            className="secondary"
+            onClick={testTelegramNotification}
+            disabled={!telegramChatId.trim() || !telegramNotifications}
+          >
+            Send Test Alert
           </button>
         </div>
       </div>
