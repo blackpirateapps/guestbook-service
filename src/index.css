@@ -1167,6 +1167,48 @@ input[type="checkbox"] {
 .auth-submit:hover { background: var(--color-accent-hover); transform: scale(1.01); }
 .auth-submit:active { transform: scale(0.98); }
 .auth-submit:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+.auth-link-button {
+  width: 100%;
+  margin-top: var(--space-3);
+  padding: 8px;
+  border: none;
+  background: transparent;
+  color: var(--color-accent);
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.auth-link-button:hover {
+  background: rgba(0,117,222,0.07);
+  transform: none;
+}
+.auth-inline-note {
+  margin: var(--space-3) 0 0;
+  padding: var(--space-3);
+  border: 1px solid rgba(0,117,222,0.18);
+  border-radius: var(--radius-xs);
+  background: rgba(0,117,222,0.06);
+  color: var(--color-text-secondary);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+}
+.auth-inline-note a {
+  color: var(--color-accent);
+  font-weight: 700;
+}
+.reset-password-page {
+  align-items: center;
+  justify-content: center;
+  background:
+    radial-gradient(circle at 20% 20%, rgba(0,117,222,0.12), transparent 34%),
+    var(--color-bg-alt);
+}
+.reset-password-panel {
+  min-height: auto;
+  border: var(--border-whisper);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card-hover);
+}
 .auth-footer-note {
   margin-top: var(--space-5);
   font-size: 0.8125rem;

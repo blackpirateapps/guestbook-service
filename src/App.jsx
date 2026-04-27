@@ -4,6 +4,7 @@ import { ToastProvider } from "./components/Toast.jsx";
 import Auth             from "./pages/Auth";
 import Dashboard        from "./pages/Dashboard";
 import PublicGuestbook  from "./pages/PublicGuestbook";
+import ResetPassword    from "./pages/ResetPassword";
 import "./index.css";
 
 function App() {
@@ -57,6 +58,7 @@ function App() {
     <ToastProvider>
       <Routes>
         <Route path="/"            element={<Auth />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/u/:username" element={<PublicGuestbook />} />
       </Routes>
     </ToastProvider>

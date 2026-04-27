@@ -156,11 +156,23 @@ function buildTelegramMessage(payload) {
     return `🔔 <b>Telegram Test</b>\n\n${escapeTelegramHtml(payload.message || 'Your Website Tools Telegram notifications are working.')}`;
   }
 
+  if (payload.type === 'password_reset') {
+    return [
+      `🔐 <b>Password Reset Request</b>`,
+      '',
+      `Use this link to reset your Website Tools password:`,
+      escapeTelegramHtml(payload.reset_link),
+      '',
+      `This link expires in ${escapeTelegramHtml(payload.expires_minutes || 30)} minutes. If you did not request this, you can ignore it.`
+    ].join('\n');
+  }
+
   return `🔔 <b>New Notification</b>\n\n${escapeTelegramHtml(JSON.stringify(payload))}`;
 }
 
 // Telegram notification helper
-export async function sendTelegramNotification(ownerUsername, payload) {
+export async function sendTelegramNotification(ownerUsername, payload, options = {}) {
+  const { requireEnabled = true } = options;
   const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
   if (!TELEGRAM_BOT_TOKEN) {
     console.warn("Telegram notification skipped: TELEGRAM_BOT_TOKEN is not configured.");
@@ -184,7 +196,7 @@ export async function sendTelegramNotification(ownerUsername, payload) {
     const user = res.rows[0];
     const chatId = String(user.telegram_chat_id || '').trim();
 
-    if (Number(user.telegram_notifications) !== 1 || !chatId) {
+    if (!chatId || (requireEnabled && Number(user.telegram_notifications) !== 1)) {
       console.warn("Telegram notification skipped: notifications disabled or chat ID missing.", {
         ownerUsername,
         hasChatId: Boolean(chatId),

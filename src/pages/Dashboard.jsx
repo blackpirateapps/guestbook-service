@@ -296,6 +296,26 @@ export default function Dashboard() {
     toast.error("Telegram test failed", reasonMessages[data.reason] || data.error || "Could not send the test alert.");
   }
 
+  async function updatePassword({ currentPassword, newPassword }) {
+    const res = await fetch("/api/user?action=change_password", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        current_password: currentPassword,
+        new_password: newPassword
+      })
+    });
+    const data = await res.json().catch(() => ({}));
+
+    if (res.ok) {
+      toast.success("Password updated", "Use your new password the next time you sign in.");
+      return true;
+    }
+
+    toast.error("Password update failed", data.error || "Could not update your password.");
+    return false;
+  }
+
   async function deleteEntry(id) {
     if (!confirm("Delete this entry?")) return;
     await fetch("/api/entries", { method: "DELETE", body: JSON.stringify({ id }), headers: { Authorization: `Bearer ${token}` } });
@@ -531,6 +551,7 @@ export default function Dashboard() {
           telegramNotifications={telegramNotifications} setTelegramNotifications={setTelegramNotifications}
           saveSettings={saveSettings}
           testTelegramNotification={testTelegramNotification}
+          updatePassword={updatePassword}
         />
       );
       case "data": return (

@@ -1,12 +1,45 @@
-import React from 'react';
+import { useState } from 'react';
 
 export default function AccountTab({
   email, setEmail,
   telegramChatId, setTelegramChatId,
   telegramNotifications, setTelegramNotifications,
   saveSettings,
-  testTelegramNotification
+  testTelegramNotification,
+  updatePassword
 }) {
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [passwordBusy, setPasswordBusy] = useState(false);
+  const [passwordNote, setPasswordNote] = useState('');
+
+  async function handlePasswordSubmit(e) {
+    e.preventDefault();
+    setPasswordNote('');
+
+    if (newPassword.length < 8) {
+      setPasswordNote('New password must be at least 8 characters long.');
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setPasswordNote('New password and confirmation do not match.');
+      return;
+    }
+
+    setPasswordBusy(true);
+    const updated = await updatePassword({ currentPassword, newPassword });
+    setPasswordBusy(false);
+
+    if (updated) {
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+      setPasswordNote('Password updated successfully.');
+    }
+  }
+
   return (
     <div className="account-tab">
       <div className="panel-card">
@@ -77,6 +110,65 @@ export default function AccountTab({
             Send Test Alert
           </button>
         </div>
+
+        <hr />
+
+        <h4>Update Password</h4>
+        <p className="text-sm text-muted" style={{ marginBottom: 'var(--space-4)' }}>
+          Change the password you use to sign in to this dashboard.
+        </p>
+
+        <form onSubmit={handlePasswordSubmit} style={{ marginBottom: 0 }}>
+          <div className="form-group" style={{ marginBottom: 'var(--space-4)' }}>
+            <label htmlFor="current-password">Current Password</label>
+            <input
+              id="current-password"
+              type="password"
+              value={currentPassword}
+              onChange={(e) => setCurrentPassword(e.target.value)}
+              autoComplete="current-password"
+              required
+            />
+          </div>
+
+          <div className="form-group" style={{ marginBottom: 'var(--space-4)' }}>
+            <label htmlFor="new-password">New Password</label>
+            <input
+              id="new-password"
+              type="password"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              autoComplete="new-password"
+              required
+              minLength={8}
+            />
+          </div>
+
+          <div className="form-group" style={{ marginBottom: 'var(--space-4)' }}>
+            <label htmlFor="confirm-new-password">Confirm New Password</label>
+            <input
+              id="confirm-new-password"
+              type="password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              autoComplete="new-password"
+              required
+              minLength={8}
+            />
+          </div>
+
+          {passwordNote && (
+            <p className="text-xs text-muted" style={{ marginTop: '-8px' }}>
+              {passwordNote}
+            </p>
+          )}
+
+          <div className="actions-row">
+            <button className="primary" type="submit" disabled={passwordBusy}>
+              {passwordBusy ? 'Updating...' : 'Update Password'}
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );
