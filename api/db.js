@@ -102,12 +102,67 @@ export async function initCommentsTables() {
   } catch (e) {}
 }
 
+async function ensureTelegramColumns() {
+  try { await db.execute('ALTER TABLE users ADD COLUMN telegram_chat_id TEXT'); } catch {}
+  try { await db.execute('ALTER TABLE users ADD COLUMN telegram_notifications INTEGER DEFAULT 0'); } catch {}
+}
+
+function escapeTelegramHtml(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function formatTelegramValue(value) {
+  if (value === undefined || value === null || value === '') return 'Not provided';
+  if (Array.isArray(value)) return value.join(', ');
+  if (typeof value === 'object') return JSON.stringify(value);
+  return String(value);
+}
+
+function trimTelegramMessage(message) {
+  const maxLength = 3900;
+  if (message.length <= maxLength) return message;
+  return `${message.slice(0, maxLength)}\n\n...truncated`;
+}
+
+function buildTelegramMessage(payload) {
+  if (payload.type === 'guestbook') {
+    return `📖 <b>New Guestbook Entry</b>\n\n<b>Name:</b> ${escapeTelegramHtml(payload.sender_name || 'Anonymous')}\n<b>Message:</b> ${escapeTelegramHtml(payload.message)}`;
+  }
+
+  if (payload.type === 'comment') {
+    return `💬 <b>New Comment</b>\n\n<b>Page:</b> ${escapeTelegramHtml(payload.url || 'Unknown')}\n<b>Name:</b> ${escapeTelegramHtml(payload.sender_name || 'Anonymous')}\n<b>Message:</b> ${escapeTelegramHtml(payload.message)}`;
+  }
+
+  if (payload.type === 'form') {
+    const lines = [
+      `📬 <b>New Form Submission</b>`,
+      '',
+      `<b>Form:</b> ${escapeTelegramHtml(payload.formName || 'Untitled form')}`,
+      `<b>Data:</b>`
+    ];
+
+    for (const [key, val] of Object.entries(payload.data || {})) {
+      lines.push(`• <b>${escapeTelegramHtml(key)}:</b> ${escapeTelegramHtml(formatTelegramValue(val))}`);
+    }
+
+    return lines.join('\n');
+  }
+
+  return `🔔 <b>New Notification</b>\n\n${escapeTelegramHtml(JSON.stringify(payload))}`;
+}
+
 // Telegram notification helper
 export async function sendTelegramNotification(ownerUsername, payload) {
   const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
   if (!TELEGRAM_BOT_TOKEN) return; // Silent return if not configured
 
   try {
+    await ensureTelegramColumns();
+
     // Check if the user has telegram_notifications enabled, and get the chat_id
     const res = await db.execute({
       sql: 'SELECT telegram_chat_id, telegram_notifications FROM users WHERE username = ?',
@@ -116,36 +171,31 @@ export async function sendTelegramNotification(ownerUsername, payload) {
 
     if (res.rows.length === 0) return;
     const user = res.rows[0];
+    const chatId = String(user.telegram_chat_id || '').trim();
 
-    if (user.telegram_notifications !== 1 || !user.telegram_chat_id) {
+    if (Number(user.telegram_notifications) !== 1 || !chatId) {
       return;
     }
 
-    let textStr = "";
-    if (payload.type === 'guestbook') {
-      textStr = `📖 *New Guestbook Entry*\n\n*Name*: ${payload.sender_name}\n*Message*: ${payload.message}`;
-    } else if (payload.type === 'comment') {
-      textStr = `💬 *New Comment*\n\n*Page*: ${payload.url}\n*Name*: ${payload.sender_name}\n*Message*: ${payload.message}`;
-    } else if (payload.type === 'form') {
-      textStr = `📬 *New Form Submission*\n\n*Form*: ${payload.formName}\n*Data*:\n`;
-      for (const [key, val] of Object.entries(payload.data)) {
-        textStr += `• *${key}*: ${val}\n`;
-      }
-    } else {
-      textStr = `🔔 *New Notification*\n\n${JSON.stringify(payload)}`;
-    }
+    const textStr = trimTelegramMessage(buildTelegramMessage(payload));
 
     // Call the Telegram bot API
     const url = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
-    await fetch(url, {
+    const telegramRes = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        chat_id: user.telegram_chat_id,
+        chat_id: chatId,
         text: textStr,
-        parse_mode: "Markdown"
+        parse_mode: "HTML",
+        disable_web_page_preview: true
       })
     });
+
+    if (!telegramRes.ok) {
+      const details = await telegramRes.text().catch(() => '');
+      console.error("Telegram notification failed:", telegramRes.status, details);
+    }
   } catch (err) {
     // Swallow error to not interrupt the main process flow
     console.error("Telegram notification error:", err);

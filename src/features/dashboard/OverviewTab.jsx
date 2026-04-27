@@ -69,10 +69,15 @@ export default function OverviewTab({
   approveEntry,
   deleteEntry,
   sendReply,
+  telegramChatId,
+  telegramNotifications,
+  onOpenAccountSettings,
 }) {
   const dark    = useDarkMode();
   const colors  = chartColors(dark);
   const chartData = groupByDay(entries);
+  const hasTelegramChatId = Boolean(telegramChatId?.trim());
+  const telegramReady = hasTelegramChatId && telegramNotifications;
 
   return (
     <>
@@ -91,6 +96,13 @@ export default function OverviewTab({
           </div>
         ))}
       </div>
+
+      {!telegramReady && (
+        <TelegramNotificationNudge
+          hasChatId={hasTelegramChatId}
+          onOpenAccountSettings={onOpenAccountSettings}
+        />
+      )}
 
       {/* Activity chart */}
       <div className="panel-card" style={{ marginBottom: "var(--space-4)" }}>
@@ -156,6 +168,27 @@ export default function OverviewTab({
         )}
       </div>
     </>
+  );
+}
+
+function TelegramNotificationNudge({ hasChatId, onOpenAccountSettings }) {
+  return (
+    <div className="panel-card telegram-nudge">
+      <div className="telegram-nudge-copy">
+        <div className="telegram-nudge-label">Notifications</div>
+        <h3>{hasChatId ? "Telegram alerts are paused" : "Get Telegram alerts as things happen"}</h3>
+        <p>
+          {hasChatId
+            ? "Enable Telegram notifications so new guestbook entries, comments, and form submissions reach you right away."
+            : "Set your Telegram Chat ID to receive notifications when someone signs your guestbook, comments, or submits a form."}
+        </p>
+      </div>
+      {onOpenAccountSettings && (
+        <button type="button" className="primary" onClick={onOpenAccountSettings}>
+          {hasChatId ? "Enable Alerts" : "Set Chat ID"}
+        </button>
+      )}
+    </div>
   );
 }
 

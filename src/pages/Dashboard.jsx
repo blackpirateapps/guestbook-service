@@ -481,6 +481,9 @@ export default function Dashboard() {
           replyMsg={replyMsg}             setReplyMsg={setReplyMsg}
           approveEntry={approveEntry}     deleteEntry={deleteEntry}
           sendReply={sendReply}
+          telegramChatId={telegramChatId}
+          telegramNotifications={telegramNotifications}
+          onOpenAccountSettings={() => handleTabChange("account")}
         />
       );
       case "embed": return (

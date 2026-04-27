@@ -1,213 +1,233 @@
 # Website Tools AI Handoff
 
-Welcome, Agent. This document provides a high-level overview of the Website Tools web application to help you quickly understand the codebase, its architecture, and how to operate within it.
+This is the current map of the repo. The UI brands the product as Website Tools, while the package name in `package.json` is still `guestbook-vite`.
 
 ## Overview
 
-Website Tools is a lightweight, customizable web application suite that provides essential tools for personal websites. It includes a Guestbook Service, a Contact Form Builder, a Comments System, and a Likes API for blog posts.
+Website Tools is a React + Vite app for personal-site tooling:
+- Guestbooks with replies, likes, moderation, privacy, embeds, and JSON import/export.
+- Contact forms with a visual builder, public submission endpoint, moderation, and exports.
+- Comment sections with threaded replies, likes, moderation, anonymous mode, and embeds.
+- A simple likes API for arbitrary blog post URLs.
+
+The frontend is a React 18 SPA. The backend is a set of Vercel serverless functions in `api/` that talk to LibSQL/Turso.
 
 ## Technology Stack
 
-- **Frontend Framework:** React 18, utilizing React Router DOM for routing.
-- **Build Tool:** Vite, configured for fast, modern frontend development.
-- **Styling:** Vanilla CSS (`src/index.css`) with a modern, clean design system. Uses CSS custom properties (variables) for colors, shadows, and border-radius tokens. Includes full dark mode support via `prefers-color-scheme`.
-- **Database:** LibSQL (Turso) via `@libsql/client`.
-- **Backend/API:** Serverless functions designed to be hosted on Vercel. Located in the `/api` directory.
-- **Security:** JWT for authentication, bcryptjs for password hashing, and DOMPurify for sanitizing user-provided custom HTML.
+- Frontend: React 18, React Router DOM, Vite.
+- Styling: Vanilla CSS in `src/index.css` with a warm, light-first, Notion-inspired token system.
+- Icons: `lucide-react` for the dashboard UI, custom inline SVG icons in `src/components/Icons.jsx` for public guestbook actions.
+- Charts: `recharts` for dashboard summaries.
+- Database: `@libsql/client` for Turso/LibSQL.
+- Auth and security: `jsonwebtoken`, `bcryptjs`, and `dompurify`.
 
-## Directory Structure
+## Repository Map
 
-```
+```text
 /home/dog/git/guestbook-service/
-├── api/             # Vercel Serverless Functions (Website Tools API)
-│   ├── db.js        # LibSQL database connection utility + table init
-│   ├── user.js      # Consolidated Login, Signup, and Profile management
-│   ├── entries.js   # CRUD operations for guestbook messages & replies
-│   ├── forms.js     # Contact form CRUD
-│   ├── submit.js    # Public endpoint for form submissions
-│   ├── submissions.js # View and manage form submissions
-│   ├── comment-sections.js # CRUD for comment sections
-│   └── comments.js    # Fetch and post comments
-├── src/             # React Frontend Code
-│   ├── App.jsx      # Main application router and shell with navbar
-│   ├── index.css    # Global design system
-│   ├── main.jsx     # Vite React entry point
-│   ├── components/  # Reusable UI components
-│   └── pages/       # Page-level components
-├── public/          # Static Assets
-│   ├── guestbook-widget.js # Embeddable guestbook widget
-│   └── comments-widget.js  # Embeddable comments widget
+api/                     # Vercel serverless functions
+  db.js                  # LibSQL client, table init helpers, Telegram notifications
+  user.js                # Signup, login, profile fetch/update
+  entries.js             # Guestbook CRUD, replies, likes, import/export
+  forms.js               # Contact form CRUD
+  submit.js              # Public form submission endpoint
+  submissions.js         # Owner-only form submission management
+  comment-sections.js    # Comment section CRUD
+  comments.js            # Public comments + moderation
+  likes.js               # Post-like counter API
+src/
+  App.jsx                # Route switcher and app shell
+  main.jsx               # React bootstrap
+  index.css              # Global design system and layout styles
+  components/            # Shared UI pieces (Toast, CodeBlock, Icons, Tabs)
+  features/dashboard/    # Dashboard feature tabs and snippet generators
+  pages/                 # Auth, dashboard, and public guestbook pages
+public/
+  guestbook-widget.js    # Standalone guestbook helper script
+  comments-widget.js     # Standalone comments widget
+README.md
+design.md
+vercel.json
+dist/                    # Generated build output; do not treat as source
 ```
 
-## Design System (`src/index.css`)
+## Routes And Shell
 
-The CSS uses a token-based approach with CSS custom properties. The dashboard UI follows a strict Suckless/brutalist style:
-- System-default monospace typography only, headings are normal weight, line-height 1.4.
-- Pure black background with light gray text and pure white headings.
-- No border radius, no shadows, and no external icon/SVG usage (ASCII markers like `[↗]`, `<3`, `[<-]`, `[x]`).
-- Terminal-style hover inversion (light background, black text) and danger colors for destructive actions.
+- `/` renders `Auth.jsx`.
+- `/dashboard` renders the authenticated dashboard.
+- `/u/:username` renders the public guestbook.
+- `?embed=1` switches the public guestbook into embed mode.
 
-**Color Tokens:**
+`src/App.jsx` uses `ToastProvider` for normal public and dashboard routes, but skips the outer chrome for embed mode. Dashboard navigation is driven by URL search params (`?tab=...`) and should stay that way.
 
-- `--bg-color`, `--bg-secondary` - Background colors
-- `--text-main`, `--text-muted` - Text colors
-- `--accent-primary`, `--accent-primary-hover` - Brand/link colors
-- `--border-color`, `--card-bg`, `--bg-input` - UI element colors
+## Design System
 
-**Spacing/Shape Tokens:**
+`src/index.css` defines the actual design language used by the app:
+- Warm neutral palette with `--color-bg`, `--color-bg-alt`, `--color-text`, `--color-text-secondary`, `--color-text-muted`, `--color-accent`, and related semantic tokens.
+- Inter is loaded from Google Fonts, with monospace code surfaces using `ui-monospace`.
+- Rounded cards, whisper borders, and layered shadows are used across the dashboard.
+- Shared classes include `.panel-card`, `.entry-card`, `.sidebar-link`, `.badge`, `.code-textarea`, `.toast`, `.auth-page`, and `.dashboard-sidebar`.
+- Dark-mode token overrides exist via `prefers-color-scheme`, but the experience is still light-first.
 
-- `--radius-sm`, `--radius-md`, `--radius-lg` are set to `0` (sharp edges only)
-- `--shadow-sm`, `--shadow-md`, `--shadow-lg` are `none`
+## Dashboard Architecture
 
-**Component Classes:**
+`src/pages/Dashboard.jsx` is the state orchestrator. It keeps one large set of local state for guestbook entries, forms, comments, likes, account settings, and the API tester, then delegates rendering to tab components in `src/features/dashboard/`.
 
-- `.card`, `.panel-card` - Card containers
-- `.sidebar-link` - Sidebar navigation items
-- `.entry-card`, `.reply-card` - Guestbook entry styling
-- `.auth-card`, `.auth-tabs` - Authentication form styling
-- `.stat-card` - Dashboard statistics cards
+The sidebar groups are:
+- Guestbook: Overview, Embed, Settings, Data, API Tester.
+- Contact Forms: Overview, Form Builder, Integration, Submissions.
+- Comments: Overview, Sections, Integration, Moderation.
+- Likes: dashboard summary and API testing.
+- Account: email and Telegram notification settings.
 
-## Key Mechanisms & Workflows
+Important dashboard behaviors:
+- Guestbook settings save custom CSS, custom HTML, embed CSS URL, moderation, email, and Telegram fields through `PUT /api/user`.
+- The Data tab exports and imports the entire guestbook dataset and profile settings through `GET /api/entries?export=1` and `POST /api/entries` with `action: "import_all"`.
+- The API tester posts directly to `/api/entries` for create, reply, and like flows.
+- New dashboard logic should live in `src/features/dashboard/` instead of growing `Dashboard.jsx` further.
 
-### 1. Client-Side Routing (`App.jsx`)
+## Public Guestbook Flow
 
-The application uses `react-router-dom` for navigation (`/`, `/dashboard`, `/u/:username`).
+`src/pages/PublicGuestbook.jsx`:
+- Fetches approved, non-private guestbook entries with `GET /api/entries?user=:username`.
+- Fetches the public profile with `GET /api/user?username=:username`.
+- Injects `custom_css` directly into a `<style>` tag.
+- Sanitizes `custom_html` with DOMPurify before rendering it in the page header.
+- Loads the optional embed stylesheet only when `?embed=1` is present.
+- Supports guestbook replies, likes, and private messages.
+- Uses a honeypot field named `website_url_check` in the UI, which maps to `bot_field` on the guestbook create endpoint.
+- In embed mode, sends height updates to the parent window via `postMessage` and `ResizeObserver`.
 
-**Embed Mode:** Public guestbooks can be embedded via iframe using `?embed=1` on `/u/:username`. In embed mode, the app renders only the guestbook (no navbar), posts height updates to the parent window, and supports custom embed CSS URLs.
+Public guestbook behavior is straightforward:
+- Root entries are the top-level posts.
+- Replies are nested under their parent entry.
+- Entries marked `is_owner` render an owner badge.
+- Entries marked private never appear in the public listing.
 
-### 2. Dashboard (`Dashboard.jsx`)
+## API Surface
 
-The dashboard uses a **Sidebar Navigation** layout. Tools are grouped into logical clusters:
+### `api/user.js`
 
-- **Guestbook Area:** Overview, Embed, Settings, Data, API Tester.
-- **Contact Forms Area:** Forms, Submissions.
-- **Comments Area:** Sections, Moderation.
-- **Likes Area:** Likes.
+- `POST /api/user?action=signup` creates an account from `{ username, password }`.
+- `POST /api/user?action=login` validates credentials and returns `{ token, username }`.
+- `GET /api/user?username=...` returns profile data for the public guestbook and dashboard.
+- `PUT /api/user` updates `custom_css`, `custom_html`, `require_approval`, `embed_css_url`, `email`, `telegram_chat_id`, and `telegram_notifications`.
+- `embed_css_url` must be a valid `https://` URL.
 
-Navigation state is managed via `useSearchParams` (`?tab=...`).
+### `api/entries.js`
 
-**Layout Model:** A responsive sidebar container (`.dashboard-container`). On desktop, it's a two-column grid with a sticky sidebar. On mobile, it stacks vertically.
+- `GET /api/entries?user=:username` returns approved, non-private entries for the public guestbook.
+- `GET /api/entries` with a JWT returns all entries for the authenticated owner.
+- `GET /api/entries?export=1` with a JWT returns a versioned export containing profile settings and all entries.
+- `POST /api/entries` creates a guestbook entry or reply.
+- `POST /api/entries` with `action: "import"` inserts a backdated owner entry.
+- `POST /api/entries` with `action: "import_all"` replaces the owner's entries and profile settings from a full export.
+- `PUT /api/entries` with `action: "like"` increments a guestbook entry's likes.
+- `PUT /api/entries` with `action: "approve"` approves a pending entry for the authenticated owner.
+- `DELETE /api/entries` deletes an entry for the authenticated owner.
 
-### 3. Authentication & User Profile (`Auth.jsx`, `api/user.js`)
+Guestbook notes:
+- The public create flow uses `bot_field` as a honeypot.
+- Moderation is driven by the owner's `require_approval` profile flag unless the owner is posting.
+- Replies use `parent_id`.
+- `is_private` keeps an entry visible only inside the dashboard.
 
-Authentication and profile management (custom CSS/HTML) are consolidated into `api/user.js`:
+### `api/forms.js`
 
-- `POST /api/user?action=signup` - Create account
-- `POST /api/user?action=login` - Sign in
-- `GET /api/user?username=...` - Fetch profile settings (CSS, HTML, moderation)
-- `PUT /api/user` - Update profile settings (Auth required)
+- Owner-only CRUD for contact forms.
+- `GET /api/forms` lists forms with submission counts.
+- `GET /api/forms?id=:formId` returns one form.
+- `POST /api/forms` creates a form.
+- `PUT /api/forms` updates a form.
+- `DELETE /api/forms` deletes a form and its submissions.
+- Fields are capped at 20 and support `text`, `email`, `textarea`, `checkbox`, `number`, `phone`, `url`, `select`, and `radio`.
+- `select` and `radio` fields require an options array.
 
-No email is required for the account flow.
+### `api/submit.js`
 
-### 4. Serverless API Layer (`/api`)
+- Public CORS-enabled `POST /api/submit?form=:formId`.
+- Validates submissions against the stored form schema.
+- Uses `_honeypot` as a spam trap.
+- Stores submissions as `pending` or `approved` based on the form's `require_approval` flag.
+- Returns a friendly success message in JSON.
 
-APIs extract JWT from `Authorization` header for authenticated actions. Public actions require `owner_username`.
+### `api/submissions.js`
 
-**Key Endpoints:**
+- Owner-only submission management.
+- `GET /api/submissions?form=:formId` lists submissions for a form.
+- `GET /api/submissions?form=:formId&export=1` returns a versioned export payload.
+- `PUT /api/submissions` approves or rejects a submission.
+- `DELETE /api/submissions` deletes a submission.
 
-- `GET /api/entries?user=:username` - Public entries
-- `POST /api/entries` - Create entry/reply
-- `PUT /api/entries` - Like or approve entries
-- `DELETE /api/entries` - Delete entry (auth required)
-- `GET /api/entries?export=1` - Export all data (auth required)
+### `api/comment-sections.js`
 
-**Contact Form Endpoints:**
+- Owner-only CRUD for comment sections.
+- `GET /api/comment-sections?id=:sectionId` is public and returns a single section definition.
+- `GET /api/comment-sections` with JWT lists the owner's sections and comment counts.
 
-- `GET /api/forms` - List user's forms (auth required)
-- `POST /api/forms` - Create new form (auth required)
-- `PUT /api/forms` - Update form (auth required)
-- `DELETE /api/forms` - Delete form (auth required)
-- `POST /api/submit?form=:formId` - Submit to form (public, CORS enabled)
-- `GET /api/submissions?form=:formId` - List submissions (auth required)
-- `DELETE /api/submissions` - Delete submission (auth required)
+### `api/comments.js`
 
-**Comments Endpoints:**
+- `GET /api/comments?section=:sectionId` returns approved comments for public viewers.
+- `GET /api/comments?section=:sectionId&page_url=:url` also filters by the current page URL.
+- `GET /api/comments?section=:sectionId&auth=1` with JWT lets the dashboard see all comments for the owned section.
+- `POST /api/comments` creates comments and replies.
+- `PUT /api/comments` with `action: "like"` increments likes.
+- `PUT /api/comments` with `action: "approve"` approves a pending comment.
+- `DELETE /api/comments` deletes a comment for the authenticated owner.
 
-- `GET /api/comment-sections` - List user's sections (auth)
-- `POST /api/comment-sections` - Create new section (auth)
-- `PUT /api/comment-sections` - Update section settings (auth)
-- `DELETE /api/comment-sections` - Delete section (auth)
-- `GET /api/comments?section=:id` - Fetch public comments (public)
-- `POST /api/comments` - Post a new comment (public)
-- `PUT /api/comments` - Like or approve a comment
-- `DELETE /api/comments` - Delete a comment (auth)
+Comment settings are stored as JSON and control:
+- Which fields are shown and required for name, email, and URL.
+- Whether anonymous comments are allowed.
+- Whether likes are enabled.
+- Whether approval is required.
 
-**Likes Endpoints:**
+The comment create flow uses:
+- `website_url_check` as a honeypot.
+- IP-based rate limiting.
+- `page_url` normalization with a trailing slash.
+- Owner bypass for moderation and rate limits.
 
-- `POST /api/likes` - Single endpoint for likes (public)
-  - `action: "like"` + `post_url` + `owner_username` → increment likes
-  - `action: "get"` + `post_url` + `owner_username` → fetch likes
-  - `action: "summary"` + `owner_username` → dashboard stats
+### `api/likes.js`
 
-### 5. Security & Moderation
+- `POST /api/likes` is the only entry point.
+- `action: "like"` increments a post URL counter.
+- `action: "get"` fetches likes for one post URL.
+- `action: "summary"` returns total likes, post count, and the top 5 liked posts for a user.
+- `post_url` is normalized to origin + pathname + optional search string.
+- Rate limiting allows 5 seconds between likes and 50 likes per hour per IP per post.
+- `get` and `summary` responses are cacheable; likes are not.
 
-- **XSS Prevention:** DOMPurify sanitizes custom HTML in `PublicGuestbook.jsx`. Widget uses basic HTML escaping.
-- **Honeypot:** Hidden `website_url_check` field catches spam bots (guestbook), `_honeypot` field for contact forms
-- **Moderation:** Optional approval flow holds entries with `status: 'pending'`
+### `api/db.js`
 
-### 6. Contact Form Builder
+- Creates the tables that this repo owns: `forms`, `form_submissions`, `rate_limits`, `post_likes`, `comment_sections`, and `comments`.
+- Sends Telegram notifications when `TELEGRAM_BOT_TOKEN` is set and the user has Telegram notifications enabled.
+- Looks up `telegram_chat_id` and `telegram_notifications` from the `users` table.
 
-The Contact Form Builder allows users to create custom forms for external websites:
+## Schema Notes
 
-**Database Tables:**
-- `forms` - Stores form definitions (id, owner_username, name, fields JSON, created_at)
-- `form_submissions` - Stores submissions (id, form_id, data JSON, ip_address, created_at)
+- `users` and `entries` are assumed to exist already. This repo does not create those tables.
+- `api/user.js` and `api/entries.js` opportunistically add columns such as `embed_css_url`, `email`, `telegram_chat_id`, and `telegram_notifications` if they are missing.
+- If you change the schema, remember that the code assumes the owner profile row already exists before writing settings.
 
-**Supported Field Types:**
-- `text`, `email`, `textarea`, `checkbox`, `number`, `phone`, `url`, `select`, `radio`
+## Widgets And Snippets
 
-**Form Fields Schema (JSON):**
-```json
-[
-  { "name": "email", "label": "Email", "type": "email", "required": true },
-  { "name": "plan", "label": "Plan", "type": "select", "options": ["Basic", "Pro"], "required": false }
-]
-```
+- `public/guestbook-widget.js` exposes `GuestbookWidget.fetchEntries`, `submitEntry`, `submitReply`, `likeEntry`, and `mount`.
+- `public/comments-widget.js` exposes `CommentsWidget.mount` and handles comment rendering, likes, replies, and anonymous mode.
+- `src/features/dashboard/snippets.js` generates the embed iframe snippet, headless guestbook examples, comment embed snippets, form snippets, and likes docs.
+- `src/features/dashboard/EmbedTab.jsx` and the integration tabs read from those snippet helpers, so keep the helpers and the UI in sync.
 
-**Public Submission Endpoint:**
-- `POST /api/submit?form=:formId` - CORS enabled, validates against form schema
-- Honeypot protection via `_honeypot` field
-- Returns JSON: `{ success: true, message: "..." }`
+## Development And Deployment
 
-**Visibility model:** Form submissions are private and owner-only (not publicly displayed).
+- `npm run dev` starts Vite locally.
+- `npm run build` produces the client bundle in `dist/`.
+- `vercel.json` rewrites `/api/*` to the serverless functions and everything else to `index.html`.
+- Environment variables used by the code are `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN`, `JWT_SECRET`, and `TELEGRAM_BOT_TOKEN`.
 
-**Integration:** The Forms tab provides ready-to-use HTML/JS snippets for embedding forms on external sites.
+## Notes For Future Agents
 
-### 7. Comments System
-
-The Comments System allows users to embed threaded discussions on any page.
-
-**Database Tables:**
-- `comment_sections` - Stores section configuration (id, owner_username, name, settings JSON)
-- `comments` - Stores comments (id, section_id, parent_id, sender_name, sender_email, sender_url, comment_text, status, likes, page_url, etc.)
-
-**URL Isolation:** Comments are associated with the `page_url` from which they were submitted. The public API and widgets automatically filter comments to only show those belonging to the current page's URL (`window.location.origin + window.location.pathname`).
-
-**Settings (JSON):**
-- `fields`: Toggle visibility and requirement for `name`, `email`, and `url`.
-- `allow_anonymous`: Boolean.
-- `allow_likes`: Boolean.
-- `require_approval`: Boolean.
-
-**Integration:** The Sections tab provides both a `CommentsWidget.mount()` snippet for quick embedding and a **Headless API (Custom Form)** HTML/JS snippet for fully custom integrations.
-
-**Anonymous Mode:** When `is_anonymous` is checked/true, name, email, and URL fields are hidden and their requirements are bypassed on the server.
-
-## Development & Testing Workflow
-
-- **Local Dev Server:** `npm run dev` launches Vite on `localhost:5173`
-- **Building:** `npm run build` compiles frontend to `dist/`
-- **Dependencies:** Requires LibSQL database for API testing
-
-## Deployment
-
-Pre-configured for **Vercel** deployment:
-
-- `vercel.json` routes `/api/*` to serverless functions
-- Environment variables required: `TURSO_DB_URL`, `TURSO_DB_AUTH_TOKEN`, `JWT_SECRET`
-
-## API Documentation
-
-See `README.md` for headless API examples including widget mounting, reply/like functions, and JSON export/import schemas.
-
-> **Note for AI Agents:** When modifying files, always use absolute paths. Do not change the routing model without explicit instruction as it affects Vercel compatibility. The dashboard navigation uses URL search params (?tab=...) - maintain this pattern for any new items.
+- Use absolute paths when editing files.
+- Keep the `?tab=` dashboard state model intact unless the user explicitly asks to change navigation.
+- Keep `?embed=1` behavior intact for public guestbook embeds.
+- Prefer adding dashboard logic inside `src/features/dashboard/` instead of expanding `Dashboard.jsx`.
+- Treat `dist/` as generated output.
+- If you touch auth, entries, or profile persistence, double-check the external `users` and `entries` table assumptions first.
