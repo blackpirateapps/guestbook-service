@@ -62,6 +62,8 @@ export default function Auth() {
         if (isLogin) {
           localStorage.setItem("token",    data.token);
           localStorage.setItem("username", data.username);
+          localStorage.setItem("role", data.role || "user");
+          localStorage.setItem("account_status", data.account_status || "active");
           navigate("/dashboard");
         } else {
           toast.success("Account created!", "You can now sign in.");
@@ -69,7 +71,10 @@ export default function Auth() {
           setPassword("");
         }
       } else {
-        toast.error("Error", data.error || "Something went wrong.");
+        toast.error(
+          data.code === "account_suspended" ? "Account suspended" : "Error",
+          data.error || "Something went wrong."
+        );
       }
     } catch {
       toast.error("Network error", "Could not reach the server.");

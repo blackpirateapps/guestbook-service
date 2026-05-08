@@ -1,9 +1,13 @@
 import { db } from './db.js';
-import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
+import {
+  PRIMARY_ADMIN_USERNAME,
+  ensureAccountColumns,
+  normalizeAccountStatus,
+  normalizeRole,
+  requireAdmin
+} from './access.js';
 
-const SECRET = process.env.JWT_SECRET || 'secret';
-const ADMIN_USERNAME = 'sudip';
 const RESET_TOKEN_TTL_MINUTES = 30;
 
 function setCors(res) {
@@ -22,6 +26,7 @@ function getJsonBody(req) {
 }
 
 async function ensureUserColumns() {
+  await ensureAccountColumns();
   try { await db.execute('ALTER TABLE users ADD COLUMN email TEXT'); } catch {}
   try { await db.execute('ALTER TABLE users ADD COLUMN telegram_chat_id TEXT'); } catch {}
   try { await db.execute('ALTER TABLE users ADD COLUMN telegram_notifications INTEGER DEFAULT 0'); } catch {}
@@ -52,39 +57,14 @@ function getRequestOrigin(req, bodyOrigin = '') {
   return 'https://blackpiratex.com';
 }
 
-function getBearerToken(req) {
-  const header = req.headers.authorization || '';
-  const [scheme, token] = header.split(' ');
-  if (scheme !== 'Bearer' || !token) return '';
-  return token;
-}
-
-function verifyAdmin(req, res) {
-  const token = getBearerToken(req);
-  if (!token) {
-    res.status(401).json({ error: 'Unauthorized' });
-    return null;
-  }
-
-  try {
-    const decoded = jwt.verify(token, SECRET);
-    if (decoded.username !== ADMIN_USERNAME) {
-      res.status(403).json({ error: 'Admin access required' });
-      return null;
-    }
-    return decoded;
-  } catch {
-    res.status(401).json({ error: 'Unauthorized' });
-    return null;
-  }
-}
-
 function serializeUser(row) {
   const expiresAt = row.password_reset_expires || '';
   const expiresMs = expiresAt ? new Date(expiresAt).getTime() : 0;
 
   return {
     username: row.username || '',
+    role: row.username === PRIMARY_ADMIN_USERNAME ? 'admin' : normalizeRole(row.role),
+    account_status: row.username === PRIMARY_ADMIN_USERNAME ? 'active' : normalizeAccountStatus(row.account_status),
     email: row.email || '',
     telegram_chat_id: row.telegram_chat_id || '',
     telegram_notifications: Number(row.telegram_notifications) === 1 ? 1 : 0,
@@ -97,7 +77,7 @@ export default async function handler(req, res) {
   setCors(res);
   if (req.method === 'OPTIONS') return res.status(204).end();
 
-  const admin = verifyAdmin(req, res);
+  const admin = await requireAdmin(req, res);
   if (!admin) return;
 
   try {
@@ -110,13 +90,13 @@ export default async function handler(req, res) {
   if (req.method === 'GET') {
     try {
       const result = await db.execute({
-        sql: `SELECT username, email, telegram_chat_id, telegram_notifications, password_reset_expires
+        sql: `SELECT username, role, account_status, email, telegram_chat_id, telegram_notifications, password_reset_expires
               FROM users
               ORDER BY lower(username) ASC`
       });
       return res.json({
         users: result.rows.map(serializeUser),
-        admin_username: admin.username
+        admin_username: admin.account.username
       });
     } catch (e) {
       console.error(e);
@@ -126,46 +106,94 @@ export default async function handler(req, res) {
 
   if (req.method === 'POST') {
     const { action } = req.query;
-    if (action !== 'generate_password_reset') {
-      return res.status(400).json({ error: 'Unsupported admin action' });
-    }
 
-    const { username, origin } = getJsonBody(req);
-    const targetUsername = String(username || '').trim();
-    if (!targetUsername) return res.status(400).json({ error: 'Username is required' });
+    if (action === 'update_user') {
+      const { username, role, account_status } = getJsonBody(req);
+      const targetUsername = String(username || '').trim();
+      if (!targetUsername) return res.status(400).json({ error: 'Username is required' });
 
-    try {
-      const existing = await db.execute({
-        sql: 'SELECT username FROM users WHERE username = ?',
-        args: [targetUsername]
-      });
+      try {
+        const existing = await db.execute({
+          sql: `SELECT username, role, account_status, email, telegram_chat_id, telegram_notifications, password_reset_expires
+                FROM users WHERE username = ?`,
+          args: [targetUsername]
+        });
 
-      if (existing.rows.length === 0) {
-        return res.status(404).json({ error: 'User not found' });
+        if (existing.rows.length === 0) {
+          return res.status(404).json({ error: 'User not found' });
+        }
+
+        const current = serializeUser(existing.rows[0]);
+        const nextRole = role === undefined ? current.role : normalizeRole(role);
+        const nextStatus = account_status === undefined ? current.account_status : normalizeAccountStatus(account_status);
+
+        if (targetUsername === PRIMARY_ADMIN_USERNAME && (nextRole !== 'admin' || nextStatus !== 'active')) {
+          return res.status(400).json({ error: 'The primary admin account must remain active admin.' });
+        }
+
+        if (targetUsername === admin.account.username && (nextRole !== 'admin' || nextStatus !== 'active')) {
+          return res.status(400).json({ error: 'You cannot remove your own active admin access.' });
+        }
+
+        await db.execute({
+          sql: 'UPDATE users SET role = ?, account_status = ? WHERE username = ?',
+          args: [nextRole, nextStatus, targetUsername]
+        });
+
+        return res.json({
+          success: true,
+          user: {
+            ...current,
+            role: nextRole,
+            account_status: nextStatus
+          }
+        });
+      } catch (e) {
+        console.error(e);
+        return res.status(500).json({ error: 'Could not update user access' });
       }
-
-      const token = crypto.randomBytes(32).toString('base64url');
-      const tokenHash = hashResetToken(token);
-      const expiresAt = new Date(Date.now() + RESET_TOKEN_TTL_MINUTES * 60 * 1000).toISOString();
-
-      await db.execute({
-        sql: 'UPDATE users SET password_reset_token_hash = ?, password_reset_expires = ? WHERE username = ?',
-        args: [tokenHash, expiresAt, targetUsername]
-      });
-
-      const resetLink = `${getRequestOrigin(req, origin)}/reset-password?token=${encodeURIComponent(token)}`;
-
-      return res.json({
-        success: true,
-        username: targetUsername,
-        reset_link: resetLink,
-        expires_at: expiresAt,
-        expires_minutes: RESET_TOKEN_TTL_MINUTES
-      });
-    } catch (e) {
-      console.error(e);
-      return res.status(500).json({ error: 'Could not generate password reset link' });
     }
+
+    if (action === 'generate_password_reset') {
+      const { username, origin } = getJsonBody(req);
+      const targetUsername = String(username || '').trim();
+      if (!targetUsername) return res.status(400).json({ error: 'Username is required' });
+
+      try {
+        const existing = await db.execute({
+          sql: 'SELECT username FROM users WHERE username = ?',
+          args: [targetUsername]
+        });
+
+        if (existing.rows.length === 0) {
+          return res.status(404).json({ error: 'User not found' });
+        }
+
+        const token = crypto.randomBytes(32).toString('base64url');
+        const tokenHash = hashResetToken(token);
+        const expiresAt = new Date(Date.now() + RESET_TOKEN_TTL_MINUTES * 60 * 1000).toISOString();
+
+        await db.execute({
+          sql: 'UPDATE users SET password_reset_token_hash = ?, password_reset_expires = ? WHERE username = ?',
+          args: [tokenHash, expiresAt, targetUsername]
+        });
+
+        const resetLink = `${getRequestOrigin(req, origin)}/reset-password?token=${encodeURIComponent(token)}`;
+
+        return res.json({
+          success: true,
+          username: targetUsername,
+          reset_link: resetLink,
+          expires_at: expiresAt,
+          expires_minutes: RESET_TOKEN_TTL_MINUTES
+        });
+      } catch (e) {
+        console.error(e);
+        return res.status(500).json({ error: 'Could not generate password reset link' });
+      }
+    }
+
+    return res.status(400).json({ error: 'Unsupported admin action' });
   }
 
   return res.status(405).json({ error: 'Method not allowed' });

@@ -44,6 +44,7 @@ export default function PublicGuestbook({ overrideUsername }) {
   const [customCss, setCustomCss] = useState("");
   const [customHtml, setCustomHtml] = useState("");
   const [embedCssUrl, setEmbedCssUrl] = useState("");
+  const [unavailable, setUnavailable] = useState("");
 
   const [senderName, setSenderName] = useState("");
   const [senderWebsite, setSenderWebsite] = useState("");
@@ -93,6 +94,11 @@ export default function PublicGuestbook({ overrideUsername }) {
   async function fetchEntries() {
     try {
       const res = await fetch(`/api/entries?user=${username}`);
+      if (res.status === 403) {
+        const data = await res.json().catch(() => ({}));
+        setUnavailable(data.error || "This guestbook is unavailable.");
+        return;
+      }
       if (res.ok) setEntries(await res.json());
     } catch (e) {
       console.error(e);
@@ -102,6 +108,11 @@ export default function PublicGuestbook({ overrideUsername }) {
   async function fetchProfile() {
     try {
       const res = await fetch(`/api/user?username=${username}`);
+      if (res.status === 403) {
+        const data = await res.json().catch(() => ({}));
+        setUnavailable(data.error || "This guestbook is unavailable.");
+        return;
+      }
       if (res.ok) {
         const data = await res.json();
         setCustomCss(data.custom_css || "");
@@ -168,7 +179,8 @@ export default function PublicGuestbook({ overrideUsername }) {
         fetchEntries();
       }
     } else {
-      alert("Failed to send message.");
+      const data = await res.json().catch(() => ({}));
+      alert(data.error || "Failed to send message.");
     }
   }
 
@@ -277,6 +289,13 @@ export default function PublicGuestbook({ overrideUsername }) {
       {isEmbed && embedCssUrl && <link rel="stylesheet" href={embedCssUrl} />}
       <style>{`${embedBaseCss}\n${customCss}`}</style>
 
+      {unavailable ? (
+        <section className="guestbook-submit-card">
+          <h1 style={{ marginBottom: "0.5rem" }}>Guestbook unavailable</h1>
+          <p style={{ color: "var(--text-muted)", margin: 0 }}>{unavailable}</p>
+        </section>
+      ) : (
+        <>
       <header style={{ marginBottom: "2rem" }}>
         <div
           className="user-custom-header"
@@ -429,6 +448,8 @@ export default function PublicGuestbook({ overrideUsername }) {
           Website Tools
         </a>
       </footer>
+        </>
+      )}
     </div>
   );
 }

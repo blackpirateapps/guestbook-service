@@ -20,6 +20,7 @@ import {
   Menu,
   X,
   UserCog,
+  LifeBuoy,
 } from "lucide-react";
 
 // ── Tab → Group mapping ────────────────────────────────────────
@@ -39,6 +40,7 @@ const TAB_GROUP_MAP = {
   "comment-moderation": "comments",
   likes:                "likes",
   account:              "account",
+  "contact-admin":      "support",
 };
 
 const NAV_GROUPS = [
@@ -93,9 +95,16 @@ const NAV_GROUPS = [
     defaultTab: "account",
     items: null,
   },
+  {
+    id: "support",
+    label: "Contact Admin",
+    Icon: LifeBuoy,
+    defaultTab: "contact-admin",
+    items: null,
+  },
 ];
 
-export default function Sidebar({ activeTab, onTabChange, username, onLogout }) {
+export default function Sidebar({ activeTab, onTabChange, username, role, onLogout }) {
   const activeGroup = TAB_GROUP_MAP[activeTab] || "guestbook";
 
   // Track which groups are open
@@ -221,6 +230,12 @@ export default function Sidebar({ activeTab, onTabChange, username, onLogout }) 
 
       {/* Footer */}
       <div className="sidebar-footer">
+        {role === "admin" && (
+          <Link className="sidebar-link" to="/admin">
+            <Shield size={13} style={{ flexShrink: 0 }} />
+            Admin
+          </Link>
+        )}
         <button className="sidebar-link danger" onClick={onLogout}>
           <LogOut size={13} style={{ flexShrink: 0 }} />
           Logout

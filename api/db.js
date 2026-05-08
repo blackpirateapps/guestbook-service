@@ -58,6 +58,22 @@ export async function initLikesTables() {
   `);
 }
 
+// Initialize admin message table
+export async function initAdminMessageTables() {
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS admin_messages (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      sender_username TEXT NOT NULL,
+      subject TEXT NOT NULL,
+      message TEXT NOT NULL,
+      status TEXT DEFAULT 'open',
+      created_at TEXT DEFAULT (datetime('now')),
+      updated_at TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY (sender_username) REFERENCES users(username)
+    )
+  `);
+}
+
 // Initialize comment_sections and comments tables
 export async function initCommentsTables() {
   await db.execute(`

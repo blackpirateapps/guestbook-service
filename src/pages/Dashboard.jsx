@@ -18,6 +18,7 @@ import CommentsIntegrationTab from "../features/dashboard/CommentsIntegrationTab
 import ModerationTab        from "../features/dashboard/ModerationTab.jsx";
 import LikesTab             from "../features/dashboard/LikesTab.jsx";
 import AccountTab           from "../features/dashboard/AccountTab.jsx";
+import ContactAdminTab      from "../features/dashboard/ContactAdminTab.jsx";
 
 const TAB_TITLES = {
   overview:              "Overview",
@@ -35,6 +36,7 @@ const TAB_TITLES = {
   "comment-moderation":  "Moderation",
   likes:                 "Likes",
   account:               "Account",
+  "contact-admin":       "Contact Admin",
 };
 
 export default function Dashboard() {
@@ -42,6 +44,7 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const token    = localStorage.getItem("token");
   const username = localStorage.getItem("username");
+  const role     = localStorage.getItem("role") || "user";
 
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTab = searchParams.get("tab") || "overview";
@@ -154,11 +157,22 @@ export default function Dashboard() {
   }, [activeTab, commentSections.length]);
 
   // ── Fetch helpers ──────────────────────────────────────────────
+  async function handleSuspendedResponse(res) {
+    if (res.status !== 403) return false;
+    const data = await res.json().catch(() => ({}));
+    if (data.code !== "account_suspended") return false;
+    toast.error("Account suspended", data.error || "Your account has been suspended.");
+    localStorage.clear();
+    navigate("/");
+    return true;
+  }
+
   async function fetchData() {
     const [entryRes, profileRes] = await Promise.all([
       fetch("/api/entries", { headers: { Authorization: `Bearer ${token}` } }),
       fetch(`/api/user?username=${username}`),
     ]);
+    if (await handleSuspendedResponse(entryRes) || await handleSuspendedResponse(profileRes)) return;
     if (entryRes.ok)   setEntries(await entryRes.json());
     if (profileRes.ok) {
       const d = await profileRes.json();
@@ -554,6 +568,9 @@ export default function Dashboard() {
           updatePassword={updatePassword}
         />
       );
+      case "contact-admin": return (
+        <ContactAdminTab token={token} />
+      );
       case "data": return (
         <DataTab
           importFileRef={importFileRef}
@@ -699,6 +716,7 @@ export default function Dashboard() {
         activeTab={activeTab}
         onTabChange={handleTabChange}
         username={username}
+        role={role}
         onLogout={() => { localStorage.clear(); navigate("/"); }}
       />
       <main className="dashboard-main">

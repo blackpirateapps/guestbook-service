@@ -1,7 +1,5 @@
 import { db, sendTelegramNotification } from './db.js';
-import jwt from 'jsonwebtoken';
-
-const SECRET = process.env.JWT_SECRET || 'secret';
+import { assertAccountCanReceive, getAuthenticatedAccount, requireActiveUser } from './access.js';
 
 function setCors(res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -35,6 +33,11 @@ export default async function handler(req, res) {
       // - Must NOT be private
       // - Must be APPROVED
       try {
+        const receiveAccess = await assertAccountCanReceive(user);
+        if (!receiveAccess.ok) {
+          return res.status(receiveAccess.status).json({ error: receiveAccess.error });
+        }
+
         const result = await db.execute({
           sql: `SELECT id, sender_name, message, sender_website, parent_id, created_at, likes, is_owner 
                 FROM entries 
@@ -51,12 +54,10 @@ export default async function handler(req, res) {
     } else {
       // DASHBOARD MODE (Auth Required):
       // - Shows EVERYTHING (Private, Pending, Approved)
-      const token = req.headers.authorization?.split(' ')[1];
-      if (!token) return res.status(401).json({ error: 'No token' });
+      const auth = await requireActiveUser(req, res);
+      if (!auth) return;
 
       try {
-        const decoded = jwt.verify(token, SECRET);
-
         if (req.query.export === '1') {
           let profileRow = {
             custom_css: '',
@@ -68,13 +69,13 @@ export default async function handler(req, res) {
           try {
             const profileRes = await db.execute({
               sql: 'SELECT custom_css, custom_html, require_approval, embed_css_url FROM users WHERE username = ?',
-              args: [decoded.username]
+              args: [auth.account.username]
             });
             if (profileRes.rows.length > 0) profileRow = profileRes.rows[0];
           } catch {
             const profileRes = await db.execute({
               sql: 'SELECT custom_css, custom_html, require_approval FROM users WHERE username = ?',
-              args: [decoded.username]
+              args: [auth.account.username]
             });
             if (profileRes.rows.length > 0) {
               profileRow = {
@@ -86,13 +87,13 @@ export default async function handler(req, res) {
 
           const entriesRes = await db.execute({
             sql: 'SELECT * FROM entries WHERE owner_username = ? ORDER BY created_at ASC',
-            args: [decoded.username]
+            args: [auth.account.username]
           });
 
           return res.json({
             version: 1,
             exported_at: new Date().toISOString(),
-            owner_username: decoded.username,
+            owner_username: auth.account.username,
             profile: {
               custom_css: profileRow.custom_css || '',
               custom_html: profileRow.custom_html || '',
@@ -105,7 +106,7 @@ export default async function handler(req, res) {
 
         const result = await db.execute({
           sql: 'SELECT * FROM entries WHERE owner_username = ? ORDER BY created_at DESC',
-          args: [decoded.username]
+          args: [auth.account.username]
         });
         return res.json(result.rows);
       } catch (e) {
@@ -122,19 +123,12 @@ export default async function handler(req, res) {
       const body = getJsonBody(req);
 
       if (body.action === 'import_all') {
-        const token = req.headers.authorization?.split(' ')[1];
-        if (!token) return res.status(401).json({ error: 'Unauthorized' });
-
-        let decoded;
-        try {
-          decoded = jwt.verify(token, SECRET);
-        } catch {
-          return res.status(401).json({ error: 'Unauthorized' });
-        }
+        const auth = await requireActiveUser(req, res);
+        if (!auth) return;
 
         const payload = body.data || {};
-        const ownerUsername = (payload.owner_username || body.owner_username || decoded.username || '').trim();
-        if (!ownerUsername || ownerUsername !== decoded.username) {
+        const ownerUsername = (payload.owner_username || body.owner_username || auth.account.username || '').trim();
+        if (!ownerUsername || ownerUsername !== auth.account.username) {
           return res.status(403).json({ error: 'Forbidden' });
         }
 
@@ -242,15 +236,8 @@ export default async function handler(req, res) {
       // OWNER IMPORT MODE (Auth Required):
       // Allows owners to manually import older entries with a specified date.
       if (body.action === 'import') {
-        const token = req.headers.authorization?.split(' ')[1];
-        if (!token) return res.status(401).json({ error: 'Unauthorized' });
-
-        let decoded;
-        try {
-          decoded = jwt.verify(token, SECRET);
-        } catch {
-          return res.status(401).json({ error: 'Unauthorized' });
-        }
+        const auth = await requireActiveUser(req, res);
+        if (!auth) return;
 
         const ownerUsername = (body.owner_username || '').trim();
         const senderName = (body.sender_name || '').trim();
@@ -258,7 +245,7 @@ export default async function handler(req, res) {
         const message = (body.message || '').trim();
         const createdAtRaw = (body.created_at || '').trim();
 
-        if (!ownerUsername || decoded.username !== ownerUsername) {
+        if (!ownerUsername || auth.account.username !== ownerUsername) {
           return res.status(403).json({ error: 'Forbidden' });
         }
         if (!senderName || !message || !createdAtRaw) {
@@ -300,21 +287,23 @@ export default async function handler(req, res) {
       if (body.bot_field) return res.json({ success: true });
 
       const { owner_username, sender_name, message, sender_website, parent_id, is_private } = body;
+      const receiveAccess = await assertAccountCanReceive(owner_username);
+      if (!receiveAccess.ok) {
+        return res.status(receiveAccess.status).json({ error: receiveAccess.error });
+      }
       
       // B. DETERMINE STATUS & OWNER
       let status = 'approved';
       let isOwner = 0;
 
       // Check if the poster is actually the Owner (Logged in)
-      const token = req.headers.authorization?.split(' ')[1];
-      if (token) {
-        try {
-          const decoded = jwt.verify(token, SECRET);
-          if (decoded.username === owner_username) {
-            isOwner = 1; // Verified Owner
-            status = 'approved'; // Owners bypass moderation
-          }
-        } catch (e) { /* Invalid token, treat as guest */ }
+      const auth = await getAuthenticatedAccount(req);
+      if (auth?.error && auth.code === 'account_suspended') {
+        return res.status(403).json({ error: auth.error, code: auth.code });
+      }
+      if (auth?.account?.username === owner_username) {
+        isOwner = 1; // Verified Owner
+        status = 'approved'; // Owners bypass moderation
       }
 
       // If NOT owner, check Moderation Settings
@@ -370,6 +359,16 @@ export default async function handler(req, res) {
 
     // A. LIKE (Public, no auth needed)
     if (action === 'like') {
+      const entryRes = await db.execute({
+        sql: 'SELECT owner_username FROM entries WHERE id = ?',
+        args: [id]
+      });
+      if (entryRes.rows.length === 0) return res.status(404).json({ error: 'Entry not found' });
+      const receiveAccess = await assertAccountCanReceive(entryRes.rows[0].owner_username);
+      if (!receiveAccess.ok) {
+        return res.status(receiveAccess.status).json({ error: receiveAccess.error });
+      }
+
       await db.execute({
         sql: 'UPDATE entries SET likes = COALESCE(likes, 0) + 1 WHERE id = ?',
         args: [id]
@@ -379,15 +378,14 @@ export default async function handler(req, res) {
 
     // B. APPROVE (Auth needed)
     if (action === 'approve') {
-      const token = req.headers.authorization?.split(' ')[1];
-      if (!token) return res.status(401).json({ error: 'Unauthorized' });
+      const auth = await requireActiveUser(req, res);
+      if (!auth) return;
 
       try {
-        const decoded = jwt.verify(token, SECRET);
         // Verify ownership before approving
         await db.execute({
           sql: "UPDATE entries SET status = 'approved' WHERE id = ? AND owner_username = ?",
-          args: [id, decoded.username]
+          args: [id, auth.account.username]
         });
         return res.json({ success: true });
       } catch (e) {
@@ -400,14 +398,15 @@ export default async function handler(req, res) {
   // 4. DELETE
   // --------------------------------------------
   if (method === 'DELETE') {
-    const token = req.headers.authorization?.split(' ')[1];
+    const auth = await requireActiveUser(req, res);
+    if (!auth) return;
+
     try {
-      const decoded = jwt.verify(token, SECRET);
       const { id } = getJsonBody(req);
       
       await db.execute({
         sql: 'DELETE FROM entries WHERE id = ? AND owner_username = ?',
-        args: [id, decoded.username]
+        args: [id, auth.account.username]
       });
       return res.json({ success: true });
     } catch (e) {

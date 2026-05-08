@@ -1,4 +1,5 @@
 import { db, initFormsTables, sendTelegramNotification } from './db.js';
+import { assertAccountCanReceive } from './access.js';
 
 function setCors(res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -127,6 +128,11 @@ export default async function handler(req, res) {
 
     formData = result.rows[0];
     formData.fields = JSON.parse(formData.fields);
+
+    const receiveAccess = await assertAccountCanReceive(formData.owner_username);
+    if (!receiveAccess.ok) {
+      return res.status(receiveAccess.status).json({ error: receiveAccess.error });
+    }
   } catch (e) {
     console.error(e);
     return res.status(500).json({ error: 'Database error' });

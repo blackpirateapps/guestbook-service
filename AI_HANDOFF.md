@@ -9,7 +9,7 @@ Website Tools is a React + Vite app for personal-site tooling:
 - Contact forms with a visual builder, public submission endpoint, moderation, and exports.
 - Comment sections with threaded replies, likes, moderation, anonymous mode, and embeds.
 - A simple likes API for arbitrary blog post URLs.
-- A small admin surface for `sudip` to list users and generate password reset links.
+- An admin surface for role/status management, password reset links, and user support messages.
 
 The frontend is a React 18 SPA. The backend is a set of Vercel serverless functions in `api/` that talk to LibSQL/Turso.
 
@@ -36,7 +36,9 @@ api/                     # Vercel serverless functions
   comment-sections.js    # Comment section CRUD
   comments.js            # Public comments + moderation
   likes.js               # Post-like counter API
-  admin.js               # Admin-only user list and password reset link generation
+  access.js              # Shared account role/status helpers and active/admin guards
+  admin.js               # Admin-only user list, roles/status, password reset link generation
+  admin-messages.js      # User-to-admin dashboard messages
 src/
   App.jsx                # Route switcher and app shell
   main.jsx               # React bootstrap
@@ -57,13 +59,13 @@ dist/                    # Generated build output; do not treat as source
 
 - `/` renders `Auth.jsx`.
 - `/dashboard` renders the authenticated dashboard.
-- `/admin` renders the admin-only user management page. The API only accepts a JWT for username `sudip`.
+- `/admin` renders the admin-only user management page. The API accepts active users with role `admin`; `sudip` is always normalized to active admin.
 - `/u/:username` renders the public guestbook.
 - `?embed=1` switches the public guestbook into embed mode.
 
 `src/App.jsx` uses `ToastProvider` for normal public and dashboard routes, but skips the outer chrome for embed mode. Dashboard navigation is driven by URL search params (`?tab=...`) and should stay that way.
 
-`src/pages/Admin.jsx` reads the existing JWT and username from `localStorage`, lists users through `GET /api/admin`, and can generate reset links through `POST /api/admin?action=generate_password_reset`. Generated links point at the existing `/reset-password` page and are shown in the browser after generation so the admin can copy them.
+`src/pages/Admin.jsx` reads the existing JWT from `localStorage`, lists users through `GET /api/admin`, can update roles/statuses through `POST /api/admin?action=update_user`, and can generate reset links through `POST /api/admin?action=generate_password_reset`. Generated links point at the existing `/reset-password` page and are shown in the browser after generation so the admin can copy them. The page also lists messages sent from user dashboards through `GET /api/admin-messages`.
 
 ## Design System
 
@@ -84,6 +86,7 @@ The sidebar groups are:
 - Comments: Overview, Sections, Integration, Moderation.
 - Likes: dashboard summary and API testing.
 - Account: email and Telegram notification settings.
+- Contact Admin: lets signed-in users send messages to the admin dashboard.
 
 Important dashboard behaviors:
 - Guestbook settings save custom CSS, custom HTML, embed CSS URL, moderation, email, and Telegram fields through `PUT /api/user`.
@@ -114,18 +117,26 @@ Public guestbook behavior is straightforward:
 ### `api/user.js`
 
 - `POST /api/user?action=signup` creates an account from `{ username, password }`.
-- `POST /api/user?action=login` validates credentials and returns `{ token, username }`.
+- `POST /api/user?action=login` validates credentials and returns `{ token, username, role, account_status }`; suspended accounts receive `403` with `code: "account_suspended"`.
 - `GET /api/user?username=...` returns profile data for the public guestbook and dashboard.
 - `PUT /api/user` updates `custom_css`, `custom_html`, `require_approval`, `embed_css_url`, `email`, `telegram_chat_id`, and `telegram_notifications`.
 - `embed_css_url` must be a valid `https://` URL.
 
 ### `api/admin.js`
 
-- Admin-only endpoint; every request must include a JWT whose `username` claim is exactly `sudip`.
-- `GET /api/admin` returns all users with non-sensitive profile/reset metadata: username, email, Telegram status, and active reset expiry.
+- Admin-only endpoint; every request must include a JWT for an active account with role `admin`.
+- `GET /api/admin` returns all users with non-sensitive profile/reset metadata: username, role, account status, email, Telegram status, and active reset expiry.
+- `POST /api/admin?action=update_user` with `{ username, role, account_status }` changes a user between `user`/`admin` and `active`/`suspended`. The primary `sudip` account cannot be demoted or suspended.
 - `POST /api/admin?action=generate_password_reset` with `{ username, origin }` creates a 30-minute password reset token for any user and returns `{ reset_link, expires_at }`.
 - Reset links are not sent through Telegram by this endpoint; the admin page displays them so the admin can copy or share them manually.
 - The endpoint never returns password hashes or reset token hashes.
+
+### `api/admin-messages.js`
+
+- `POST /api/admin-messages` is available to active signed-in users and stores `{ subject, message }` for admins.
+- `GET /api/admin-messages` lists messages for active admins.
+- `PUT /api/admin-messages` updates message status to `open`, `read`, or `closed`.
+- `DELETE /api/admin-messages` deletes a message.
 
 ### `api/entries.js`
 
@@ -212,15 +223,17 @@ The comment create flow uses:
 
 ### `api/db.js`
 
-- Creates the tables that this repo owns: `forms`, `form_submissions`, `rate_limits`, `post_likes`, `comment_sections`, and `comments`.
+- Creates the tables that this repo owns: `forms`, `form_submissions`, `rate_limits`, `post_likes`, `comment_sections`, `comments`, and `admin_messages`.
 - Sends Telegram notifications when `TELEGRAM_BOT_TOKEN` is set and the user has Telegram notifications enabled.
 - Looks up `telegram_chat_id` and `telegram_notifications` from the `users` table.
 
 ## Schema Notes
 
 - `users` and `entries` are assumed to exist already. This repo does not create those tables.
-- `api/user.js` and `api/entries.js` opportunistically add columns such as `embed_css_url`, `email`, `telegram_chat_id`, and `telegram_notifications` if they are missing.
+- `api/user.js`, `api/admin.js`, and `api/access.js` opportunistically add columns such as `embed_css_url`, `email`, `telegram_chat_id`, `telegram_notifications`, `role`, and `account_status` if they are missing.
 - Password reset flows opportunistically add `password_reset_token_hash` and `password_reset_expires` to `users`.
+- Suspended users cannot log in, use authenticated dashboard APIs, or receive new guestbook entries, comment submissions/likes, post likes, or contact form submissions.
+- `api/db.js` creates the `admin_messages` table for user-to-admin dashboard messages.
 - If you change the schema, remember that the code assumes the owner profile row already exists before writing settings.
 
 ## Widgets And Snippets

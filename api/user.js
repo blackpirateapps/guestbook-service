@@ -2,11 +2,12 @@ import { db, sendTelegramNotification } from './db.js';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
+import { SECRET, ensureAccountColumns, getAccount, requireActiveUser } from './access.js';
 
-const SECRET = process.env.JWT_SECRET || 'secret';
 const RESET_TOKEN_TTL_MINUTES = 30;
 
 async function ensureUserColumns() {
+  await ensureAccountColumns();
   try { await db.execute('ALTER TABLE users ADD COLUMN embed_css_url TEXT'); } catch {}
   try { await db.execute('ALTER TABLE users ADD COLUMN email TEXT'); } catch {}
   try { await db.execute('ALTER TABLE users ADD COLUMN telegram_chat_id TEXT'); } catch {}
@@ -65,6 +66,7 @@ export default async function handler(req, res) {
     if (passwordError) return res.status(400).json({ error: passwordError });
     const hashedPassword = await bcrypt.hash(password, 10);
     try {
+      await ensureUserColumns();
       await db.execute({
         sql: 'INSERT INTO users (username, password) VALUES (?, ?)',
         args: [username, hashedPassword]
@@ -78,14 +80,27 @@ export default async function handler(req, res) {
   // 2. LOGIN (POST ?action=login)
   if (method === 'POST' && action === 'login') {
     const { username, password } = getJsonBody(req);
+    await ensureUserColumns();
     const result = await db.execute({
       sql: 'SELECT * FROM users WHERE username = ?',
       args: [username]
     });
     const user = result.rows[0];
     if (user && await bcrypt.compare(password, user.password)) {
+      const account = await getAccount(user.username);
+      if (account?.account_status === 'suspended') {
+        return res.status(403).json({
+          error: 'Your account has been suspended.',
+          code: 'account_suspended'
+        });
+      }
       const token = jwt.sign({ username: user.username }, SECRET);
-      return res.status(200).json({ token, username: user.username });
+      return res.status(200).json({
+        token,
+        username: user.username,
+        role: account?.role || 'user',
+        account_status: account?.account_status || 'active'
+      });
     }
     return res.status(401).json({ error: 'Invalid credentials' });
   }
@@ -198,13 +213,12 @@ export default async function handler(req, res) {
 
   // 2d. TEST TELEGRAM (POST ?action=test_telegram)
   if (method === 'POST' && action === 'test_telegram') {
-    const token = req.headers.authorization?.split(' ')[1];
-    if (!token) return res.status(401).json({ error: 'Unauthorized' });
+    const auth = await requireActiveUser(req, res);
+    if (!auth) return;
 
     try {
       await ensureUserColumns();
-      const decoded = jwt.verify(token, SECRET);
-      const result = await sendTelegramNotification(decoded.username, {
+      const result = await sendTelegramNotification(auth.account.username, {
         type: 'test',
         message: 'This is a test alert from Website Tools.'
       });
@@ -224,8 +238,8 @@ export default async function handler(req, res) {
 
   // 2e. CHANGE PASSWORD (POST ?action=change_password)
   if (method === 'POST' && action === 'change_password') {
-    const token = req.headers.authorization?.split(' ')[1];
-    if (!token) return res.status(401).json({ error: 'Unauthorized' });
+    const auth = await requireActiveUser(req, res);
+    if (!auth) return;
 
     const { current_password, new_password } = getJsonBody(req);
     const passwordError = validatePassword(new_password);
@@ -234,10 +248,9 @@ export default async function handler(req, res) {
 
     try {
       await ensureUserColumns();
-      const decoded = jwt.verify(token, SECRET);
       const result = await db.execute({
         sql: 'SELECT password FROM users WHERE username = ?',
-        args: [decoded.username]
+        args: [auth.account.username]
       });
       const user = result.rows[0];
       if (!user || !(await bcrypt.compare(current_password, user.password))) {
@@ -247,7 +260,7 @@ export default async function handler(req, res) {
       const hashedPassword = await bcrypt.hash(new_password, 10);
       await db.execute({
         sql: 'UPDATE users SET password = ?, password_reset_token_hash = NULL, password_reset_expires = NULL WHERE username = ?',
-        args: [hashedPassword, decoded.username]
+        args: [hashedPassword, auth.account.username]
       });
 
       return res.json({ success: true });
@@ -263,11 +276,17 @@ export default async function handler(req, res) {
     try {
       await ensureUserColumns();
       const result = await db.execute({
-        sql: 'SELECT custom_css, custom_html, require_approval, embed_css_url, email, telegram_chat_id, telegram_notifications FROM users WHERE username = ?',
+        sql: 'SELECT custom_css, custom_html, require_approval, embed_css_url, email, telegram_chat_id, telegram_notifications, account_status FROM users WHERE username = ?',
         args: [username]
       });
       if (result.rows.length === 0) return res.status(404).json({ error: 'User not found' });
       const profile = result.rows[0];
+      if (profile.account_status === 'suspended') {
+        return res.status(403).json({
+          error: 'This account has been suspended.',
+          code: 'account_suspended'
+        });
+      }
       return res.json({
         custom_css: profile.custom_css || '',
         custom_html: profile.custom_html || '',
@@ -284,11 +303,11 @@ export default async function handler(req, res) {
 
   // 4. PROFILE UPDATE (PUT - Auth Required)
   if (method === 'PUT') {
-    const token = req.headers.authorization?.split(' ')[1];
-    if (!token) return res.status(401).json({ error: 'Unauthorized' });
+    const auth = await requireActiveUser(req, res);
+    if (!auth) return;
+
     try {
       await ensureUserColumns();
-      const decoded = jwt.verify(token, SECRET);
       const { custom_css, custom_html, require_approval, embed_css_url, email, telegram_chat_id, telegram_notifications } = getJsonBody(req);
 
       const nextEmbedCssUrl = (embed_css_url || '').trim();
@@ -319,7 +338,7 @@ export default async function handler(req, res) {
           (email || '').trim(), 
           finalTelegramId, 
           nextNotifications, 
-          decoded.username
+          auth.account.username
         ]
       });
       return res.json({ success: true });

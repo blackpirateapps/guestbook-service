@@ -1,7 +1,5 @@
 import { db, initCommentsTables } from './db.js';
-import jwt from 'jsonwebtoken';
-
-const SECRET = process.env.JWT_SECRET || 'secret';
+import { assertAccountCanReceive, requireActiveUser } from './access.js';
 
 function setCors(res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -42,6 +40,10 @@ export default async function handler(req, res) {
       });
       if (result.rows.length === 0) return res.status(404).json({ error: 'Not found' });
       const section = result.rows[0];
+      const receiveAccess = await assertAccountCanReceive(section.owner_username);
+      if (!receiveAccess.ok) {
+        return res.status(receiveAccess.status).json({ error: receiveAccess.error });
+      }
       section.settings = JSON.parse(section.settings);
       return res.json(section);
     } catch (e) {
@@ -50,14 +52,10 @@ export default async function handler(req, res) {
   }
 
   // Auth required for everything else
-  if (!token) return res.status(401).json({ error: 'No token' });
-  let decoded;
-  try {
-    decoded = jwt.verify(token, SECRET);
-  } catch (e) {
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
-  const username = decoded.username;
+  const auth = await requireActiveUser(req, res);
+  if (!auth) return;
+
+  const username = auth.account.username;
 
   if (method === 'GET') {
     try {

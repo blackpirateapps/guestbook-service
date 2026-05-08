@@ -1,4 +1,5 @@
 import { db, initLikesTables, initRateLimitTable } from './db.js';
+import { assertAccountCanReceive } from './access.js';
 
 function setCors(res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -142,6 +143,11 @@ export default async function handler(req, res) {
   }
 
   if (action === 'like') {
+    const receiveAccess = await assertAccountCanReceive(ownerUsername);
+    if (!receiveAccess.ok) {
+      return res.status(receiveAccess.status).json({ error: receiveAccess.error });
+    }
+
     const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown';
     const rate = await applyRateLimit({ ip, ownerUsername, postUrl });
     if (!rate.allowed) return res.status(429).json({ error: rate.error || 'Rate limit exceeded' });

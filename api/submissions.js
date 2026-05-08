@@ -1,7 +1,5 @@
 import { db, initFormsTables } from './db.js';
-import jwt from 'jsonwebtoken';
-
-const SECRET = process.env.JWT_SECRET || 'secret';
+import { requireActiveUser } from './access.js';
 
 function setCors(res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -32,17 +30,10 @@ export default async function handler(req, res) {
   const { method } = req;
 
   // All submission management requires authentication
-  const token = req.headers.authorization?.split(' ')[1];
-  if (!token) return res.status(401).json({ error: 'No token' });
+  const auth = await requireActiveUser(req, res);
+  if (!auth) return;
 
-  let decoded;
-  try {
-    decoded = jwt.verify(token, SECRET);
-  } catch (e) {
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
-
-  const username = decoded.username;
+  const username = auth.account.username;
 
   // --------------------------------------------
   // 1. GET: List submissions for a form

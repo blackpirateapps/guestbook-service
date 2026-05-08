@@ -1,8 +1,5 @@
 import { db, initCommentsTables, initRateLimitTable, sendTelegramNotification } from './db.js';
-import jwt from 'jsonwebtoken';
-import crypto from 'crypto';
-
-const SECRET = process.env.JWT_SECRET || 'secret';
+import { assertAccountCanReceive, getAuthenticatedAccount, requireActiveUser } from './access.js';
 
 function setCors(res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -36,23 +33,29 @@ export default async function handler(req, res) {
   if (method === 'GET') {
     if (!sectionId) return res.status(400).json({ error: 'Section ID required' });
 
-    const token = req.headers.authorization?.split(' ')[1];
     let isOwner = false;
-    let username = null;
 
-    if (token && auth === '1') {
-      try {
-        const decoded = jwt.verify(token, SECRET);
-        username = decoded.username;
-        // Verify ownership of the section
-        const sectionCheck = await db.execute({
-          sql: 'SELECT owner_username FROM comment_sections WHERE id = ?',
-          args: [sectionId]
-        });
-        if (sectionCheck.rows.length > 0 && sectionCheck.rows[0].owner_username === username) {
+    let sectionCheck;
+    try {
+      sectionCheck = await db.execute({
+        sql: 'SELECT owner_username FROM comment_sections WHERE id = ?',
+        args: [sectionId]
+      });
+      if (sectionCheck.rows.length === 0) return res.status(404).json({ error: 'Section not found' });
+
+      const receiveAccess = await assertAccountCanReceive(sectionCheck.rows[0].owner_username);
+      if (!receiveAccess.ok) {
+        return res.status(receiveAccess.status).json({ error: receiveAccess.error });
+      }
+
+      if (auth === '1') {
+        const userAuth = await getAuthenticatedAccount(req);
+        if (userAuth?.account?.username === sectionCheck.rows[0].owner_username) {
           isOwner = true;
         }
-      } catch (e) {}
+      }
+    } catch (e) {
+      return res.status(500).json({ error: 'Database error' });
     }
 
     try {
@@ -115,15 +118,19 @@ export default async function handler(req, res) {
     const section = sectionRes.rows[0];
     const settings = JSON.parse(section.settings);
     const owner_username = section.owner_username;
+    const receiveAccess = await assertAccountCanReceive(owner_username);
+    if (!receiveAccess.ok) {
+      return res.status(receiveAccess.status).json({ error: receiveAccess.error });
+    }
 
     // Check if owner is posting (bypass moderation and rate limiting)
-    const token = req.headers.authorization?.split(' ')[1];
     let isOwnerPosting = false;
-    if (token) {
-      try {
-        const decoded = jwt.verify(token, SECRET);
-        if (decoded.username === owner_username) isOwnerPosting = true;
-      } catch (e) {}
+    const userAuth = await getAuthenticatedAccount(req);
+    if (userAuth?.error && userAuth.code === 'account_suspended') {
+      return res.status(403).json({ error: userAuth.error, code: userAuth.code });
+    }
+    if (userAuth?.account?.username === owner_username) {
+      isOwnerPosting = true;
     }
 
     const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown';
@@ -230,6 +237,19 @@ export default async function handler(req, res) {
 
     if (action === 'like') {
       try {
+        const commentRes = await db.execute({
+          sql: `SELECT s.owner_username
+                FROM comments c
+                JOIN comment_sections s ON c.section_id = s.id
+                WHERE c.id = ?`,
+          args: [id]
+        });
+        if (commentRes.rows.length === 0) return res.status(404).json({ error: 'Comment not found' });
+        const receiveAccess = await assertAccountCanReceive(commentRes.rows[0].owner_username);
+        if (!receiveAccess.ok) {
+          return res.status(receiveAccess.status).json({ error: receiveAccess.error });
+        }
+
         await db.execute({
           sql: 'UPDATE comments SET likes = likes + 1 WHERE id = ?',
           args: [id]
@@ -241,17 +261,15 @@ export default async function handler(req, res) {
     }
 
     if (action === 'approve') {
-      const token = req.headers.authorization?.split(' ')[1];
-      if (!token) return res.status(401).json({ error: 'Unauthorized' });
+      const auth = await requireActiveUser(req, res);
+      if (!auth) return;
+
       try {
-        const decoded = jwt.verify(token, SECRET);
-        const username = decoded.username;
-        
         // Verify ownership via section
         await db.execute({
           sql: `UPDATE comments SET status = 'approved' 
                 WHERE id = ? AND section_id IN (SELECT id FROM comment_sections WHERE owner_username = ?)`,
-          args: [id, username]
+          args: [id, auth.account.username]
         });
         return res.json({ success: true });
       } catch (e) {
@@ -262,18 +280,16 @@ export default async function handler(req, res) {
 
   // 4. DELETE: Delete comment
   if (method === 'DELETE') {
-    const token = req.headers.authorization?.split(' ')[1];
-    if (!token) return res.status(401).json({ error: 'Unauthorized' });
+    const auth = await requireActiveUser(req, res);
+    if (!auth) return;
+
     const { id } = getJsonBody(req);
     
     try {
-      const decoded = jwt.verify(token, SECRET);
-      const username = decoded.username;
-      
       await db.execute({
         sql: `DELETE FROM comments 
               WHERE id = ? AND section_id IN (SELECT id FROM comment_sections WHERE owner_username = ?)`,
-        args: [id, username]
+        args: [id, auth.account.username]
       });
       return res.json({ success: true });
     } catch (e) {

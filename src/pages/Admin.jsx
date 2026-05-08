@@ -5,9 +5,11 @@ import {
   ExternalLink,
   Loader2,
   LogOut,
+  MessageSquare,
   RefreshCw,
   Search,
   ShieldCheck,
+  Trash2,
 } from "lucide-react";
 import { useToast } from "../components/Toast.jsx";
 
@@ -34,7 +36,6 @@ export default function Admin() {
   const navigate = useNavigate();
   const toast = useToast();
   const token = localStorage.getItem("token");
-  const username = localStorage.getItem("username");
 
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -44,8 +45,8 @@ export default function Admin() {
   const [resetLinks, setResetLinks] = useState({});
   const [busyUsers, setBusyUsers] = useState({});
   const [bulkBusy, setBulkBusy] = useState(false);
-
-  const isLocalAdmin = username === ADMIN_USERNAME;
+  const [messages, setMessages] = useState([]);
+  const [messageBusy, setMessageBusy] = useState(false);
 
   useEffect(() => {
     if (!token) {
@@ -53,20 +54,14 @@ export default function Admin() {
       return;
     }
 
-    if (!isLocalAdmin) {
-      setLoading(false);
-      setError("Admin access is limited to sudip.");
-      return;
-    }
-
     fetchUsers();
-  }, [token, isLocalAdmin]);
+  }, [token]);
 
   const visibleUsers = useMemo(() => {
     const needle = query.trim().toLowerCase();
     if (!needle) return users;
     return users.filter((user) => {
-      return [user.username, user.email, user.telegram_chat_id]
+      return [user.username, user.email, user.telegram_chat_id, user.role, user.account_status]
         .some((value) => String(value || "").toLowerCase().includes(needle));
     });
   }, [query, users]);
@@ -87,6 +82,7 @@ export default function Admin() {
       }
 
       setUsers(Array.isArray(data.users) ? data.users : []);
+      await fetchMessages({ quiet: true });
     } catch (err) {
       setError(err?.message || "Could not load users.");
       if (quiet) toast.error("Refresh failed", err?.message || "Could not load users.");
@@ -101,6 +97,64 @@ export default function Admin() {
       ...current,
       [usernameToUpdate]: busy,
     }));
+  }
+
+  async function fetchMessages({ quiet = false } = {}) {
+    if (!quiet) setMessageBusy(true);
+
+    try {
+      const res = await fetch("/api/admin-messages", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        throw new Error(data.error || "Could not load admin messages.");
+      }
+
+      setMessages(Array.isArray(data.messages) ? data.messages : []);
+    } catch (err) {
+      if (!quiet) toast.error("Messages failed", err?.message || "Could not load admin messages.");
+    } finally {
+      setMessageBusy(false);
+    }
+  }
+
+  async function updateUserAccess(user, patch) {
+    const nextRole = patch.role ?? user.role;
+    const nextStatus = patch.account_status ?? user.account_status;
+
+    setUserBusy(user.username, true);
+    try {
+      const res = await fetch("/api/admin?action=update_user", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          username: user.username,
+          role: nextRole,
+          account_status: nextStatus,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        throw new Error(data.error || "Could not update user.");
+      }
+
+      setUsers((current) => current.map((item) => (
+        item.username === user.username
+          ? { ...item, ...(data.user || {}), role: nextRole, account_status: nextStatus }
+          : item
+      )));
+      toast.success("User updated", `${user.username} is now ${nextRole} / ${nextStatus}.`);
+    } catch (err) {
+      toast.error("Update failed", err?.message || "Could not update user.");
+    } finally {
+      setUserBusy(user.username, false);
+    }
   }
 
   async function generateResetLink(targetUsername, { silent = false } = {}) {
@@ -191,37 +245,67 @@ export default function Admin() {
     }
   }
 
+  async function updateMessageStatus(id, status) {
+    setMessageBusy(true);
+    try {
+      const res = await fetch("/api/admin-messages", {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ id, status }),
+      });
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        throw new Error(data.error || "Could not update message.");
+      }
+
+      setMessages((current) => current.map((message) => (
+        message.id === id ? { ...message, status } : message
+      )));
+    } catch (err) {
+      toast.error("Message update failed", err?.message || "Could not update message.");
+    } finally {
+      setMessageBusy(false);
+    }
+  }
+
+  async function deleteMessage(id) {
+    if (!window.confirm("Delete this admin message?")) return;
+
+    setMessageBusy(true);
+    try {
+      const res = await fetch("/api/admin-messages", {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ id }),
+      });
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        throw new Error(data.error || "Could not delete message.");
+      }
+
+      setMessages((current) => current.filter((message) => message.id !== id));
+      toast.info("Deleted", "Admin message removed.");
+    } catch (err) {
+      toast.error("Delete failed", err?.message || "Could not delete message.");
+    } finally {
+      setMessageBusy(false);
+    }
+  }
+
   function signOut() {
     localStorage.clear();
     navigate("/");
   }
 
   if (!token) return null;
-
-  if (!isLocalAdmin) {
-    return (
-      <div className="admin-shell">
-        <main className="admin-main admin-main-narrow">
-          <section className="panel-card admin-access-card">
-            <ShieldCheck size={28} />
-            <h1>Admin access required</h1>
-            <p className="text-muted">
-              Sign in as sudip to view users and generate password reset links.
-            </p>
-            <div className="actions-row">
-              <button className="primary" onClick={() => navigate("/")}>
-                Go to sign in
-              </button>
-              <button className="secondary" onClick={signOut}>
-                <LogOut size={15} />
-                Sign out
-              </button>
-            </div>
-          </section>
-        </main>
-      </div>
-    );
-  }
 
   return (
     <div className="admin-shell">
@@ -297,6 +381,8 @@ export default function Admin() {
               <thead>
                 <tr>
                   <th>User</th>
+                  <th>Role</th>
+                  <th>Status</th>
                   <th>Contact</th>
                   <th>Reset Status</th>
                   <th>Reset Link</th>
@@ -307,13 +393,42 @@ export default function Admin() {
                 {visibleUsers.map((user) => {
                   const generated = resetLinks[user.username];
                   const isBusy = Boolean(busyUsers[user.username]);
+                  const isPrimaryAdmin = user.username === ADMIN_USERNAME;
 
                   return (
                     <tr key={user.username}>
                       <td>
                         <div className="admin-user-name">{user.username}</div>
-                        {user.username === ADMIN_USERNAME && (
+                        {user.role === "admin" && (
                           <span className="badge owner">Admin</span>
+                        )}
+                        {isPrimaryAdmin && <div className="admin-meta">Primary admin</div>}
+                      </td>
+                      <td>
+                        <select
+                          className="admin-select"
+                          value={user.role || "user"}
+                          disabled={isBusy || isPrimaryAdmin}
+                          onChange={(event) => updateUserAccess(user, { role: event.target.value })}
+                          aria-label={`Role for ${user.username}`}
+                        >
+                          <option value="user">User</option>
+                          <option value="admin">Admin</option>
+                        </select>
+                      </td>
+                      <td>
+                        <select
+                          className="admin-select"
+                          value={user.account_status || "active"}
+                          disabled={isBusy || isPrimaryAdmin}
+                          onChange={(event) => updateUserAccess(user, { account_status: event.target.value })}
+                          aria-label={`Status for ${user.username}`}
+                        >
+                          <option value="active">Active</option>
+                          <option value="suspended">Suspended</option>
+                        </select>
+                        {user.account_status === "suspended" && (
+                          <div className="admin-meta admin-status-danger">Submissions blocked</div>
                         )}
                       </td>
                       <td>
@@ -374,6 +489,65 @@ export default function Admin() {
 
             {visibleUsers.length === 0 && (
               <div className="admin-empty">No users match that search.</div>
+            )}
+          </section>
+        )}
+
+        {!loading && !error && (
+          <section className="panel-card admin-messages-panel">
+            <div className="admin-section-header">
+              <div>
+                <div className="admin-title-row">
+                  <MessageSquare size={20} />
+                  <h2>Admin Messages</h2>
+                </div>
+                <p className="dashboard-subheader">
+                  Messages sent from user dashboards.
+                </p>
+              </div>
+              <button className="secondary" onClick={() => fetchMessages()} disabled={messageBusy}>
+                <RefreshCw size={15} className={messageBusy ? "spin-icon" : ""} />
+                Refresh
+              </button>
+            </div>
+
+            {messages.length === 0 ? (
+              <p className="text-muted">No messages yet.</p>
+            ) : (
+              <div className="admin-message-list">
+                {messages.map((message) => (
+                  <article key={message.id} className="admin-message-item">
+                    <div className="admin-message-head">
+                      <div>
+                        <h3>{message.subject}</h3>
+                        <div className="admin-meta">
+                          From {message.sender_username} - {formatDate(message.created_at)}
+                        </div>
+                      </div>
+                      <span className={`badge ${message.status === "closed" ? "private" : message.status === "open" ? "pending" : "owner"}`}>
+                        {message.status}
+                      </span>
+                    </div>
+                    <p className="admin-message-body">{message.message}</p>
+                    <div className="actions-row">
+                      {message.status !== "read" && (
+                        <button className="secondary" onClick={() => updateMessageStatus(message.id, "read")} disabled={messageBusy}>
+                          Mark Read
+                        </button>
+                      )}
+                      {message.status !== "closed" && (
+                        <button className="secondary" onClick={() => updateMessageStatus(message.id, "closed")} disabled={messageBusy}>
+                          Close
+                        </button>
+                      )}
+                      <button className="danger" onClick={() => deleteMessage(message.id)} disabled={messageBusy}>
+                        <Trash2 size={14} />
+                        Delete
+                      </button>
+                    </div>
+                  </article>
+                ))}
+              </div>
             )}
           </section>
         )}
