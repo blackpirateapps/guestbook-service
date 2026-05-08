@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Routes, Route, useLocation } from "react-router-dom";
 import { ToastProvider } from "./components/Toast.jsx";
 import Auth             from "./pages/Auth";
+import Admin            from "./pages/Admin";
 import Dashboard        from "./pages/Dashboard";
 import Docs             from "./pages/Docs";
 import PublicGuestbook  from "./pages/PublicGuestbook";
@@ -13,6 +14,7 @@ function App() {
   const location = useLocation();
   const isEmbedRequest = new URLSearchParams(window.location.search).get("embed") === "1";
   const isDashboard    = location.pathname.startsWith("/dashboard");
+  const isAdmin        = location.pathname.startsWith("/admin");
 
   useEffect(() => { setLoading(false); }, []);
 
@@ -43,12 +45,13 @@ function App() {
     );
   }
 
-  // Dashboard — full-page layout (no outer nav)
-  if (isDashboard) {
+  // App routes — full-page layout (no outer nav)
+  if (isDashboard || isAdmin) {
     return (
       <ToastProvider>
         <Routes>
           <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/admin" element={<Admin />} />
         </Routes>
       </ToastProvider>
     );

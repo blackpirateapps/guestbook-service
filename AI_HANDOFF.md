@@ -9,6 +9,7 @@ Website Tools is a React + Vite app for personal-site tooling:
 - Contact forms with a visual builder, public submission endpoint, moderation, and exports.
 - Comment sections with threaded replies, likes, moderation, anonymous mode, and embeds.
 - A simple likes API for arbitrary blog post URLs.
+- A small admin surface for `sudip` to list users and generate password reset links.
 
 The frontend is a React 18 SPA. The backend is a set of Vercel serverless functions in `api/` that talk to LibSQL/Turso.
 
@@ -35,6 +36,7 @@ api/                     # Vercel serverless functions
   comment-sections.js    # Comment section CRUD
   comments.js            # Public comments + moderation
   likes.js               # Post-like counter API
+  admin.js               # Admin-only user list and password reset link generation
 src/
   App.jsx                # Route switcher and app shell
   main.jsx               # React bootstrap
@@ -55,10 +57,13 @@ dist/                    # Generated build output; do not treat as source
 
 - `/` renders `Auth.jsx`.
 - `/dashboard` renders the authenticated dashboard.
+- `/admin` renders the admin-only user management page. The API only accepts a JWT for username `sudip`.
 - `/u/:username` renders the public guestbook.
 - `?embed=1` switches the public guestbook into embed mode.
 
 `src/App.jsx` uses `ToastProvider` for normal public and dashboard routes, but skips the outer chrome for embed mode. Dashboard navigation is driven by URL search params (`?tab=...`) and should stay that way.
+
+`src/pages/Admin.jsx` reads the existing JWT and username from `localStorage`, lists users through `GET /api/admin`, and can generate reset links through `POST /api/admin?action=generate_password_reset`. Generated links point at the existing `/reset-password` page and are shown in the browser after generation so the admin can copy them.
 
 ## Design System
 
@@ -113,6 +118,14 @@ Public guestbook behavior is straightforward:
 - `GET /api/user?username=...` returns profile data for the public guestbook and dashboard.
 - `PUT /api/user` updates `custom_css`, `custom_html`, `require_approval`, `embed_css_url`, `email`, `telegram_chat_id`, and `telegram_notifications`.
 - `embed_css_url` must be a valid `https://` URL.
+
+### `api/admin.js`
+
+- Admin-only endpoint; every request must include a JWT whose `username` claim is exactly `sudip`.
+- `GET /api/admin` returns all users with non-sensitive profile/reset metadata: username, email, Telegram status, and active reset expiry.
+- `POST /api/admin?action=generate_password_reset` with `{ username, origin }` creates a 30-minute password reset token for any user and returns `{ reset_link, expires_at }`.
+- Reset links are not sent through Telegram by this endpoint; the admin page displays them so the admin can copy or share them manually.
+- The endpoint never returns password hashes or reset token hashes.
 
 ### `api/entries.js`
 
@@ -207,6 +220,7 @@ The comment create flow uses:
 
 - `users` and `entries` are assumed to exist already. This repo does not create those tables.
 - `api/user.js` and `api/entries.js` opportunistically add columns such as `embed_css_url`, `email`, `telegram_chat_id`, and `telegram_notifications` if they are missing.
+- Password reset flows opportunistically add `password_reset_token_hash` and `password_reset_expires` to `users`.
 - If you change the schema, remember that the code assumes the owner profile row already exists before writing settings.
 
 ## Widgets And Snippets
