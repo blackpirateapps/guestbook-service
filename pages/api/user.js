@@ -1,8 +1,8 @@
-import { db, sendTelegramNotification } from './db.js';
+import { db, sendTelegramNotification } from '../../lib/db.js';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
-import { SECRET, ensureAccountColumns, getAccount, requireActiveUser } from './access.js';
+import { SECRET, ensureAccountColumns, getAccount, requireActiveUser } from '../../lib/access.js';
 
 const RESET_TOKEN_TTL_MINUTES = 30;
 

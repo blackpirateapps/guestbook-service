@@ -1,5 +1,5 @@
-import { db, initFormsTables } from './db.js';
-import { requireActiveUser } from './access.js';
+import { db, initFormsTables } from '../../lib/db.js';
+import { requireActiveUser } from '../../lib/access.js';
 
 function setCors(res) {
   res.setHeader('Access-Control-Allow-Origin', '*');

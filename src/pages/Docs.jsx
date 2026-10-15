@@ -1,23 +1,33 @@
-import { NavLink, Navigate, Link, useLocation } from "react-router-dom";
+"use client";
+
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { DOC_NAV } from "../docs/docsRoutes.js";
 import { DOCS_PAGES } from "../docs/docsContent.jsx";
 
 export default function Docs() {
-  const location = useLocation();
-  const currentPath = normalizePath(location.pathname);
+  const pathname = usePathname();
+  const router = useRouter();
+  const currentPath = normalizePath(pathname || "/docs");
   const page = DOCS_PAGES[currentPath];
 
   useEffect(() => {
-    if (!location.hash) window.scrollTo(0, 0);
-  }, [currentPath, location.hash]);
+    if (!page) {
+      router.replace("/docs");
+      return;
+    }
+    if (typeof window !== "undefined" && !window.location.hash) {
+      window.scrollTo(0, 0);
+    }
+  }, [page, currentPath, router]);
 
-  if (!page) return <Navigate to="/docs" replace />;
+  if (!page) return null;
 
   return (
     <div className="docs-shell">
       <aside className="docs-sidebar" aria-label="Documentation navigation">
-        <Link to="/" className="docs-brand">
+        <Link href="/" className="docs-brand">
           <span>⬡</span>
           WebsiteTools
         </Link>
@@ -27,14 +37,13 @@ export default function Docs() {
             <div key={group.title} className="docs-nav-group">
               <div className="docs-nav-title">{group.title}</div>
               {group.items.map((item) => (
-                <NavLink
+                <Link
                   key={item.path}
-                  to={item.path}
-                  end={item.path === "/docs"}
-                  className={({ isActive }) => `docs-nav-link${isActive ? " active" : ""}`}
+                  href={item.path}
+                  className={`docs-nav-link${currentPath === item.path ? " active" : ""}`}
                 >
                   {item.title}
-                </NavLink>
+                </Link>
               ))}
             </div>
           ))}

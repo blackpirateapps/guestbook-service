@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import Link from "next/link";
 import CodeBlock from "../components/CodeBlock.jsx";
 
 const SITE = "https://your-app.vercel.app";
@@ -458,7 +458,7 @@ function LinkCards({ cards }) {
   return (
     <div className="docs-card-grid">
       {cards.map((card) => (
-        <Link key={card.href} to={card.href} className="docs-link-card">
+        <Link key={card.href} href={card.href} className="docs-link-card">
           <span>{card.kicker}</span>
           <strong>{card.title}</strong>
           <p>{card.description}</p>
@@ -501,7 +501,7 @@ export const DOCS_PAGES = {
               Website Tools is organized around one dashboard account. The username you create becomes the owner identifier for guestbooks, forms, comments, and likes. If you have not signed up yet, start with the account creation flow, then return here and pick the feature you want to install first.
             </p>
             <p>
-              Go to the <Link to="/">login and sign up page</Link> to create an account. If you want the step-by-step explanation first, read <Link to="/docs/account/create-account">Create an Account</Link>.
+              Go to the <Link href="/">login and sign up page</Link> to create an account. If you want the step-by-step explanation first, read <Link href="/docs/account/create-account">Create an Account</Link>.
             </p>
             <Note title="Before you integrate anything">
               Save your username exactly as it appears in the dashboard. API examples use <code>{USER}</code> as a placeholder, and that value must match your real account username.
@@ -594,7 +594,7 @@ export const DOCS_PAGES = {
         content: (
           <>
             <ol>
-              <li>Open the <Link to="/">login and sign up page</Link>.</li>
+              <li>Open the <Link href="/">login and sign up page</Link>.</li>
               <li>Select <strong>Create account</strong>.</li>
               <li>Choose a username. This username will be used in public URLs and API calls.</li>
               <li>Enter a password with at least 8 characters.</li>
@@ -615,7 +615,7 @@ export const DOCS_PAGES = {
               The dashboard opens with Overview, Guestbook, Forms, Comments, Likes, Data, Tester, and Account sections. A good first pass is to open Account settings and add a Telegram Chat ID. Telegram is optional for normal usage, but it is required for automatic password reset links.
             </p>
             <p>
-              If you are setting up a feature immediately, continue with <Link to="/docs/guestbook">Guestbook</Link>, <Link to="/docs/contact-forms">Contact Forms</Link>, <Link to="/docs/comments">Comments</Link>, or <Link to="/docs/likes">Likes</Link>.
+              If you are setting up a feature immediately, continue with <Link href="/docs/guestbook">Guestbook</Link>, <Link href="/docs/contact-forms">Contact Forms</Link>, <Link href="/docs/comments">Comments</Link>, or <Link href="/docs/likes">Likes</Link>.
             </p>
           </>
         )
@@ -698,7 +698,7 @@ export const DOCS_PAGES = {
         title: "Request a reset link",
         content: (
           <ol>
-            <li>Open the <Link to="/">login page</Link>.</li>
+            <li>Open the <Link href="/">login page</Link>.</li>
             <li>Click <strong>Forgot your password?</strong>.</li>
             <li>Enter your account username.</li>
             <li>Submit the form.</li>

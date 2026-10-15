@@ -1,4 +1,4 @@
-import { db } from './db.js';
+import { db } from '../../lib/db.js';
 import crypto from 'crypto';
 import {
   PRIMARY_ADMIN_USERNAME,
@@ -6,7 +6,7 @@ import {
   normalizeAccountStatus,
   normalizeRole,
   requireAdmin
-} from './access.js';
+} from '../../lib/access.js';
 
 const RESET_TOKEN_TTL_MINUTES = 30;
 

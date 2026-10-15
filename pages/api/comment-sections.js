@@ -1,5 +1,5 @@
-import { db, initCommentsTables } from './db.js';
-import { assertAccountCanReceive, requireActiveUser } from './access.js';
+import { db, initCommentsTables } from '../../lib/db.js';
+import { assertAccountCanReceive, requireActiveUser } from '../../lib/access.js';
 
 function setCors(res) {
   res.setHeader('Access-Control-Allow-Origin', '*');

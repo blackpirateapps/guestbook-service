@@ -1,5 +1,7 @@
+"use client";
+
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   Bell,
   Copy,
@@ -36,13 +38,15 @@ function maskTelegramId(value) {
 }
 
 export default function Admin() {
-  const navigate = useNavigate();
+  const router = useRouter();
   const toast = useToast();
-  const token = localStorage.getItem("token");
+  const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
 
-  const [searchParams, setSearchParams] = useSearchParams();
-  const activeTab = searchParams.get("tab") || "users";
-  const handleTabChange = (tab) => setSearchParams({ tab });
+  const searchParams = useSearchParams();
+  const activeTab = searchParams?.get("tab") || "users";
+  const handleTabChange = (tab) => {
+    router.push(`/admin?tab=${tab}`, { scroll: false });
+  };
 
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -61,7 +65,7 @@ export default function Admin() {
 
   useEffect(() => {
     if (!token) {
-      navigate("/");
+      router.push("/");
       return;
     }
 
@@ -313,7 +317,7 @@ export default function Admin() {
 
   function signOut() {
     localStorage.clear();
-    navigate("/");
+    router.push("/");
   }
 
   if (!token) return null;

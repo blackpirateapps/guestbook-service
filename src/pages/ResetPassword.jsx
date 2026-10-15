@@ -1,11 +1,14 @@
+"use client";
+
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useToast } from "../components/Toast.jsx";
 
 export default function ResetPassword() {
-  const navigate = useNavigate();
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const toast = useToast();
-  const token = new URLSearchParams(window.location.search).get("token") || "";
+  const token = searchParams?.get("token") || (typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("token") || "" : "");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -37,7 +40,7 @@ export default function ResetPassword() {
 
       if (res.ok) {
         toast.success("Password updated", "You can now sign in with your new password.");
-        navigate("/");
+        router.push("/");
       } else {
         toast.error("Reset failed", data.error || "Could not reset your password.");
       }

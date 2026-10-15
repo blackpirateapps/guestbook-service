@@ -1,33 +1,41 @@
 # Website Tools AI Handoff
 
-This is the current map of the repo. The UI brands the product as Website Tools, while the package name in `package.json` is still `guestbook-vite`.
+This is the current map of the repo. The package name in `package.json` is `website-tools`.
 
 ## Overview
 
-Website Tools is a React + Vite app for personal-site tooling:
+Website Tools is a Next.js full-stack app for personal-site tooling:
 - Guestbooks with replies, likes, moderation, privacy, embeds, and JSON import/export.
 - Contact forms with a visual builder, public submission endpoint, moderation, and exports.
 - Comment sections with threaded replies, likes, moderation, anonymous mode, and embeds.
 - A simple likes API for arbitrary blog post URLs.
 - An admin surface for role/status management, password reset links, and user support messages.
 
-The frontend is a React 18 SPA. The backend is a set of Vercel serverless functions in `api/` that talk to LibSQL/Turso.
+The frontend is built with Next.js App Router (`app/`). The backend is a set of Next.js Pages API routes in `pages/api/` that talk to LibSQL/Turso.
 
 ## Technology Stack
 
-- Frontend: React 18, React Router DOM, Vite.
+- Framework: Next.js (App Router for UI + Pages API for serverless endpoints), Node.js 22, React 18.
 - Styling: Vanilla CSS in `src/index.css` with a warm, light-first, Notion-inspired token system.
 - Icons: `lucide-react` for the dashboard UI, custom inline SVG icons in `src/components/Icons.jsx` for public guestbook actions.
 - Charts: `recharts` for dashboard summaries.
-- Database: `@libsql/client` for Turso/LibSQL.
+- Database: `@libsql/client` for Turso/LibSQL (with `file:local.db` fallback).
 - Auth and security: `jsonwebtoken`, `bcryptjs`, and `dompurify`.
 
 ## Repository Map
 
 ```text
 /home/dog/git/guestbook-service/
-api/                     # Vercel serverless functions
-  db.js                  # LibSQL client, table init helpers, Telegram notifications
+app/                     # Next.js App Router pages
+  layout.jsx             # Root layout with ToastProvider & styles
+  page.jsx               # Landing & Auth (/ route)
+  sitemap.js             # Native dynamic sitemap generator
+  dashboard/page.jsx     # Dashboard with tab query sync
+  admin/page.jsx         # Admin management page
+  reset-password/page.jsx# Password reset page
+  u/[username]/page.jsx  # Public guestbook & embed view with dynamic metadata
+  docs/[[...slug]]/page.jsx # Catch-all documentation pages
+pages/api/               # Next.js serverless API routes
   user.js                # Signup, login, profile fetch/update
   entries.js             # Guestbook CRUD, replies, likes, import/export
   forms.js               # Contact form CRUD
@@ -36,26 +44,26 @@ api/                     # Vercel serverless functions
   comment-sections.js    # Comment section CRUD
   comments.js            # Public comments + moderation
   likes.js               # Post-like counter API
-  access.js              # Shared account role/status helpers and active/admin guards
-  admin.js               # Admin-only user list, roles/status, password reset link generation
+  admin.js               # Admin-only user list, roles/status, password reset links
   admin-messages.js      # User-to-admin dashboard messages
-  notifications.js       # Admin notification dispatch, targeting, read/dismiss receipts
+  notifications.js       # Admin notification dispatch, targeting, receipts
+lib/
+  db.js                  # LibSQL client, table init helpers, Telegram notifications
+  access.js              # Shared account role/status helpers, active/admin guards
 src/
-  App.jsx                # Route switcher and app shell
-  main.jsx               # React bootstrap
   index.css              # Global design system and layout styles
   components/            # Shared UI pieces (Toast, CodeBlock, Icons, Tabs, NotificationCenter, TopAlertBanner)
   features/admin/        # Admin management tabs (Notifications composer & history)
   features/dashboard/    # Dashboard feature tabs and snippet generators
-  pages/                 # Auth, dashboard, and public guestbook pages
+  pages/                 # Client page components (Auth, Dashboard, Admin, Docs, PublicGuestbook, ResetPassword)
 public/
   guestbook-widget.js    # Standalone guestbook helper script
   comments-widget.js     # Standalone comments widget
 README.md
 design.md
-vercel.json
-dist/                    # Generated build output; do not treat as source
+next.config.mjs
 ```
+
 
 ## Routes And Shell
 
@@ -257,10 +265,10 @@ The comment create flow uses:
 
 ## Development And Deployment
 
-- `npm run dev` starts Vite locally.
-- `npm run build` produces the client bundle in `dist/`.
-- `vercel.json` rewrites `/api/*` to the serverless functions and everything else to `index.html`.
-- Environment variables used by the code are `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN`, `JWT_SECRET`, and `TELEGRAM_BOT_TOKEN`.
+- `npm run dev` starts the Next.js development server locally.
+- `npm run build` creates an optimized production build (`.next/`).
+- `npm run start` starts the production server locally.
+- Environment variables used by the code are `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN`, `JWT_SECRET`, and `TELEGRAM_BOT_TOKEN`. (Falls back to `file:local.db` if `TURSO_DATABASE_URL` is omitted).
 
 ## Notes For Future Agents
 
@@ -268,5 +276,6 @@ The comment create flow uses:
 - Keep the `?tab=` dashboard state model intact unless the user explicitly asks to change navigation.
 - Keep `?embed=1` behavior intact for public guestbook embeds.
 - Prefer adding dashboard logic inside `src/features/dashboard/` instead of expanding `Dashboard.jsx`.
-- Treat `dist/` as generated output.
-- If you touch auth, entries, or profile persistence, double-check the external `users` and `entries` table assumptions first.
+- Treat `.next/` as generated output.
+- If you touch auth, entries, or profile persistence, `ensureAccountColumns` ensures required user/entry tables and columns exist.
+

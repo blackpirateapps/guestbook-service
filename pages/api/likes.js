@@ -1,5 +1,5 @@
-import { db, initLikesTables, initRateLimitTable } from './db.js';
-import { assertAccountCanReceive } from './access.js';
+import { db, initLikesTables, initRateLimitTable } from '../../lib/db.js';
+import { assertAccountCanReceive } from '../../lib/access.js';
 
 function setCors(res) {
   res.setHeader('Access-Control-Allow-Origin', '*');

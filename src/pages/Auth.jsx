@@ -1,5 +1,7 @@
+"use client";
+
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useRouter } from "next/navigation";
 import { useToast } from "../components/Toast.jsx";
 
 const FEATURES = [
@@ -40,7 +42,7 @@ export default function Auth() {
   const [resetMessage,  setResetMessage]  = useState("");
   const [resetContact,  setResetContact]  = useState("");
   const [submitting,    setSubmitting]    = useState(false);
-  const navigate = useNavigate();
+  const router = useRouter();
   const toast    = useToast();
 
   async function handleSubmit(e) {
@@ -64,7 +66,7 @@ export default function Auth() {
           localStorage.setItem("username", data.username);
           localStorage.setItem("role", data.role || "user");
           localStorage.setItem("account_status", data.account_status || "active");
-          navigate("/dashboard");
+          router.push("/dashboard");
         } else {
           toast.success("Account created!", "You can now sign in.");
           setIsLogin(true);

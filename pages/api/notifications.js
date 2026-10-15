@@ -1,5 +1,5 @@
-import { db, initNotificationsTables, sendTelegramNotification } from './db.js';
-import { requireActiveUser, requireAdmin } from './access.js';
+import { db, initNotificationsTables, sendTelegramNotification } from '../../lib/db.js';
+import { requireActiveUser, requireAdmin } from '../../lib/access.js';
 
 function setCors(res) {
   res.setHeader('Access-Control-Allow-Origin', '*');

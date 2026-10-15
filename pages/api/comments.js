@@ -1,5 +1,5 @@
-import { db, initCommentsTables, initRateLimitTable, sendTelegramNotification } from './db.js';
-import { assertAccountCanReceive, getAuthenticatedAccount, requireActiveUser } from './access.js';
+import { db, initCommentsTables, initRateLimitTable, sendTelegramNotification } from '../../lib/db.js';
+import { assertAccountCanReceive, getAuthenticatedAccount, requireActiveUser } from '../../lib/access.js';
 
 function setCors(res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -202,7 +202,7 @@ export default async function handler(req, res) {
         args: [
           section_id,
           parent_id || null,
-          isOwnerPosting ? owner_username : (is_anonymous ? 'Anonymous' : sender_name),
+          isOwnerPosting ? owner_username : (is_anonymous ? 'Anonymous' : (sender_name || 'Anonymous')),
           sender_email || '',
           sender_url || '',
           comment_text,
@@ -217,7 +217,7 @@ export default async function handler(req, res) {
       if (!isOwnerPosting) {
         await sendTelegramNotification(owner_username, {
           type: 'comment',
-          sender_name: is_anonymous ? 'Anonymous' : sender_name,
+          sender_name: is_anonymous ? 'Anonymous' : (sender_name || 'Anonymous'),
           message: comment_text,
           url: page_url || ''
         });

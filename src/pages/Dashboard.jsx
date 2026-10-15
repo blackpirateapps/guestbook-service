@@ -1,5 +1,7 @@
+"use client";
+
 import { useEffect, useRef, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useToast } from "../components/Toast.jsx";
 
 import Sidebar              from "../features/dashboard/Sidebar.jsx";
@@ -43,14 +45,16 @@ const TAB_TITLES = {
 
 export default function Dashboard() {
   const toast    = useToast();
-  const navigate = useNavigate();
-  const token    = localStorage.getItem("token");
-  const username = localStorage.getItem("username");
-  const role     = localStorage.getItem("role") || "user";
+  const router   = useRouter();
+  const token    = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+  const username = typeof window !== "undefined" ? localStorage.getItem("username") : null;
+  const role     = (typeof window !== "undefined" ? localStorage.getItem("role") : null) || "user";
 
-  const [searchParams, setSearchParams] = useSearchParams();
-  const activeTab = searchParams.get("tab") || "overview";
-  const handleTabChange = (tabId) => setSearchParams({ tab: tabId });
+  const searchParams = useSearchParams();
+  const activeTab = searchParams?.get("tab") || "overview";
+  const handleTabChange = (tabId) => {
+    router.push(`/dashboard?tab=${tabId}`, { scroll: false });
+  };
 
   // ── Guestbook ────────────────────────────────────────────────
   const [entries,          setEntries]          = useState([]);
@@ -141,7 +145,7 @@ export default function Dashboard() {
   useEffect(() => {
     setOrigin(window.location.origin);
     setTesterBaseUrl(window.location.origin);
-    if (!token) { navigate("/"); return; }
+    if (!token) { router.push("/"); return; }
     fetchData();
     fetchNotifications();
 
@@ -175,9 +179,10 @@ export default function Dashboard() {
     if (data.code !== "account_suspended") return false;
     toast.error("Account suspended", data.error || "Your account has been suspended.");
     localStorage.clear();
-    navigate("/");
+    router.push("/");
     return true;
   }
+
 
   async function fetchData() {
     const [entryRes, profileRes] = await Promise.all([
@@ -803,7 +808,7 @@ export default function Dashboard() {
         onTabChange={handleTabChange}
         username={username}
         role={role}
-        onLogout={() => { localStorage.clear(); navigate("/"); }}
+        onLogout={() => { localStorage.clear(); router.push("/"); }}
       />
       <main className="dashboard-main">
         <TopAlertBanner

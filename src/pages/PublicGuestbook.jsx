@@ -1,5 +1,7 @@
+"use client";
+
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useSearchParams } from "next/navigation";
 import DOMPurify from "dompurify";
 import { IconHeart, IconReply } from "../components/Icons";
 
@@ -25,11 +27,13 @@ const SAFE_CONFIG = {
   ALLOWED_ATTR: ["href", "src", "alt", "class", "id", "target", "style", "rel"],
 };
 
-DOMPurify.addHook("afterSanitizeAttributes", function (node) {
-  if ("target" in node && node.getAttribute("target") === "_blank") {
-    node.setAttribute("rel", "noopener noreferrer");
-  }
-});
+if (typeof window !== "undefined" && typeof DOMPurify?.addHook === "function") {
+  DOMPurify.addHook("afterSanitizeAttributes", function (node) {
+    if ("target" in node && node.getAttribute("target") === "_blank") {
+      node.setAttribute("rel", "noopener noreferrer");
+    }
+  });
+}
 
 function EntryForm({
   isReply = false,
@@ -129,12 +133,11 @@ function EntryForm({
 }
 
 export default function PublicGuestbook({ overrideUsername }) {
-  const { username: paramUsername } = useParams();
+  const params = useParams();
+  const searchParams = useSearchParams();
+  const paramUsername = params?.username;
   const username = overrideUsername || paramUsername;
-  const isEmbed = useMemo(
-    () => new URLSearchParams(window.location.search).get("embed") === "1",
-    [],
-  );
+  const isEmbed = searchParams?.get("embed") === "1" || (typeof window !== "undefined" && new URLSearchParams(window.location.search).get("embed") === "1");
   const rootRef = useRef(null);
 
   const [entries, setEntries] = useState([]);

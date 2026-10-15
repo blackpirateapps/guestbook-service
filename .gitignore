@@ -5,6 +5,8 @@ node_modules/
 dist/
 .vite/
 .vercel/
+.next/
+*.db
 
 # Environment and local config
 .env

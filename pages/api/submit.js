@@ -1,5 +1,5 @@
-import { db, initFormsTables, sendTelegramNotification } from './db.js';
-import { assertAccountCanReceive } from './access.js';
+import { db, initFormsTables, sendTelegramNotification } from '../../lib/db.js';
+import { assertAccountCanReceive } from '../../lib/access.js';
 
 function setCors(res) {
   res.setHeader('Access-Control-Allow-Origin', '*');

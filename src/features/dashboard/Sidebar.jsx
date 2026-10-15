@@ -1,5 +1,7 @@
+"use client";
+
 import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import Link from "next/link";
 import {
   BookOpen,
   Mail,
@@ -151,7 +153,7 @@ export default function Sidebar({ activeTab, onTabChange, username, role, onLogo
       {/* Header */}
       <div className="sidebar-header">
         <div className="sidebar-header-left">
-          <Link to="/" className="sidebar-brand">
+          <Link href="/" className="sidebar-brand">
             Website<span style={{ color: "var(--color-accent)" }}>Tools</span>
           </Link>
           <div className="sidebar-username">
@@ -231,7 +233,7 @@ export default function Sidebar({ activeTab, onTabChange, username, role, onLogo
       {/* Footer */}
       <div className="sidebar-footer">
         {role === "admin" && (
-          <Link className="sidebar-link" to="/admin">
+          <Link className="sidebar-link" href="/admin">
             <Shield size={13} style={{ flexShrink: 0 }} />
             Admin
           </Link>
