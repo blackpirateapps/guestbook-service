@@ -13,7 +13,15 @@ export async function generateMetadata({ params }) {
 export default async function GuestbookPage({ params }) {
   const resolvedParams = await params;
   return (
-    <Suspense fallback={<div style={{ padding: "3rem", textAlign: "center", color: "var(--color-text-muted)" }}>Loading guestbook…</div>}>
+    <Suspense
+      fallback={
+        <div className="guestbook-page-wrapper">
+          <div className="guestbook-container" style={{ padding: "3rem 1rem", textAlign: "center", color: "var(--color-text-muted)" }}>
+            Loading guestbook…
+          </div>
+        </div>
+      }
+    >
       <PublicGuestbook overrideUsername={resolvedParams?.username} />
     </Suspense>
   );
