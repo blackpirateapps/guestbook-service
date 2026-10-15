@@ -861,7 +861,7 @@ export const DOCS_PAGES = {
         content: (
           <>
             <p>
-              Submit a JSON body to <code>POST /api/entries</code>. Include a hidden honeypot field called <code>bot_field</code>; if a bot fills it, the server silently accepts the request without storing spam.
+              Submit a JSON body to <code>POST /api/entries</code>. Include a hidden honeypot field called <code>bot_field</code> and timestamp <code>_submission_time</code>. If a bot fills the honeypot or submits too quickly (&lt; 1.5s), the server rejects the request with HTTP 400 (<code>Spam detected</code>).
             </p>
             <CodeBlock label="Custom submission form" language="html" rows={26} code={guestbookSubmitCode} />
           </>

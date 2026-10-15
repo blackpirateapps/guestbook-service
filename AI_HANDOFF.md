@@ -250,7 +250,8 @@ The comment create flow uses:
 ## Schema Notes
 
 - `users` and `entries` are assumed to exist already. This repo does not create those tables.
-- `api/user.js`, `api/admin.js`, and `api/access.js` opportunistically add columns such as `embed_css_url`, `email`, `telegram_chat_id`, `telegram_notifications`, `role`, `account_status`, and `last_active_at` if they are missing.
+- `api/user.js`, `api/admin.js`, and `api/access.js` opportunistically add columns such as `embed_css_url`, `email`, `telegram_chat_id`, `telegram_notifications`, `role`, `account_status`, `last_active_at`, `spam_blocklist`, `max_links`, `rate_limit_cooldown`, and `rate_limit_hourly` if they are missing.
+- Zero-friction spam control (`lib/spam.js`, `lib/rateLimit.js`) is enforced across guestbooks, forms, comments, and likes: honeypots and speed-traps return HTTP 400 (`Spam detected`); duplicate messages and rate-exceeded requests return HTTP 429; messages with excessive links or blocklist keywords are auto-routed to `pending` moderation.
 - Password reset flows opportunistically add `password_reset_token_hash` and `password_reset_expires` to `users`.
 - Suspended users cannot log in, use authenticated dashboard APIs, or receive new guestbook entries, comment submissions/likes, post likes, or contact form submissions.
 - `api/db.js` creates the `admin_messages` table for user-to-admin dashboard messages, and `notifications` + `notification_reads` for the decoupled notification broadcast system.

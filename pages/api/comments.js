@@ -1,5 +1,7 @@
 import { db, initCommentsTables, initRateLimitTable, sendTelegramNotification } from '../../lib/db.js';
 import { assertAccountCanReceive, getAuthenticatedAccount, requireActiveUser } from '../../lib/access.js';
+import { checkHoneypot, checkSpeedTrap, checkDuplicateSubmission, analyzeContent } from '../../lib/spam.js';
+import { checkRateLimit, getClientIp } from '../../lib/rateLimit.js';
 
 function setCors(res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -103,8 +105,14 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Section ID and comment text are required' });
     }
 
-    if (website_url_check) {
-      // Bot detected via honeypot
+    // A. SPAM PROTECTION (Honeypot & Speed Trap)
+    const honeypot = checkHoneypot(body);
+    if (honeypot.isSpam) {
+      return res.status(400).json({ error: 'Spam detected' });
+    }
+
+    const speedTrap = checkSpeedTrap(body._submission_time);
+    if (speedTrap.isSpam) {
       return res.status(400).json({ error: 'Spam detected' });
     }
 
@@ -133,49 +141,54 @@ export default async function handler(req, res) {
       isOwnerPosting = true;
     }
 
-    const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown';
+    const ip = getClientIp(req);
+    let status = (isOwnerPosting || !settings.require_approval) ? 'approved' : 'pending';
 
     if (!isOwnerPosting) {
-      // Rate Limiting
-      const now = Date.now();
-      const rateKey = `comments:${ip}`;
-      
-      const rateRes = await db.execute({
-        sql: 'SELECT * FROM rate_limits WHERE key = ?',
-        args: [rateKey]
+      // Get owner user-level settings fallback
+      const userRes = await db.execute({
+        sql: 'SELECT spam_blocklist, max_links, rate_limit_cooldown, rate_limit_hourly FROM users WHERE username = ?',
+        args: [owner_username]
       });
+      const userRow = userRes.rows[0] || {};
+      const cooldownSeconds = settings.spam?.cooldown_seconds ?? userRow.rate_limit_cooldown ?? 5;
+      const hourlyLimit = settings.spam?.hourly_limit ?? userRow.rate_limit_hourly ?? 10;
+      const blocklist = settings.spam?.blocklist || userRow.spam_blocklist || '';
+      const maxLinks = settings.spam?.max_links ?? userRow.max_links ?? 2;
 
-      if (rateRes.rows.length > 0) {
-        let { last_attempt, hourly_count, window_reset } = rateRes.rows[0];
-        
-        // 5 second cooldown
-        if (now - last_attempt < 5000) {
-          return res.status(429).json({ error: 'Please wait 5 seconds between comments' });
-        }
+      // Rate Limiting
+      const rateCheck = await checkRateLimit({
+        key: `comments:${ip}:${section_id}`,
+        cooldownSeconds,
+        hourlyLimit,
+        actionLabel: 'comments'
+      });
+      if (!rateCheck.allowed) {
+        return res.status(429).json({ error: rateCheck.error });
+      }
 
-        // 10 comments per hour
-        if (now > window_reset) {
-          // Reset window
-          hourly_count = 1;
-          window_reset = now + 3600000;
-        } else {
-          if (hourly_count >= 10) {
-            const minutesLeft = Math.ceil((window_reset - now) / 60000);
-            return res.status(429).json({ error: `Too many comments. Try again in ${minutesLeft} minutes.` });
-          }
-          hourly_count += 1;
-        }
-
-        await db.execute({
-          sql: 'UPDATE rate_limits SET last_attempt = ?, hourly_count = ?, window_reset = ? WHERE key = ?',
-          args: [now, hourly_count, window_reset, rateKey]
+      // Duplicate detection
+      const dupCheck = await checkDuplicateSubmission({
+        scope: 'comments',
+        owner: section_id,
+        content: `${sender_name || ''}:${comment_text}`
+      });
+      if (dupCheck.isDuplicate) {
+        return res.status(429).json({
+          error: 'Duplicate comment detected. Please avoid submitting the same comment repeatedly.'
         });
-      } else {
-        // First attempt for this IP
-        await db.execute({
-          sql: 'INSERT INTO rate_limits (key, last_attempt, hourly_count, window_reset) VALUES (?, ?, ?, ?)',
-          args: [rateKey, now, 1, now + 3600000]
-        });
+      }
+
+      // Content analysis
+      const analysis = analyzeContent({
+        text: comment_text,
+        senderName: sender_name,
+        website: sender_url,
+        blocklist,
+        maxLinks
+      });
+      if (!analysis.valid) {
+        return res.status(400).json({ error: analysis.error });
       }
 
       // Validate Required Fields
@@ -190,9 +203,11 @@ export default async function handler(req, res) {
           return res.status(400).json({ error: 'URL is required' });
         }
       }
-    }
 
-    const status = (isOwnerPosting || !settings.require_approval) ? 'approved' : 'pending';
+      if (settings.require_approval || analysis.routeToPending) {
+        status = 'pending';
+      }
+    }
 
     try {
       await db.execute({
@@ -248,6 +263,17 @@ export default async function handler(req, res) {
         const receiveAccess = await assertAccountCanReceive(commentRes.rows[0].owner_username);
         if (!receiveAccess.ok) {
           return res.status(receiveAccess.status).json({ error: receiveAccess.error });
+        }
+
+        const ip = getClientIp(req);
+        const likeRate = await checkRateLimit({
+          key: `comment_likes:${ip}:${id}`,
+          cooldownSeconds: 3,
+          hourlyLimit: 60,
+          actionLabel: 'likes'
+        });
+        if (!likeRate.allowed) {
+          return res.status(429).json({ error: likeRate.error });
         }
 
         await db.execute({

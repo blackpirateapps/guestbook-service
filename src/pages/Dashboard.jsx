@@ -62,6 +62,10 @@ export default function Dashboard() {
   const [customHtml,       setCustomHtml]       = useState("");
   const [embedCssUrl,      setEmbedCssUrl]      = useState("");
   const [requireApproval,  setRequireApproval]  = useState(false);
+  const [spamBlocklist,    setSpamBlocklist]    = useState("");
+  const [maxLinks,         setMaxLinks]         = useState(2);
+  const [rateLimitCooldown, setRateLimitCooldown] = useState(5);
+  const [rateLimitHourly,  setRateLimitHourly]  = useState(10);
   const [origin,           setOrigin]           = useState("");
   const [replyingTo,       setReplyingTo]       = useState(null);
   const [replyMsg,         setReplyMsg]         = useState("");
@@ -200,6 +204,10 @@ export default function Dashboard() {
       setEmail(d.email || "");
       setTelegramChatId(d.telegram_chat_id || "");
       setTelegramNotifications(d.telegram_notifications === 1);
+      setSpamBlocklist(d.spam_blocklist || "");
+      setMaxLinks(Number.isFinite(Number(d.max_links)) ? Number(d.max_links) : 2);
+      setRateLimitCooldown(Number.isFinite(Number(d.rate_limit_cooldown)) ? Number(d.rate_limit_cooldown) : 5);
+      setRateLimitHourly(Number.isFinite(Number(d.rate_limit_hourly)) ? Number(d.rate_limit_hourly) : 10);
     }
     fetchForms();
     fetchCommentSections();
@@ -371,7 +379,11 @@ export default function Dashboard() {
         require_approval: requireApproval,
         email,
         telegram_chat_id: telegramChatId,
-        telegram_notifications: telegramNotifications
+        telegram_notifications: telegramNotifications,
+        spam_blocklist: spamBlocklist,
+        max_links: maxLinks,
+        rate_limit_cooldown: rateLimitCooldown,
+        rate_limit_hourly: rateLimitHourly,
       }),
     });
     if (res.ok) { toast.success("Saved", "Settings updated."); }
@@ -644,6 +656,10 @@ export default function Dashboard() {
       case "settings": return (
         <SettingsTab
           requireApproval={requireApproval} setRequireApproval={setRequireApproval}
+          spamBlocklist={spamBlocklist}     setSpamBlocklist={setSpamBlocklist}
+          maxLinks={maxLinks}               setMaxLinks={setMaxLinks}
+          rateLimitCooldown={rateLimitCooldown} setRateLimitCooldown={setRateLimitCooldown}
+          rateLimitHourly={rateLimitHourly} setRateLimitHourly={setRateLimitHourly}
           customCss={customCss}             setCustomCss={setCustomCss}
           customHtml={customHtml}           setCustomHtml={setCustomHtml}
           saveSettings={saveSettings}

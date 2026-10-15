@@ -1,5 +1,7 @@
 import { db, initFormsTables, sendTelegramNotification } from '../../lib/db.js';
 import { assertAccountCanReceive } from '../../lib/access.js';
+import { checkHoneypot, checkSpeedTrap, checkDuplicateSubmission, countUrls, checkBlocklist } from '../../lib/spam.js';
+import { checkRateLimit, getClientIp } from '../../lib/rateLimit.js';
 
 function setCors(res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -14,13 +16,6 @@ function getJsonBody(req) {
     try { return JSON.parse(req.body); } catch { return {}; }
   }
   return req.body;
-}
-
-function getClientIp(req) {
-  return req.headers['x-forwarded-for']?.split(',')[0]?.trim() ||
-         req.headers['x-real-ip'] ||
-         req.socket?.remoteAddress ||
-         'unknown';
 }
 
 function validateSubmission(formFields, data) {
@@ -140,13 +135,41 @@ export default async function handler(req, res) {
 
   const body = getJsonBody(req);
 
-  // Honeypot spam protection - if _honeypot field is filled, silently succeed
-  if (body._honeypot) {
-    return res.json({ success: true, message: 'Form submitted successfully' });
+  // A. SPAM PROTECTION (Honeypot & Speed Trap)
+  const honeypot = checkHoneypot(body);
+  if (honeypot.isSpam) {
+    return res.status(400).json({ error: 'Spam detected' });
+  }
+
+  const speedTrap = checkSpeedTrap(body._submission_time);
+  if (speedTrap.isSpam) {
+    return res.status(400).json({ error: 'Spam detected' });
+  }
+
+  // B. OWNER SPAM SETTINGS & RATE LIMITING
+  const userRes = await db.execute({
+    sql: 'SELECT spam_blocklist, max_links, rate_limit_cooldown, rate_limit_hourly FROM users WHERE username = ?',
+    args: [formData.owner_username]
+  });
+  const userRow = userRes.rows[0] || {};
+  const cooldownSeconds = Number.isFinite(Number(userRow.rate_limit_cooldown)) ? Number(userRow.rate_limit_cooldown) : 5;
+  const hourlyLimit = Number.isFinite(Number(userRow.rate_limit_hourly)) ? Number(userRow.rate_limit_hourly) : 15;
+  const blocklist = userRow.spam_blocklist || '';
+  const maxLinks = Number.isFinite(Number(userRow.max_links)) ? Number(userRow.max_links) : 2;
+
+  const ipAddress = getClientIp(req);
+  const rateCheck = await checkRateLimit({
+    key: `submit:${ipAddress}:${form}`,
+    cooldownSeconds,
+    hourlyLimit,
+    actionLabel: 'form submissions'
+  });
+  if (!rateCheck.allowed) {
+    return res.status(429).json({ error: rateCheck.error });
   }
 
   // Remove internal fields from submission data
-  const { _honeypot, ...submissionData } = body;
+  const { _honeypot, bot_field, website_url_check, _submission_time, ...submissionData } = body;
 
   // Validate submission against form schema
   const validationErrors = validateSubmission(formData.fields, submissionData);
@@ -157,17 +180,43 @@ export default async function handler(req, res) {
     });
   }
 
-  // Filter submission to only include defined fields
+  // Filter submission to only include defined fields & check field length
   const cleanData = {};
   for (const field of formData.fields) {
     if (submissionData[field.name] !== undefined) {
-      cleanData[field.name] = submissionData[field.name];
+      const val = submissionData[field.name];
+      if (typeof val === 'string' && val.length > 5000) {
+        return res.status(400).json({
+          error: `${field.label} exceeds maximum allowed length of 5000 characters`
+        });
+      }
+      cleanData[field.name] = val;
     }
   }
 
-  // Determine status based on form's moderation setting
-  const status = formData.require_approval === 1 ? 'pending' : 'approved';
-  const ipAddress = getClientIp(req);
+  // Duplicate submission check
+  const contentStr = Object.values(cleanData)
+    .map((v) => (typeof v === 'object' ? JSON.stringify(v) : String(v)))
+    .join(' ');
+
+  const dupCheck = await checkDuplicateSubmission({
+    scope: 'forms',
+    owner: form,
+    content: contentStr
+  });
+  if (dupCheck.isDuplicate) {
+    return res.status(429).json({
+      error: 'Duplicate submission detected. Please do not submit the same form repeatedly.'
+    });
+  }
+
+  // Determine status based on form moderation and content analysis
+  let status = formData.require_approval === 1 ? 'pending' : 'approved';
+  const totalUrls = countUrls(contentStr);
+  const blocklistCheck = checkBlocklist(contentStr, blocklist);
+  if (totalUrls > maxLinks || blocklistCheck.matched) {
+    status = 'pending';
+  }
 
   // Store the submission
   try {

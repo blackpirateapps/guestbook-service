@@ -151,6 +151,7 @@ export default function PublicGuestbook({ overrideUsername }) {
   const [message, setMessage] = useState("");
   const [isPrivate, setIsPrivate] = useState(false);
   const [botField, setBotField] = useState("");
+  const [submissionTime, setSubmissionTime] = useState(() => Date.now());
 
   const [replyingTo, setReplyingTo] = useState(null);
   const [likingIds, setLikingIds] = useState(() => new Set());
@@ -260,6 +261,7 @@ export default function PublicGuestbook({ overrideUsername }) {
         parent_id: replyingTo,
         is_private: isPrivate,
         bot_field: botField,
+        _submission_time: submissionTime,
       }),
     });
 
@@ -270,6 +272,7 @@ export default function PublicGuestbook({ overrideUsername }) {
       setMessage("");
       setIsPrivate(false);
       setReplyingTo(null);
+      setSubmissionTime(Date.now());
 
       if (data.status === "pending") {
         alert("Message sent! Waiting for moderator approval.");

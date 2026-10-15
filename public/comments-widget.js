@@ -78,6 +78,7 @@
     html += '<h3>' + (parentId ? 'Reply to Comment' : 'Leave a Comment') + '</h3>';
     
     html += '<input type="text" name="website_url_check" class="cw-honeypot" style="display:none !important;" tabindex="-1" autocomplete="off">';
+    html += '<input type="hidden" name="_submission_time" value="' + Date.now() + '">';
 
     if (settings.allow_anonymous) {
       html += '<label class="cw-checkbox-label"><input type="checkbox" name="is_anonymous" class="cw-anon-check"> Comment as Anonymous</label>';

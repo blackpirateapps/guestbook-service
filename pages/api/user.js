@@ -15,6 +15,10 @@ async function ensureUserColumns() {
   try { await db.execute('ALTER TABLE users ADD COLUMN password_reset_token_hash TEXT'); } catch {}
   try { await db.execute('ALTER TABLE users ADD COLUMN password_reset_expires TEXT'); } catch {}
   try { await db.execute('ALTER TABLE users ADD COLUMN last_active_at TEXT'); } catch {}
+  try { await db.execute("ALTER TABLE users ADD COLUMN spam_blocklist TEXT DEFAULT ''"); } catch {}
+  try { await db.execute("ALTER TABLE users ADD COLUMN max_links INTEGER DEFAULT 2"); } catch {}
+  try { await db.execute("ALTER TABLE users ADD COLUMN rate_limit_cooldown INTEGER DEFAULT 5"); } catch {}
+  try { await db.execute("ALTER TABLE users ADD COLUMN rate_limit_hourly INTEGER DEFAULT 10"); } catch {}
 }
 
 function getJsonBody(req) {
@@ -280,7 +284,7 @@ export default async function handler(req, res) {
     try {
       await ensureUserColumns();
       const result = await db.execute({
-        sql: 'SELECT custom_css, custom_html, require_approval, embed_css_url, email, telegram_chat_id, telegram_notifications, account_status FROM users WHERE username = ?',
+        sql: 'SELECT custom_css, custom_html, require_approval, embed_css_url, email, telegram_chat_id, telegram_notifications, account_status, spam_blocklist, max_links, rate_limit_cooldown, rate_limit_hourly FROM users WHERE username = ?',
         args: [username]
       });
       if (result.rows.length === 0) return res.status(404).json({ error: 'User not found' });
@@ -298,7 +302,11 @@ export default async function handler(req, res) {
         embed_css_url: profile.embed_css_url || '',
         email: profile.email || '',
         telegram_chat_id: profile.telegram_chat_id || '',
-        telegram_notifications: Number(profile.telegram_notifications) === 1 ? 1 : 0
+        telegram_notifications: Number(profile.telegram_notifications) === 1 ? 1 : 0,
+        spam_blocklist: profile.spam_blocklist || '',
+        max_links: Number.isFinite(Number(profile.max_links)) ? Number(profile.max_links) : 2,
+        rate_limit_cooldown: Number.isFinite(Number(profile.rate_limit_cooldown)) ? Number(profile.rate_limit_cooldown) : 5,
+        rate_limit_hourly: Number.isFinite(Number(profile.rate_limit_hourly)) ? Number(profile.rate_limit_hourly) : 10
       });
     } catch (e) {
       return res.status(500).json({ error: 'Database error' });
@@ -312,7 +320,19 @@ export default async function handler(req, res) {
 
     try {
       await ensureUserColumns();
-      const { custom_css, custom_html, require_approval, embed_css_url, email, telegram_chat_id, telegram_notifications } = getJsonBody(req);
+      const {
+        custom_css,
+        custom_html,
+        require_approval,
+        embed_css_url,
+        email,
+        telegram_chat_id,
+        telegram_notifications,
+        spam_blocklist,
+        max_links,
+        rate_limit_cooldown,
+        rate_limit_hourly
+      } = getJsonBody(req);
 
       const nextEmbedCssUrl = (embed_css_url || '').trim();
       if (nextEmbedCssUrl) {
@@ -332,8 +352,13 @@ export default async function handler(req, res) {
         nextNotifications = 0; // Auto-disable if chat id is empty
       }
 
+      const cleanBlocklist = String(spam_blocklist ?? '').trim();
+      const cleanMaxLinks = Math.max(0, Math.min(20, Number.isFinite(Number(max_links)) ? Number(max_links) : 2));
+      const cleanCooldown = Math.max(1, Math.min(60, Number.isFinite(Number(rate_limit_cooldown)) ? Number(rate_limit_cooldown) : 5));
+      const cleanHourly = Math.max(1, Math.min(200, Number.isFinite(Number(rate_limit_hourly)) ? Number(rate_limit_hourly) : 10));
+
       await db.execute({
-        sql: 'UPDATE users SET custom_css = ?, custom_html = ?, require_approval = ?, embed_css_url = ?, email = ?, telegram_chat_id = ?, telegram_notifications = ? WHERE username = ?',
+        sql: 'UPDATE users SET custom_css = ?, custom_html = ?, require_approval = ?, embed_css_url = ?, email = ?, telegram_chat_id = ?, telegram_notifications = ?, spam_blocklist = ?, max_links = ?, rate_limit_cooldown = ?, rate_limit_hourly = ? WHERE username = ?',
         args: [
           custom_css || '', 
           custom_html || '', 
@@ -341,7 +366,11 @@ export default async function handler(req, res) {
           nextEmbedCssUrl, 
           (email || '').trim(), 
           finalTelegramId, 
-          nextNotifications, 
+          nextNotifications,
+          cleanBlocklist,
+          cleanMaxLinks,
+          cleanCooldown,
+          cleanHourly,
           auth.account.username
         ]
       });

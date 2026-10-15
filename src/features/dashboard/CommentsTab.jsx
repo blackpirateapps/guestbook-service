@@ -8,6 +8,12 @@ const DEFAULT_SETTINGS = {
   allow_anonymous:   false,
   allow_likes:       true,
   require_approval:  false,
+  spam: {
+    max_links: 2,
+    cooldown_seconds: 5,
+    hourly_limit: 10,
+    blocklist: ""
+  }
 };
 
 export default function CommentsTab({
@@ -95,6 +101,74 @@ export default function CommentsTab({
               {label}
             </label>
           ))}
+        </div>
+
+        <h4 style={{ marginTop: "1.5rem" }}>Spam Defense & Moderation</h4>
+        <div className="dashboard-grid">
+          <div className="form-group">
+            <label htmlFor="sec-max-links">Max Links (Auto-quarantine)</label>
+            <input
+              id="sec-max-links"
+              type="number"
+              min="0"
+              max="20"
+              value={sectionSettings.spam?.max_links ?? 2}
+              onChange={(e) =>
+                setSectionSettings((p) => ({
+                  ...p,
+                  spam: { ...(p.spam || {}), max_links: Math.max(0, parseInt(e.target.value) || 0) },
+                }))
+              }
+            />
+          </div>
+          <div className="form-group">
+            <label htmlFor="sec-cooldown">Cooldown (Seconds)</label>
+            <input
+              id="sec-cooldown"
+              type="number"
+              min="1"
+              max="60"
+              value={sectionSettings.spam?.cooldown_seconds ?? 5}
+              onChange={(e) =>
+                setSectionSettings((p) => ({
+                  ...p,
+                  spam: { ...(p.spam || {}), cooldown_seconds: Math.max(1, parseInt(e.target.value) || 5) },
+                }))
+              }
+            />
+          </div>
+          <div className="form-group">
+            <label htmlFor="sec-hourly">Hourly Limit per IP</label>
+            <input
+              id="sec-hourly"
+              type="number"
+              min="1"
+              max="100"
+              value={sectionSettings.spam?.hourly_limit ?? 10}
+              onChange={(e) =>
+                setSectionSettings((p) => ({
+                  ...p,
+                  spam: { ...(p.spam || {}), hourly_limit: Math.max(1, parseInt(e.target.value) || 10) },
+                }))
+              }
+            />
+          </div>
+        </div>
+
+        <div className="form-group" style={{ marginTop: "0.75rem" }}>
+          <label htmlFor="sec-blocklist">Section Blocklist Keywords</label>
+          <input
+            id="sec-blocklist"
+            type="text"
+            placeholder="crypto, casino, viagra (comma separated)"
+            value={sectionSettings.spam?.blocklist ?? ""}
+            onChange={(e) =>
+              setSectionSettings((p) => ({
+                ...p,
+                spam: { ...(p.spam || {}), blocklist: e.target.value },
+              }))
+            }
+          />
         </div>
 
         <div className="actions-row" style={{ marginTop: "2rem" }}>

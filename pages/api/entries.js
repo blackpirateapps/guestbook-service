@@ -1,5 +1,7 @@
 import { db, sendTelegramNotification } from '../../lib/db.js';
 import { assertAccountCanReceive, getAuthenticatedAccount, requireActiveUser } from '../../lib/access.js';
+import { checkHoneypot, checkSpeedTrap, checkDuplicateSubmission, analyzeContent } from '../../lib/spam.js';
+import { checkRateLimit, getClientIp } from '../../lib/rateLimit.js';
 
 function setCors(res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -282,11 +284,22 @@ export default async function handler(req, res) {
         return res.status(201).json({ success: true });
       }
       
-      // A. SPAM PROTECTION (Honeypot)
-      // If the hidden field "bot_field" has text, it's a bot. Fail silently (return 200).
-      if (body.bot_field) return res.json({ success: true });
+      // A. SPAM PROTECTION (Honeypot & Speed Trap)
+      const honeypot = checkHoneypot(body);
+      if (honeypot.isSpam) {
+        return res.status(400).json({ error: 'Spam detected' });
+      }
+
+      const speedTrap = checkSpeedTrap(body._submission_time);
+      if (speedTrap.isSpam) {
+        return res.status(400).json({ error: 'Spam detected' });
+      }
 
       const { owner_username, sender_name, message, sender_website, parent_id, is_private } = body;
+      if (!owner_username || !String(sender_name || '').trim() || !String(message || '').trim()) {
+        return res.status(400).json({ error: 'Name and message are required' });
+      }
+
       const receiveAccess = await assertAccountCanReceive(owner_username);
       if (!receiveAccess.ok) {
         return res.status(receiveAccess.status).json({ error: receiveAccess.error });
@@ -306,13 +319,51 @@ export default async function handler(req, res) {
         status = 'approved'; // Owners bypass moderation
       }
 
-      // If NOT owner, check Moderation Settings
+      // If NOT owner, check Moderation Settings and Spam Filters
       if (!isOwner) {
         const userRes = await db.execute({
-          sql: 'SELECT require_approval FROM users WHERE username = ?',
+          sql: 'SELECT require_approval, spam_blocklist, max_links, rate_limit_cooldown, rate_limit_hourly FROM users WHERE username = ?',
           args: [owner_username]
         });
-        if (userRes.rows.length > 0 && userRes.rows[0].require_approval === 1) {
+        const userRow = userRes.rows[0] || {};
+        const requireApproval = userRow.require_approval === 1;
+        const cooldownSeconds = Number.isFinite(Number(userRow.rate_limit_cooldown)) ? Number(userRow.rate_limit_cooldown) : 5;
+        const hourlyLimit = Number.isFinite(Number(userRow.rate_limit_hourly)) ? Number(userRow.rate_limit_hourly) : 10;
+        const blocklist = userRow.spam_blocklist || '';
+        const maxLinks = Number.isFinite(Number(userRow.max_links)) ? Number(userRow.max_links) : 2;
+
+        const ip = getClientIp(req);
+        const rateCheck = await checkRateLimit({
+          key: `entries:${ip}:${owner_username}`,
+          cooldownSeconds,
+          hourlyLimit,
+          actionLabel: 'guestbook entries'
+        });
+        if (!rateCheck.allowed) {
+          return res.status(429).json({ error: rateCheck.error });
+        }
+
+        const dupCheck = await checkDuplicateSubmission({
+          scope: 'entries',
+          owner: owner_username,
+          content: `${sender_name}:${message}`
+        });
+        if (dupCheck.isDuplicate) {
+          return res.status(429).json({ error: 'Duplicate entry detected. Please do not submit the same message repeatedly.' });
+        }
+
+        const analysis = analyzeContent({
+          text: message,
+          senderName: sender_name,
+          website: sender_website,
+          blocklist,
+          maxLinks
+        });
+        if (!analysis.valid) {
+          return res.status(400).json({ error: analysis.error });
+        }
+
+        if (requireApproval || analysis.routeToPending) {
           status = 'pending';
         }
       }
@@ -367,6 +418,17 @@ export default async function handler(req, res) {
       const receiveAccess = await assertAccountCanReceive(entryRes.rows[0].owner_username);
       if (!receiveAccess.ok) {
         return res.status(receiveAccess.status).json({ error: receiveAccess.error });
+      }
+
+      const ip = getClientIp(req);
+      const likeRate = await checkRateLimit({
+        key: `entry_likes:${ip}:${id}`,
+        cooldownSeconds: 3,
+        hourlyLimit: 60,
+        actionLabel: 'likes'
+      });
+      if (!likeRate.allowed) {
+        return res.status(429).json({ error: likeRate.error });
       }
 
       await db.execute({

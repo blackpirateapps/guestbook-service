@@ -38,7 +38,8 @@
       message: opts.message,
       parent_id: opts.parent_id || null,
       is_private: !!opts.is_private,
-      bot_field: opts.bot_field || ''
+      bot_field: opts.bot_field || '',
+      _submission_time: opts._submission_time || (Date.now() - 3000)
     };
 
     var res = await fetch(url, {
