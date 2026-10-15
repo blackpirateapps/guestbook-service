@@ -31,6 +31,103 @@ DOMPurify.addHook("afterSanitizeAttributes", function (node) {
   }
 });
 
+function EntryForm({
+  isReply = false,
+  onCancel,
+  senderName,
+  setSenderName,
+  senderWebsite,
+  setSenderWebsite,
+  message,
+  setMessage,
+  isPrivate,
+  setIsPrivate,
+  botField,
+  setBotField,
+  handleSubmit,
+}) {
+  return (
+    <form onSubmit={handleSubmit} className="entry-form-wrapper">
+      <h3>{isReply ? "Reply to message" : "Sign the Guestbook"}</h3>
+      <input
+        type="text"
+        name="website_url_check"
+        value={botField}
+        onChange={(e) => setBotField(e.target.value)}
+        className="honeypot"
+        tabIndex="-1"
+        autoComplete="off"
+      />
+
+      <div className="form-row">
+        <div className="form-group">
+          <label htmlFor={`sender-name-${isReply ? "reply" : "main"}`}>
+            Name *
+          </label>
+          <input
+            id={`sender-name-${isReply ? "reply" : "main"}`}
+            type="text"
+            placeholder="Your name"
+            value={senderName}
+            onChange={(e) => setSenderName(e.target.value)}
+            required
+          />
+        </div>
+
+        <div className="form-group">
+          <label htmlFor={`sender-website-${isReply ? "reply" : "main"}`}>
+            Website
+          </label>
+          <input
+            id={`sender-website-${isReply ? "reply" : "main"}`}
+            type="url"
+            placeholder="https://example.com"
+            value={senderWebsite}
+            onChange={(e) => setSenderWebsite(e.target.value)}
+          />
+        </div>
+      </div>
+
+      <div className="form-group">
+        <label htmlFor={`message-${isReply ? "reply" : "main"}`}>
+          {isReply ? "Reply *" : "Message *"}
+        </label>
+        <textarea
+          id={`message-${isReply ? "reply" : "main"}`}
+          rows={isReply ? 3 : 4}
+          placeholder={isReply ? "Write a reply..." : "Leave a note..."}
+          value={message}
+          onChange={(e) => setMessage(e.target.value)}
+          required
+        />
+      </div>
+
+      {!isReply && (
+        <label className="checkbox-label">
+          <input
+            type="checkbox"
+            checked={isPrivate}
+            onChange={(e) => setIsPrivate(e.target.checked)}
+          />
+          Private message (Owner only)
+        </label>
+      )}
+
+      <div style={{ display: "flex", gap: "0.5rem", marginTop: "1rem" }}>
+        <button type="submit">
+          {isReply ? "Post Reply" : "Sign Guestbook"}
+        </button>
+
+        {isReply && (
+          <button type="button" className="secondary" onClick={onCancel}>
+            Cancel
+          </button>
+        )}
+      </div>
+    </form>
+  );
+}
+
 export default function PublicGuestbook({ overrideUsername }) {
   const { username: paramUsername } = useParams();
   const username = overrideUsername || paramUsername;
@@ -188,87 +285,6 @@ export default function PublicGuestbook({ overrideUsername }) {
   const getReplies = (parentId) =>
     entries.filter((e) => e.parent_id === parentId);
 
-  const EntryForm = ({ isReply = false, onCancel }) => (
-    <form onSubmit={handleSubmit} className="entry-form-wrapper">
-      <h3>{isReply ? "Reply to message" : "Sign the Guestbook"}</h3>
-      <input
-        type="text"
-        name="website_url_check"
-        value={botField}
-        onChange={(e) => setBotField(e.target.value)}
-        className="honeypot"
-        tabIndex="-1"
-        autoComplete="off"
-      />
-
-      <div className="form-row">
-        <div className="form-group">
-          <label htmlFor={`sender-name-${isReply ? "reply" : "main"}`}>
-            Name *
-          </label>
-          <input
-            id={`sender-name-${isReply ? "reply" : "main"}`}
-            type="text"
-            placeholder="Your name"
-            value={senderName}
-            onChange={(e) => setSenderName(e.target.value)}
-            required
-          />
-        </div>
-
-        <div className="form-group">
-          <label htmlFor={`sender-website-${isReply ? "reply" : "main"}`}>
-            Website
-          </label>
-          <input
-            id={`sender-website-${isReply ? "reply" : "main"}`}
-            type="url"
-            placeholder="https://example.com"
-            value={senderWebsite}
-            onChange={(e) => setSenderWebsite(e.target.value)}
-          />
-        </div>
-      </div>
-
-      <div className="form-group">
-        <label htmlFor={`message-${isReply ? "reply" : "main"}`}>
-          {isReply ? "Reply *" : "Message *"}
-        </label>
-        <textarea
-          id={`message-${isReply ? "reply" : "main"}`}
-          rows={isReply ? 3 : 4}
-          placeholder={isReply ? "Write a reply..." : "Leave a note..."}
-          value={message}
-          onChange={(e) => setMessage(e.target.value)}
-          required
-        />
-      </div>
-
-      {!isReply && (
-        <label className="checkbox-label">
-          <input
-            type="checkbox"
-            checked={isPrivate}
-            onChange={(e) => setIsPrivate(e.target.checked)}
-          />
-          Private message (Owner only)
-        </label>
-      )}
-
-      <div style={{ display: "flex", gap: "0.5rem", marginTop: "1rem" }}>
-        <button type="submit">
-          {isReply ? "Post Reply" : "Sign Guestbook"}
-        </button>
-
-        {isReply && (
-          <button type="button" className="secondary" onClick={onCancel}>
-            Cancel
-          </button>
-        )}
-      </div>
-    </form>
-  );
-
   const embedBaseCss = isEmbed
     ? `
       :root { color-scheme: light dark; }
@@ -315,7 +331,19 @@ export default function PublicGuestbook({ overrideUsername }) {
 
       {!replyingTo && (
         <section style={{ marginBottom: "2rem" }}>
-          <EntryForm />
+          <EntryForm
+            senderName={senderName}
+            setSenderName={setSenderName}
+            senderWebsite={senderWebsite}
+            setSenderWebsite={setSenderWebsite}
+            message={message}
+            setMessage={setMessage}
+            isPrivate={isPrivate}
+            setIsPrivate={setIsPrivate}
+            botField={botField}
+            setBotField={setBotField}
+            handleSubmit={handleSubmit}
+          />
         </section>
       )}
 
@@ -402,6 +430,17 @@ export default function PublicGuestbook({ overrideUsername }) {
                   <EntryForm
                     isReply={true}
                     onCancel={() => setReplyingTo(null)}
+                    senderName={senderName}
+                    setSenderName={setSenderName}
+                    senderWebsite={senderWebsite}
+                    setSenderWebsite={setSenderWebsite}
+                    message={message}
+                    setMessage={setMessage}
+                    isPrivate={isPrivate}
+                    setIsPrivate={setIsPrivate}
+                    botField={botField}
+                    setBotField={setBotField}
+                    handleSubmit={handleSubmit}
                   />
                 </div>
               )}
