@@ -19,6 +19,8 @@ import ModerationTab        from "../features/dashboard/ModerationTab.jsx";
 import LikesTab             from "../features/dashboard/LikesTab.jsx";
 import AccountTab           from "../features/dashboard/AccountTab.jsx";
 import ContactAdminTab      from "../features/dashboard/ContactAdminTab.jsx";
+import NotificationCenter from "../components/NotificationCenter.jsx";
+import TopAlertBanner     from "../components/TopAlertBanner.jsx";
 
 const TAB_TITLES = {
   overview:              "Overview",
@@ -131,12 +133,22 @@ export default function Dashboard() {
   const [likesAction,  setLikesAction]  = useState("get");
   const [likesResult,  setLikesResult]  = useState("");
 
+  // ── Notifications ──────────────────────────────────────────
+  const [notifications, setNotifications] = useState([]);
+  const [unreadCount,   setUnreadCount]   = useState(0);
+
   // ── Bootstrap ─────────────────────────────────────────────────
   useEffect(() => {
     setOrigin(window.location.origin);
     setTesterBaseUrl(window.location.origin);
     if (!token) { navigate("/"); return; }
     fetchData();
+    fetchNotifications();
+
+    const interval = setInterval(() => {
+      fetchNotifications();
+    }, 60000);
+    return () => clearInterval(interval);
   }, [token]);
 
   // Trigger per-tab fetches when activeTab changes
@@ -266,6 +278,80 @@ export default function Dashboard() {
         setLikesSummary({ total_likes: d.total_likes || 0, post_count: d.post_count || 0, top_posts: Array.isArray(d.top_posts) ? d.top_posts : [] });
       }
     } finally { setLikesBusy(false); }
+  }
+
+  // ── Notification Helpers ───────────────────────────────────────
+  async function fetchNotifications() {
+    if (!token) return;
+    try {
+      const res = await fetch("/api/notifications", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setNotifications(Array.isArray(data.notifications) ? data.notifications : []);
+        setUnreadCount(typeof data.unread_count === "number" ? data.unread_count : 0);
+      }
+    } catch (err) {
+      console.error("Failed to fetch notifications:", err);
+    }
+  }
+
+  async function handleMarkRead(id) {
+    setNotifications((prev) =>
+      prev.map((n) => (n.id === id ? { ...n, is_read: true } : n))
+    );
+    setUnreadCount((prev) => Math.max(0, prev - 1));
+
+    try {
+      await fetch(`/api/notifications?action=mark_read&id=${id}`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ notification_id: id }),
+      });
+    } catch (err) {
+      console.error("Failed to mark read:", err);
+    }
+  }
+
+  async function handleMarkAllRead() {
+    setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
+    setUnreadCount(0);
+
+    try {
+      await fetch("/api/notifications?action=mark_read", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ all: true }),
+      });
+    } catch (err) {
+      console.error("Failed to mark all read:", err);
+    }
+  }
+
+  async function handleDismissBanner(id) {
+    setNotifications((prev) =>
+      prev.map((n) => (n.id === id ? { ...n, is_dismissed: true } : n))
+    );
+
+    try {
+      await fetch(`/api/notifications?action=dismiss&id=${id}`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ notification_id: id }),
+      });
+    } catch (err) {
+      console.error("Failed to dismiss banner:", err);
+    }
   }
 
   // ── Actions ────────────────────────────────────────────────────
@@ -720,8 +806,19 @@ export default function Dashboard() {
         onLogout={() => { localStorage.clear(); navigate("/"); }}
       />
       <main className="dashboard-main">
+        <TopAlertBanner
+          notifications={notifications}
+          onDismiss={handleDismissBanner}
+          onMarkRead={handleMarkRead}
+        />
         <header className="dashboard-header">
           <h1>{TAB_TITLES[activeTab] || activeTab}</h1>
+          <NotificationCenter
+            notifications={notifications}
+            unreadCount={unreadCount}
+            onMarkRead={handleMarkRead}
+            onMarkAllRead={handleMarkAllRead}
+          />
         </header>
         {renderTab()}
       </main>

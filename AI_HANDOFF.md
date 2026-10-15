@@ -39,11 +39,13 @@ api/                     # Vercel serverless functions
   access.js              # Shared account role/status helpers and active/admin guards
   admin.js               # Admin-only user list, roles/status, password reset link generation
   admin-messages.js      # User-to-admin dashboard messages
+  notifications.js       # Admin notification dispatch, targeting, read/dismiss receipts
 src/
   App.jsx                # Route switcher and app shell
   main.jsx               # React bootstrap
   index.css              # Global design system and layout styles
-  components/            # Shared UI pieces (Toast, CodeBlock, Icons, Tabs)
+  components/            # Shared UI pieces (Toast, CodeBlock, Icons, Tabs, NotificationCenter, TopAlertBanner)
+  features/admin/        # Admin management tabs (Notifications composer & history)
   features/dashboard/    # Dashboard feature tabs and snippet generators
   pages/                 # Auth, dashboard, and public guestbook pages
 public/
@@ -138,6 +140,16 @@ Public guestbook behavior is straightforward:
 - `PUT /api/admin-messages` updates message status to `open`, `read`, or `closed`.
 - `DELETE /api/admin-messages` deletes a message.
 
+### `api/notifications.js`
+
+- User notifications, system announcements, and admin broadcast authoring.
+- `GET /api/notifications` returns active, unexpired notifications for the authenticated user, matching broadcasts (`target_type = 'all'`) or specific targets (`user`, `role`, `status`), joined with per-user read/dismiss state and aggregate `unread_count`.
+- `GET /api/notifications?admin=1` with admin JWT lists all dispatched notifications with total read and dismissal counts.
+- `POST /api/notifications` with admin JWT creates a new notification with `{ title, message, severity, target_type, target_value, is_banner, send_telegram, action_label, action_url, expires_at }`. If `send_telegram` is set, pushes alerts to matched users who have Telegram linked and alerts enabled.
+- `POST /api/notifications?action=mark_read` marks a single notification (`notification_id`) or all notifications (`all: true`) as read for the authenticated user.
+- `POST /api/notifications?action=dismiss` with `{ notification_id }` records banner dismissal for the user so it leaves the sticky banner area while remaining in the drawer.
+- `DELETE /api/notifications` with admin JWT deletes/revokes a notification and cascades to user reads.
+
 ### `api/entries.js`
 
 - `GET /api/entries?user=:username` returns approved, non-private entries for the public guestbook.
@@ -223,8 +235,8 @@ The comment create flow uses:
 
 ### `api/db.js`
 
-- Creates the tables that this repo owns: `forms`, `form_submissions`, `rate_limits`, `post_likes`, `comment_sections`, `comments`, and `admin_messages`.
-- Sends Telegram notifications when `TELEGRAM_BOT_TOKEN` is set and the user has Telegram notifications enabled.
+- Creates the tables that this repo owns: `forms`, `form_submissions`, `rate_limits`, `post_likes`, `comment_sections`, `comments`, `admin_messages`, `notifications`, and `notification_reads`.
+- Sends Telegram notifications when `TELEGRAM_BOT_TOKEN` is set and the user has Telegram notifications enabled. Supports entry, comment, form, password reset, and admin notification payload types.
 - Looks up `telegram_chat_id` and `telegram_notifications` from the `users` table.
 
 ## Schema Notes
@@ -233,7 +245,7 @@ The comment create flow uses:
 - `api/user.js`, `api/admin.js`, and `api/access.js` opportunistically add columns such as `embed_css_url`, `email`, `telegram_chat_id`, `telegram_notifications`, `role`, and `account_status` if they are missing.
 - Password reset flows opportunistically add `password_reset_token_hash` and `password_reset_expires` to `users`.
 - Suspended users cannot log in, use authenticated dashboard APIs, or receive new guestbook entries, comment submissions/likes, post likes, or contact form submissions.
-- `api/db.js` creates the `admin_messages` table for user-to-admin dashboard messages.
+- `api/db.js` creates the `admin_messages` table for user-to-admin dashboard messages, and `notifications` + `notification_reads` for the decoupled notification broadcast system.
 - If you change the schema, remember that the code assumes the owner profile row already exists before writing settings.
 
 ## Widgets And Snippets

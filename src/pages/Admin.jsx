@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import {
+  Bell,
   Copy,
   ExternalLink,
   Loader2,
@@ -10,8 +11,10 @@ import {
   Search,
   ShieldCheck,
   Trash2,
+  Users,
 } from "lucide-react";
 import { useToast } from "../components/Toast.jsx";
+import AdminNotificationsTab from "../features/admin/AdminNotificationsTab.jsx";
 
 const ADMIN_USERNAME = "sudip";
 
@@ -37,6 +40,10 @@ export default function Admin() {
   const toast = useToast();
   const token = localStorage.getItem("token");
 
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = searchParams.get("tab") || "users";
+  const handleTabChange = (tab) => setSearchParams({ tab });
+
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -47,6 +54,10 @@ export default function Admin() {
   const [bulkBusy, setBulkBusy] = useState(false);
   const [messages, setMessages] = useState([]);
   const [messageBusy, setMessageBusy] = useState(false);
+
+  const openMessagesCount = useMemo(() => {
+    return messages.filter((m) => m.status === "open").length;
+  }, [messages]);
 
   useEffect(() => {
     if (!token) {
@@ -325,175 +336,220 @@ export default function Admin() {
       </header>
 
       <main className="admin-main">
-        <div className="admin-header">
-          <div>
-            <div className="admin-title-row">
-              <ShieldCheck size={24} />
-              <h1>Admin Users</h1>
-            </div>
-            <p className="dashboard-subheader">
-              Review accounts and generate one-time password reset links.
-            </p>
-          </div>
-          <div className="admin-header-actions">
-            <button className="secondary" onClick={() => fetchUsers({ quiet: true })} disabled={refreshing || bulkBusy}>
-              <RefreshCw size={15} className={refreshing ? "spin-icon" : ""} />
-              Refresh
-            </button>
-            <button className="primary" onClick={generateForAll} disabled={bulkBusy || loading || visibleUsers.length === 0}>
-              {bulkBusy ? <Loader2 size={15} className="spin-icon" /> : <ShieldCheck size={15} />}
-              Generate For All
-            </button>
-          </div>
-        </div>
+        {/* Navigation Tabs */}
+        <nav className="admin-tabs-nav" aria-label="Admin sections">
+          <button
+            type="button"
+            className={`admin-tab-btn${activeTab === "users" ? " active" : ""}`}
+            onClick={() => handleTabChange("users")}
+          >
+            <Users size={15} />
+            <span>Users & Roles</span>
+            {users.length > 0 && <span className="admin-tab-badge">{users.length}</span>}
+          </button>
 
-        <section className="panel-card admin-toolbar">
-          <div className="admin-search">
-            <Search size={16} />
-            <input
-              type="text"
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search users, email, or Telegram ID"
-              aria-label="Search users"
-            />
-          </div>
-          <div className="admin-count">
-            {visibleUsers.length} of {users.length} users
-          </div>
-        </section>
+          <button
+            type="button"
+            className={`admin-tab-btn${activeTab === "notifications" ? " active" : ""}`}
+            onClick={() => handleTabChange("notifications")}
+          >
+            <Bell size={15} />
+            <span>Notifications</span>
+          </button>
 
-        {loading ? (
-          <section className="panel-card admin-loading">
-            <Loader2 size={18} className="spin-icon" />
-            Loading users...
-          </section>
-        ) : error ? (
-          <section className="panel-card admin-error">
-            <strong>{error}</strong>
-            <button className="secondary" onClick={() => fetchUsers()}>
-              Try again
-            </button>
-          </section>
-        ) : (
-          <section className="admin-table-wrap" aria-label="Users">
-            <table className="admin-user-table">
-              <thead>
-                <tr>
-                  <th>User</th>
-                  <th>Role</th>
-                  <th>Status</th>
-                  <th>Contact</th>
-                  <th>Reset Status</th>
-                  <th>Reset Link</th>
-                  <th>Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {visibleUsers.map((user) => {
-                  const generated = resetLinks[user.username];
-                  const isBusy = Boolean(busyUsers[user.username]);
-                  const isPrimaryAdmin = user.username === ADMIN_USERNAME;
-
-                  return (
-                    <tr key={user.username}>
-                      <td>
-                        <div className="admin-user-name">{user.username}</div>
-                        {user.role === "admin" && (
-                          <span className="badge owner">Admin</span>
-                        )}
-                        {isPrimaryAdmin && <div className="admin-meta">Primary admin</div>}
-                      </td>
-                      <td>
-                        <select
-                          className="admin-select"
-                          value={user.role || "user"}
-                          disabled={isBusy || isPrimaryAdmin}
-                          onChange={(event) => updateUserAccess(user, { role: event.target.value })}
-                          aria-label={`Role for ${user.username}`}
-                        >
-                          <option value="user">User</option>
-                          <option value="admin">Admin</option>
-                        </select>
-                      </td>
-                      <td>
-                        <select
-                          className="admin-select"
-                          value={user.account_status || "active"}
-                          disabled={isBusy || isPrimaryAdmin}
-                          onChange={(event) => updateUserAccess(user, { account_status: event.target.value })}
-                          aria-label={`Status for ${user.username}`}
-                        >
-                          <option value="active">Active</option>
-                          <option value="suspended">Suspended</option>
-                        </select>
-                        {user.account_status === "suspended" && (
-                          <div className="admin-meta admin-status-danger">Submissions blocked</div>
-                        )}
-                      </td>
-                      <td>
-                        <div>{user.email || "No email"}</div>
-                        <div className="admin-meta">
-                          Telegram: {maskTelegramId(user.telegram_chat_id)}
-                          {user.telegram_notifications ? " - alerts on" : ""}
-                        </div>
-                      </td>
-                      <td>
-                        <span className={`badge ${user.has_active_reset ? "pending" : ""}`}>
-                          {user.has_active_reset ? "Active" : "None"}
-                        </span>
-                        <div className="admin-meta">{formatDate(user.password_reset_expires)}</div>
-                      </td>
-                      <td>
-                        {generated ? (
-                          <div className="admin-reset-link">
-                            <input readOnly value={generated.reset_link} aria-label={`Reset link for ${user.username}`} />
-                            <button
-                              className="secondary"
-                              onClick={() => copyResetLink(user.username)}
-                              title="Copy reset link"
-                              aria-label={`Copy reset link for ${user.username}`}
-                            >
-                              <Copy size={14} />
-                            </button>
-                            <a
-                              className="admin-icon-link"
-                              href={generated.reset_link}
-                              target="_blank"
-                              rel="noreferrer"
-                              title="Open reset link"
-                              aria-label={`Open reset link for ${user.username}`}
-                            >
-                              <ExternalLink size={14} />
-                            </a>
-                          </div>
-                        ) : (
-                          <span className="admin-meta">Generate to reveal a one-time link.</span>
-                        )}
-                      </td>
-                      <td>
-                        <button
-                          className="primary"
-                          onClick={() => generateResetLink(user.username)}
-                          disabled={isBusy || bulkBusy}
-                        >
-                          {isBusy ? <Loader2 size={14} className="spin-icon" /> : <RefreshCw size={14} />}
-                          Generate
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-
-            {visibleUsers.length === 0 && (
-              <div className="admin-empty">No users match that search.</div>
+          <button
+            type="button"
+            className={`admin-tab-btn${activeTab === "messages" ? " active" : ""}`}
+            onClick={() => handleTabChange("messages")}
+          >
+            <MessageSquare size={15} />
+            <span>Support Messages</span>
+            {openMessagesCount > 0 && (
+              <span className="admin-tab-badge admin-tab-badge-alert">{openMessagesCount}</span>
             )}
-          </section>
+          </button>
+        </nav>
+
+        {/* Tab 1: Users & Roles */}
+        {activeTab === "users" && (
+          <>
+            <div className="admin-header">
+              <div>
+                <div className="admin-title-row">
+                  <ShieldCheck size={24} />
+                  <h1>Admin Users</h1>
+                </div>
+                <p className="dashboard-subheader">
+                  Review accounts and generate one-time password reset links.
+                </p>
+              </div>
+              <div className="admin-header-actions">
+                <button className="secondary" onClick={() => fetchUsers({ quiet: true })} disabled={refreshing || bulkBusy}>
+                  <RefreshCw size={15} className={refreshing ? "spin-icon" : ""} />
+                  Refresh
+                </button>
+                <button className="primary" onClick={generateForAll} disabled={bulkBusy || loading || visibleUsers.length === 0}>
+                  {bulkBusy ? <Loader2 size={15} className="spin-icon" /> : <ShieldCheck size={15} />}
+                  Generate For All
+                </button>
+              </div>
+            </div>
+
+            <section className="panel-card admin-toolbar">
+              <div className="admin-search">
+                <Search size={16} />
+                <input
+                  type="text"
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  placeholder="Search users, email, or Telegram ID"
+                  aria-label="Search users"
+                />
+              </div>
+              <div className="admin-count">
+                {visibleUsers.length} of {users.length} users
+              </div>
+            </section>
+
+            {loading ? (
+              <section className="panel-card admin-loading">
+                <Loader2 size={18} className="spin-icon" />
+                Loading users...
+              </section>
+            ) : error ? (
+              <section className="panel-card admin-error">
+                <strong>{error}</strong>
+                <button className="secondary" onClick={() => fetchUsers()}>
+                  Try again
+                </button>
+              </section>
+            ) : (
+              <section className="admin-table-wrap" aria-label="Users">
+                <table className="admin-user-table">
+                  <thead>
+                    <tr>
+                      <th>User</th>
+                      <th>Role</th>
+                      <th>Status</th>
+                      <th>Contact</th>
+                      <th>Reset Status</th>
+                      <th>Reset Link</th>
+                      <th>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {visibleUsers.map((user) => {
+                      const generated = resetLinks[user.username];
+                      const isBusy = Boolean(busyUsers[user.username]);
+                      const isPrimaryAdmin = user.username === ADMIN_USERNAME;
+
+                      return (
+                        <tr key={user.username}>
+                          <td>
+                            <div className="admin-user-name">{user.username}</div>
+                            {user.role === "admin" && (
+                              <span className="badge owner">Admin</span>
+                            )}
+                            {isPrimaryAdmin && <div className="admin-meta">Primary admin</div>}
+                          </td>
+                          <td>
+                            <select
+                              className="admin-select"
+                              value={user.role || "user"}
+                              disabled={isBusy || isPrimaryAdmin}
+                              onChange={(event) => updateUserAccess(user, { role: event.target.value })}
+                              aria-label={`Role for ${user.username}`}
+                            >
+                              <option value="user">User</option>
+                              <option value="admin">Admin</option>
+                            </select>
+                          </td>
+                          <td>
+                            <select
+                              className="admin-select"
+                              value={user.account_status || "active"}
+                              disabled={isBusy || isPrimaryAdmin}
+                              onChange={(event) => updateUserAccess(user, { account_status: event.target.value })}
+                              aria-label={`Status for ${user.username}`}
+                            >
+                              <option value="active">Active</option>
+                              <option value="suspended">Suspended</option>
+                            </select>
+                            {user.account_status === "suspended" && (
+                              <div className="admin-meta admin-status-danger">Submissions blocked</div>
+                            )}
+                          </td>
+                          <td>
+                            <div>{user.email || "No email"}</div>
+                            <div className="admin-meta">
+                              Telegram: {maskTelegramId(user.telegram_chat_id)}
+                              {user.telegram_notifications ? " - alerts on" : ""}
+                            </div>
+                          </td>
+                          <td>
+                            <span className={`badge ${user.has_active_reset ? "pending" : ""}`}>
+                              {user.has_active_reset ? "Active" : "None"}
+                            </span>
+                            <div className="admin-meta">{formatDate(user.password_reset_expires)}</div>
+                          </td>
+                          <td>
+                            {generated ? (
+                              <div className="admin-reset-link">
+                                <input readOnly value={generated.reset_link} aria-label={`Reset link for ${user.username}`} />
+                                <button
+                                  className="secondary"
+                                  onClick={() => copyResetLink(user.username)}
+                                  title="Copy reset link"
+                                  aria-label={`Copy reset link for ${user.username}`}
+                                >
+                                  <Copy size={14} />
+                                </button>
+                                <a
+                                  className="admin-icon-link"
+                                  href={generated.reset_link}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  title="Open reset link"
+                                  aria-label={`Open reset link for ${user.username}`}
+                                >
+                                  <ExternalLink size={14} />
+                                </a>
+                              </div>
+                            ) : (
+                              <span className="admin-meta">Generate to reveal a one-time link.</span>
+                            )}
+                          </td>
+                          <td>
+                            <button
+                              className="primary"
+                              onClick={() => generateResetLink(user.username)}
+                              disabled={isBusy || bulkBusy}
+                            >
+                              {isBusy ? <Loader2 size={14} className="spin-icon" /> : <RefreshCw size={14} />}
+                              Generate
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+
+                {visibleUsers.length === 0 && (
+                  <div className="admin-empty">No users match that search.</div>
+                )}
+              </section>
+            )}
+          </>
         )}
 
-        {!loading && !error && (
+        {/* Tab 2: Notifications */}
+        {activeTab === "notifications" && (
+          <AdminNotificationsTab token={token} users={users} />
+        )}
+
+        {/* Tab 3: Support Messages */}
+        {activeTab === "messages" && (
           <section className="panel-card admin-messages-panel">
             <div className="admin-section-header">
               <div>

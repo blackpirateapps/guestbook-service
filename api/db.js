@@ -74,6 +74,42 @@ export async function initAdminMessageTables() {
   `);
 }
 
+// Initialize notifications and notification_reads tables
+export async function initNotificationsTables() {
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS notifications (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      created_by TEXT NOT NULL,
+      target_type TEXT NOT NULL DEFAULT 'all',
+      target_value TEXT NULL,
+      title TEXT NOT NULL,
+      message TEXT NOT NULL,
+      severity TEXT DEFAULT 'info',
+      action_label TEXT NULL,
+      action_url TEXT NULL,
+      is_banner INTEGER DEFAULT 0,
+      send_telegram INTEGER DEFAULT 0,
+      expires_at TEXT NULL,
+      created_at TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY (created_by) REFERENCES users(username)
+    )
+  `);
+
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS notification_reads (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      notification_id INTEGER NOT NULL,
+      username TEXT NOT NULL,
+      is_read INTEGER DEFAULT 1,
+      read_at TEXT DEFAULT (datetime('now')),
+      is_dismissed INTEGER DEFAULT 0,
+      dismissed_at TEXT NULL,
+      UNIQUE(notification_id, username),
+      FOREIGN KEY (notification_id) REFERENCES notifications(id) ON DELETE CASCADE
+    )
+  `);
+}
+
 // Initialize comment_sections and comments tables
 export async function initCommentsTables() {
   await db.execute(`
@@ -181,6 +217,25 @@ function buildTelegramMessage(payload) {
       '',
       `This link expires in ${escapeTelegramHtml(payload.expires_minutes || 30)} minutes. If you did not request this, you can ignore it.`
     ].join('\n');
+  }
+
+  if (payload.type === 'notification' || payload.type === 'admin_notification') {
+    const icon = {
+      urgent: '🚨',
+      warning: '⚠️',
+      success: '✅',
+      info: '📢'
+    }[payload.severity] || '📢';
+    const lines = [
+      `${icon} <b>${escapeTelegramHtml(payload.title || 'Announcement')}</b>`,
+      '',
+      escapeTelegramHtml(payload.message || '')
+    ];
+    if (payload.action_label && payload.action_url) {
+      lines.push('');
+      lines.push(`👉 <a href="${escapeTelegramHtml(payload.action_url)}">${escapeTelegramHtml(payload.action_label)}</a>`);
+    }
+    return lines.join('\n');
   }
 
   return `🔔 <b>New Notification</b>\n\n${escapeTelegramHtml(JSON.stringify(payload))}`;
