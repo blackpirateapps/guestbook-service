@@ -32,6 +32,7 @@ async function ensureUserColumns() {
   try { await db.execute('ALTER TABLE users ADD COLUMN telegram_notifications INTEGER DEFAULT 0'); } catch {}
   try { await db.execute('ALTER TABLE users ADD COLUMN password_reset_token_hash TEXT'); } catch {}
   try { await db.execute('ALTER TABLE users ADD COLUMN password_reset_expires TEXT'); } catch {}
+  try { await db.execute('ALTER TABLE users ADD COLUMN last_active_at TEXT'); } catch {}
 }
 
 function hashResetToken(token) {
@@ -69,7 +70,8 @@ function serializeUser(row) {
     telegram_chat_id: row.telegram_chat_id || '',
     telegram_notifications: Number(row.telegram_notifications) === 1 ? 1 : 0,
     password_reset_expires: expiresAt,
-    has_active_reset: Boolean(expiresMs && expiresMs > Date.now())
+    has_active_reset: Boolean(expiresMs && expiresMs > Date.now()),
+    last_active_at: row.last_active_at || null
   };
 }
 
@@ -90,7 +92,7 @@ export default async function handler(req, res) {
   if (req.method === 'GET') {
     try {
       const result = await db.execute({
-        sql: `SELECT username, role, account_status, email, telegram_chat_id, telegram_notifications, password_reset_expires
+        sql: `SELECT username, role, account_status, email, telegram_chat_id, telegram_notifications, password_reset_expires, last_active_at
               FROM users
               ORDER BY lower(username) ASC`
       });
@@ -114,7 +116,7 @@ export default async function handler(req, res) {
 
       try {
         const existing = await db.execute({
-          sql: `SELECT username, role, account_status, email, telegram_chat_id, telegram_notifications, password_reset_expires
+          sql: `SELECT username, role, account_status, email, telegram_chat_id, telegram_notifications, password_reset_expires, last_active_at
                 FROM users WHERE username = ?`,
           args: [targetUsername]
         });

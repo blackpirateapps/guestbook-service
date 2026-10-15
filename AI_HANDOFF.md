@@ -135,7 +135,7 @@ Public guestbook behavior is straightforward:
 ### `api/admin.js`
 
 - Admin-only endpoint; every request must include a JWT for an active account with role `admin`.
-- `GET /api/admin` returns all users with non-sensitive profile/reset metadata: username, role, account status, email, Telegram status, and active reset expiry.
+- `GET /api/admin` returns all users with non-sensitive profile/reset metadata: username, role, account status, email, Telegram status, active reset expiry, and last active timestamp (`last_active_at`).
 - `POST /api/admin?action=update_user` with `{ username, role, account_status }` changes a user between `user`/`admin` and `active`/`suspended`. The primary `sudip` account cannot be demoted or suspended.
 - `POST /api/admin?action=generate_password_reset` with `{ username, origin }` creates a 30-minute password reset token for any user and returns `{ reset_link, expires_at }`.
 - Reset links are not sent through Telegram by this endpoint; the admin page displays them so the admin can copy or share them manually.
@@ -250,7 +250,7 @@ The comment create flow uses:
 ## Schema Notes
 
 - `users` and `entries` are assumed to exist already. This repo does not create those tables.
-- `api/user.js`, `api/admin.js`, and `api/access.js` opportunistically add columns such as `embed_css_url`, `email`, `telegram_chat_id`, `telegram_notifications`, `role`, and `account_status` if they are missing.
+- `api/user.js`, `api/admin.js`, and `api/access.js` opportunistically add columns such as `embed_css_url`, `email`, `telegram_chat_id`, `telegram_notifications`, `role`, `account_status`, and `last_active_at` if they are missing.
 - Password reset flows opportunistically add `password_reset_token_hash` and `password_reset_expires` to `users`.
 - Suspended users cannot log in, use authenticated dashboard APIs, or receive new guestbook entries, comment submissions/likes, post likes, or contact form submissions.
 - `api/db.js` creates the `admin_messages` table for user-to-admin dashboard messages, and `notifications` + `notification_reads` for the decoupled notification broadcast system.

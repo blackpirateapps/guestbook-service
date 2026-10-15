@@ -1656,7 +1656,43 @@ input[type="checkbox"] {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--space-4);
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+.admin-toolbar-filters {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+.admin-filter-group {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+.admin-filter-icon {
+  position: absolute;
+  left: 10px;
+  color: var(--color-text-muted);
+  pointer-events: none;
+}
+.admin-toolbar-select {
+  height: 36px;
+  padding: 0 28px 0 28px;
+  border: var(--border-input);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+  margin-bottom: 0;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.admin-toolbar-select:focus {
+  border-color: var(--color-accent);
+  outline: none;
+  box-shadow: var(--shadow-focus);
 }
 .admin-search {
   position: relative;
@@ -1689,7 +1725,7 @@ input[type="checkbox"] {
 }
 .admin-user-table {
   width: 100%;
-  min-width: 1120px;
+  min-width: 1240px;
   border-collapse: collapse;
 }
 .admin-user-table th,
@@ -1699,6 +1735,52 @@ input[type="checkbox"] {
   text-align: left;
   vertical-align: top;
   font-size: 0.875rem;
+}
+.admin-last-active-cell {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.admin-last-active-text {
+  font-weight: 600;
+  color: var(--color-text);
+}
+.admin-last-active-text.is-online {
+  color: #059669;
+}
+.admin-online-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 1px 7px;
+  border-radius: 9999px;
+  background: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(16, 185, 129, 0.25);
+  color: #047857;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  line-height: 1.4;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+.admin-online-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: #10b981;
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2);
+  animation: pulseDot 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+@keyframes pulseDot {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.5;
+    transform: scale(0.85);
+  }
 }
 .admin-user-table th {
   background: #fafaf9;
@@ -2675,5 +2757,19 @@ input[type="checkbox"] {
   }
   .severity-btn.active.severity-urgent {
     background: #331515;
+  }
+
+  .admin-online-badge {
+    background: rgba(16, 185, 129, 0.2);
+    border-color: rgba(16, 185, 129, 0.4);
+    color: #6ee7b7;
+  }
+  .admin-last-active-text.is-online {
+    color: #34d399;
+  }
+  .admin-toolbar-select {
+    background: var(--color-bg-alt);
+    color: var(--color-text);
+    border-color: rgba(255, 255, 255, 0.12);
   }
 }

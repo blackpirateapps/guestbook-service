@@ -2,7 +2,7 @@ import { db, sendTelegramNotification } from '../../lib/db.js';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
-import { SECRET, ensureAccountColumns, getAccount, requireActiveUser } from '../../lib/access.js';
+import { SECRET, ensureAccountColumns, getAccount, requireActiveUser, touchUserActivity } from '../../lib/access.js';
 
 const RESET_TOKEN_TTL_MINUTES = 30;
 
@@ -14,6 +14,7 @@ async function ensureUserColumns() {
   try { await db.execute('ALTER TABLE users ADD COLUMN telegram_notifications INTEGER DEFAULT 0'); } catch {}
   try { await db.execute('ALTER TABLE users ADD COLUMN password_reset_token_hash TEXT'); } catch {}
   try { await db.execute('ALTER TABLE users ADD COLUMN password_reset_expires TEXT'); } catch {}
+  try { await db.execute('ALTER TABLE users ADD COLUMN last_active_at TEXT'); } catch {}
 }
 
 function getJsonBody(req) {
@@ -67,10 +68,12 @@ export default async function handler(req, res) {
     const hashedPassword = await bcrypt.hash(password, 10);
     try {
       await ensureUserColumns();
+      const nowIso = new Date().toISOString();
       await db.execute({
-        sql: 'INSERT INTO users (username, password) VALUES (?, ?)',
-        args: [username, hashedPassword]
+        sql: 'INSERT INTO users (username, password, last_active_at) VALUES (?, ?, ?)',
+        args: [username, hashedPassword, nowIso]
       });
+      touchUserActivity(username, { force: true });
       return res.status(201).json({ message: 'User created' });
     } catch (err) {
       return res.status(400).json({ error: 'Username likely taken' });
@@ -94,6 +97,7 @@ export default async function handler(req, res) {
           code: 'account_suspended'
         });
       }
+      touchUserActivity(user.username, { force: true });
       const token = jwt.sign({ username: user.username }, SECRET);
       return res.status(200).json({
         token,

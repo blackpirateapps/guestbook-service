@@ -3,9 +3,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
+  ArrowUpDown,
   Bell,
   Copy,
   ExternalLink,
+  Filter,
   Loader2,
   LogOut,
   MessageSquare,
@@ -19,6 +21,7 @@ import { useToast } from "../components/Toast.jsx";
 import AdminNotificationsTab from "../features/admin/AdminNotificationsTab.jsx";
 
 const ADMIN_USERNAME = "sudip";
+const ONLINE_THRESHOLD_MS = 15 * 60 * 1000; // 15 minutes
 
 function formatDate(value) {
   if (!value) return "None";
@@ -27,6 +30,38 @@ function formatDate(value) {
   return date.toLocaleString(undefined, {
     dateStyle: "medium",
     timeStyle: "short",
+  });
+}
+
+function isUserOnline(value) {
+  if (!value) return false;
+  const time = new Date(value).getTime();
+  if (Number.isNaN(time)) return false;
+  return Date.now() - time <= ONLINE_THRESHOLD_MS;
+}
+
+function formatRelativeTime(value) {
+  if (!value) return "Never";
+  const date = new Date(value);
+  const time = date.getTime();
+  if (Number.isNaN(time)) return "Unknown";
+
+  const diffMs = Date.now() - time;
+  if (diffMs < 0) return "Just now";
+  const diffSec = Math.floor(diffMs / 1000);
+  if (diffSec < 60) return "Just now";
+  const diffMin = Math.floor(diffSec / 60);
+  if (diffMin < 60) return `${diffMin}m ago`;
+  const diffHours = Math.floor(diffMin / 60);
+  if (diffHours < 24) return `${diffHours}h ago`;
+  const diffDays = Math.floor(diffHours / 24);
+  if (diffDays === 1) return "Yesterday";
+  if (diffDays < 7) return `${diffDays}d ago`;
+  if (diffDays < 30) return `${Math.floor(diffDays / 7)}w ago`;
+  return date.toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
   });
 }
 
@@ -53,6 +88,8 @@ export default function Admin() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
   const [query, setQuery] = useState("");
+  const [activityFilter, setActivityFilter] = useState("all");
+  const [sortBy, setSortBy] = useState("active_desc");
   const [resetLinks, setResetLinks] = useState({});
   const [busyUsers, setBusyUsers] = useState({});
   const [bulkBusy, setBulkBusy] = useState(false);
@@ -73,13 +110,57 @@ export default function Admin() {
   }, [token]);
 
   const visibleUsers = useMemo(() => {
+    let result = users;
+
+    // 1. Text search
     const needle = query.trim().toLowerCase();
-    if (!needle) return users;
-    return users.filter((user) => {
-      return [user.username, user.email, user.telegram_chat_id, user.role, user.account_status]
-        .some((value) => String(value || "").toLowerCase().includes(needle));
+    if (needle) {
+      result = result.filter((user) => {
+        return [user.username, user.email, user.telegram_chat_id, user.role, user.account_status]
+          .some((value) => String(value || "").toLowerCase().includes(needle));
+      });
+    }
+
+    // 2. Activity status filter
+    const now = Date.now();
+    const thirtyDaysMs = 30 * 24 * 60 * 60 * 1000;
+    if (activityFilter === "online") {
+      result = result.filter((user) => isUserOnline(user.last_active_at));
+    } else if (activityFilter === "active_30d") {
+      result = result.filter((user) => {
+        if (!user.last_active_at) return false;
+        const time = new Date(user.last_active_at).getTime();
+        return !Number.isNaN(time) && (now - time <= thirtyDaysMs);
+      });
+    } else if (activityFilter === "inactive") {
+      result = result.filter((user) => {
+        if (!user.last_active_at) return true;
+        const time = new Date(user.last_active_at).getTime();
+        return Number.isNaN(time) || (now - time > thirtyDaysMs);
+      });
+    }
+
+    // 3. Sorting
+    return [...result].sort((a, b) => {
+      if (sortBy === "active_desc") {
+        const timeA = a.last_active_at ? new Date(a.last_active_at).getTime() : 0;
+        const timeB = b.last_active_at ? new Date(b.last_active_at).getTime() : 0;
+        if (timeA !== timeB) return timeB - timeA;
+        return a.username.localeCompare(b.username);
+      }
+      if (sortBy === "active_asc") {
+        const timeA = a.last_active_at ? new Date(a.last_active_at).getTime() : 0;
+        const timeB = b.last_active_at ? new Date(b.last_active_at).getTime() : 0;
+        if (timeA !== timeB) return timeA - timeB;
+        return a.username.localeCompare(b.username);
+      }
+      if (sortBy === "username_desc") {
+        return b.username.localeCompare(a.username);
+      }
+      // default username_asc
+      return a.username.localeCompare(b.username);
     });
-  }, [query, users]);
+  }, [query, users, activityFilter, sortBy]);
 
   async function fetchUsers({ quiet = false } = {}) {
     if (!quiet) setLoading(true);
@@ -410,6 +491,37 @@ export default function Admin() {
                   aria-label="Search users"
                 />
               </div>
+              <div className="admin-toolbar-filters">
+                <div className="admin-filter-group">
+                  <Filter size={14} className="admin-filter-icon" />
+                  <select
+                    className="admin-toolbar-select"
+                    value={activityFilter}
+                    onChange={(e) => setActivityFilter(e.target.value)}
+                    aria-label="Filter by activity"
+                  >
+                    <option value="all">All Users</option>
+                    <option value="online">Online Now</option>
+                    <option value="active_30d">Active (last 30d)</option>
+                    <option value="inactive">Inactive / Never</option>
+                  </select>
+                </div>
+
+                <div className="admin-filter-group">
+                  <ArrowUpDown size={14} className="admin-filter-icon" />
+                  <select
+                    className="admin-toolbar-select"
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value)}
+                    aria-label="Sort users"
+                  >
+                    <option value="active_desc">Recently Active</option>
+                    <option value="active_asc">Least Active</option>
+                    <option value="username_asc">Username (A → Z)</option>
+                    <option value="username_desc">Username (Z → A)</option>
+                  </select>
+                </div>
+              </div>
               <div className="admin-count">
                 {visibleUsers.length} of {users.length} users
               </div>
@@ -435,6 +547,7 @@ export default function Admin() {
                       <th>User</th>
                       <th>Role</th>
                       <th>Status</th>
+                      <th>Last Active</th>
                       <th>Contact</th>
                       <th>Reset Status</th>
                       <th>Reset Link</th>
@@ -446,6 +559,7 @@ export default function Admin() {
                       const generated = resetLinks[user.username];
                       const isBusy = Boolean(busyUsers[user.username]);
                       const isPrimaryAdmin = user.username === ADMIN_USERNAME;
+                      const isOnline = isUserOnline(user.last_active_at);
 
                       return (
                         <tr key={user.username}>
@@ -481,6 +595,27 @@ export default function Admin() {
                             </select>
                             {user.account_status === "suspended" && (
                               <div className="admin-meta admin-status-danger">Submissions blocked</div>
+                            )}
+                          </td>
+                          <td>
+                            <div className="admin-last-active-cell">
+                              {isOnline && (
+                                <span className="admin-online-badge" title="Active in last 15 minutes">
+                                  <span className="admin-online-dot" />
+                                  Online
+                                </span>
+                              )}
+                              <span
+                                className={`admin-last-active-text ${isOnline ? "is-online" : ""}`}
+                                title={user.last_active_at ? formatDate(user.last_active_at) : "No activity recorded"}
+                              >
+                                {formatRelativeTime(user.last_active_at)}
+                              </span>
+                            </div>
+                            {user.last_active_at && (
+                              <div className="admin-meta" title={user.last_active_at}>
+                                {formatDate(user.last_active_at)}
+                              </div>
                             )}
                           </td>
                           <td>
